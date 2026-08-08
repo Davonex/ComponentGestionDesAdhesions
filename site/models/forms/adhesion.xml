@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+	<config>
+		<inlinehelp button="show"/>
+	</config>
+
+
+	<field name="civilite" type="list" label="COM_GDA_CIVILITE_LABEL" class="inputbox" default="M.">
+
+		<!-- @TODO remplacer les valeurs par une variable de texte -->
+		<option value="Mme">Mme</option>
+		<option value="M.">M.</option>
+		<option value="Mlle">Mlle</option>
+	</field>
+
+	<field name="username" type="text" label="COM_GDA_LICENCE_LABEL" description="COM_GDA_LICENCE_DESC" class="inputbox" default="" pattern="A-[0-9]{2}-[0-9]{6,7}" hint="A-00-000000" size="25" />
+
+	<field name="nom" type="text" label="COM_GDA_NOM_LABEL" description="COM_GDA_NOM_DESC" required="true" class="" size="25" />
+
+	<field name="prenom" type="text" label="COM_GDA_PRENOM_LABEL" description="COM_GDA_PRENOM_DESC" required="true" class="fs-6 fs-md-4 fs-lg-2" size="25" />
+
+	<field name="date_de_naissance" type="Calendar" label="COM_GDA_DATE_NAISSANCE_LABEL" description="COM_GDA_DATE_NAISSANCE_DESC" size="20" maxlength="20" class=""  required="true" hint="dd/mm/yyyy" format="%d/%m/%Y" filterformat="d/m/Y" pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d" translateformat="false" />
+
+	<field name="date_licence" type="Calendar" label="COM_GDA_DATE_VALIDITE_LABEL" description="COM_GDA_DATE_VALIDITE_DESC" size="20" maxlength="20" class=""  required="false" hint="dd/mm/yyyy" format="%d/%m/%Y" filterformat="d/m/Y" pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d" translateformat="false" disabled="true" />
+
+	<field name="adresse" type="text" label="COM_GDA_ADRESSE_LABEL" description="COM_GDA_ADRESSE_DESC" required="true" hint="25 avenue Ampère" size="25" class="" />
+
+	<field name="code_postal" type="text" label="COM_GDA_CODE_POSTAL_LABEL" description="COM_GDA_CODE_POSTAL_DESC" required="true" hint="91000" pattern="[0-9]{5}" size="25" class="" />
+
+	<field name="ville" type="text" label="COM_GDA_VILLE_LABEL" description="COM_GDA_VILLE_DESC" required="true" size="25" class="" />
+
+	<field name="telephone" type="telephone" label="COM_GDA_TEL_LABEL" description="COM_GDA_TEL_DESC" required="true" pattern="^(?:0|\(?\+33\)?\s?|0033\s?)[1-79](?:[\.\-\s]?\d\d){4}$" size="20" class="" />
+
+
+	<field name="email" type="Email" label="COM_GDA_EMAIL_LABEL" description="COM_GDA_EMAIL_DESC" required="true" size="25" class="email" validate="email" />
+
+	<field name="upload.photo" type="file" label="COM_GDA_PHOTO_LABEL" description="" accept=".jpg" class="" />
+
+
+	<field name="a_prevenir" type="text" label="COM_GDA_A_PREVENIR_LABEL" description="COM_GDA_A_PREVENIR_DESC" required="true" size="25" class="" />
+
+	<field name="a_prevenir_tel" type="telephone" label="COM_GDA_A_PREVENIR_TEL_LABEL" description="COM_GDA_A_PREVENIR_TEL_DESC" required="true" pattern="^(?:0|\(?\+33\)?\s?|0033\s?)[1-79](?:[\.\-\s]?\d\d){4}$" size="25" class="" />
+
+
+
+	<field name="upload.caci" type="file" label="COM_GDA_CACI_LABEL" description="" accept=".jpg" class="" />
+
+	<field name="date_caci" type="Calendar" label="COM_GDA_DATE_CACI_LABEL" description="COM_GDA_DATE_CACI_DESC" size="20" maxlength="20" class="date  inputbox" required="false" hint="dd/mm/yyyy" format="%d/%m/%Y" pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d" />
+
+	<field name="droit_img" type="switch" label="COM_GDA_DROIT_IMGAGE_LABEL" description="COM_GDA_DROIT_IMGAGE_DESC" class="form-check-input" required="true" value="1">
+	</field>
+
+
+
+
+
+
+	<field name="reduction" type="list" label="COM_GDA_REDUCTION_LABEL" description="COM_GDA_REDUCTION_DESC" class="inputbox"
+			default ="0">
+		<!-- @TODO remplacer les valeurs par une variable de texte -->
+		<option value="0">COM_GDA_REDUCTION_CHOIX_0</option>
+		<option value="1">COM_GDA_REDUCTION_CHOIX_1</option>
+		<option value="2">COM_GDA_REDUCTION_CHOIX_2</option>
+		<option value="3">COM_GDA_REDUCTION_CHOIX_3</option>
+		<option value="4">COM_GDA_REDUCTION_CHOIX_4</option>
+	</field>
+
+	<field name="nbr_plongee" type="text" label="COM_GDA_NBR_PLONGEE_LABEL" description="COM_GDA_NBR_PLONGEE_DESC" size="10" class="text-end" required="false">
+	</field>
+
+	<field name="nbr_plongee_35" type="text" label="COM_GDA_NBR_PLONGEE_35_LABEL" description="COM_GDA_NBR_PLONGEE_35_DESC" size="10" class="text-end" required="false">
+	</field>
+
+	<field name="nbr_plongee_auto" type="text" label="COM_GDA_NBR_PLONGEE_AUTO_LABEL" description="COM_GDA_NBR_PLONGEE_AUTO_DESC" size="10" class="text-end" required="false">
+	</field>
+
+	<field name="id_groupes" type="multiselect" multiple="true" table="#__gda_groupes" key_field="id_groupe" value_field="groupe_name" ordering="groupe_tri ASC" required="false" label="COM_GDA_GROUPES_LABEL" description="COM_GDA_GROUPES_DESC" />
+
+
+	<field name="key" type="hidden" />
+
+	<field name="photo" type="hidden" />
+	<field name="caci" type="hidden" />
+
+
+	<field name="id" type="hidden" />
+	<field name="ffessm_token" type="hidden" />
+
+	<field name="helloasso" type="hidden" value="0" />
+
+
+	<field name="cotisation_code" type="hidden" value="A2" />
+	<field name="cotisation_montant" type="hidden" />
+
+
+
+
+
+
+
+
+
+	<fieldset name="conditions" label="COM_GDA_CONDITIONS_LABEL" description="COM_GDA_CONDITIONS_DESC">
+		<field name="conditions" label="COM_GDA_CONDITIONS_LABEL" description="COM_GDA_CONDITIONS_DESC" required="true" value="false" type="checkbox" class="inputbox">
+		</field>
+
+
+	</fieldset>
+
+</form>

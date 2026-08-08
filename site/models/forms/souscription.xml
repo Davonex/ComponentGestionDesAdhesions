@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+	<field
+        name="id_campagne"
+        type="hidden"
+    />
+
+    <field
+        name="id_profil"
+        type="hidden"
+    />
+
+</form>

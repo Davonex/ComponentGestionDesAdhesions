@@ -1,0 +1,583 @@
+/* ** */
+
+/* Variables globales du composant (maintenance centralisee des etats input). */
+:root {
+    --gda-input-hover-border: #8893aa;
+    --gda-input-focus-border: #8893aa;
+    --gda-input-focus-shadow: #01015640;
+
+    --gda-btn-disabled-bg: #b3b3b3;
+    --gda-btn-disabled-color: #e8e8e8;
+    --gda-btn-disabled-border: #b3b3b3;
+
+}
+
+.bg-gda-header {
+    background-color: var(--cassiopeia-color-primary);
+}
+
+.bg-gda-white {
+    background-color: var(--white);
+}
+
+.text-header {
+    color: var(--body-bg);
+}   
+
+th {
+    text-align: center;
+}
+
+
+
+/* Saisons */
+
+.cards {
+    padding: 1rem;
+    flex-wrap: wrap;
+}
+
+.card {
+    padding: 1rem;
+}
+
+.meta {
+    color: #666;
+    font-size: .8rem;
+}
+
+#saison-id {
+    text-align: right;
+}
+
+/* Profil */
+
+.profil-edit {
+    margin: 0;
+}
+
+.profil-edit .control-group {
+    margin: 0.5em 0;
+}
+
+.text-bg-gda {
+    color: #fff !important;
+    background-color: var(--cassiopeia-color-primary) !important;
+}
+
+/* .form-control, .form-select {
+    background-color: #eee;
+    padding: 0.4rem 0.2rem;
+  } */
+
+div.container-below-top {
+    display: none;
+}
+
+/* Campagne saison (bleu/vert canard) */
+.campagne-saison .card {
+    --card-border-color: #007b8a;
+    --card-bg: #e0f7f9;
+    --card-cap-bg: rgba(0, 123, 138, 0.1);
+    color: #00474e;
+    /* background: linear-gradient(to bottom,
+        rgba(255,255,255,0),
+        var(--card-bg, #fff) 90%
+    );
+     */
+}
+
+/* .campagne-saison .card-body.limited-text::after { */
+/* background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1)); */
+/* } */
+
+/* Campagne sortie (soleil & bleu marin) */
+.campagne-sortie .card {
+    --card-border-color: #ffbb00;
+    --card-bg: #fff8e1;
+    --card-cap-bg: rgba(0, 70, 130, 0.08);
+    color: #003366;
+}
+
+/* Campagne sortie (soleil & bleu marin) */
+.campagne-pleine .card {
+    --card-border-color: #cccccc;
+    --card-bg: #f5f5f5;
+    --card-cap-bg: #e6e6e6;
+    color: #999;
+    opacity: 0.8;
+}
+
+.card-body.limited-text {
+    position: relative;
+    max-height: 152px;
+    /* ajustable selon ton besoin */
+    overflow: hidden;
+    padding-bottom: 2rem;
+    /* espace pour la fade zone */
+}
+
+/* Effet dégradé en bas */
+.card-body.limited-text::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3rem;
+    /* background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1)); */
+    pointer-events: none;
+}
+
+
+
+
+/***/
+
+/* Masquer complètement le select natif */
+select.tomselected {
+    display: none !important;
+}
+
+.ts-wrapper.form-select.multi {
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    min-height: calc(2.25rem + 2px);
+    padding: 0.375rem 0.75rem;
+    display: flex;
+    align-items: center;
+    background-image: none;
+}
+
+/* Base TomSelect = comme un input bootstrap */
+.ts-wrapper .ts-control {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: calc(1.5em + .75rem + 2px);
+    /* même hauteur qu’un input bootstrap */
+    padding: .375rem .75rem;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: .375rem;
+    transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+
+/* Focus comme Bootstrap */
+.ts-wrapper.focus .ts-control {
+    color: var(--body-color);
+    background-color: var(--body-bg);
+    border-color: var(--gda-input-focus-border);
+    outline: 0;
+    box-shadow: 0 0 0 .25rem var(--gda-input-focus-shadow);
+}
+
+
+
+/* Tags sélectionnés */
+.ts-wrapper.multi .ts-control .item {
+    background-color: var(--cassiopeia-color-primary);
+    color: var(--body-bg);
+    border-radius: .25rem;
+    padding: .25rem .5rem;
+    margin: 2px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+/* Bouton suppression du tag */
+.ts-wrapper.multi .ts-control .item .remove {
+    margin-left: .35rem;
+    color: var(--body-bg);
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.ts-wrapper.multi .ts-control .item .remove:hover {
+    color: var(--body-color);
+}
+
+/* Dropdown (liste des options) */
+.ts-wrapper .ts-dropdown {
+    background-color: var(--body-bg);
+    border: 1px solid rgba(0, 0, 0, .15);
+    border-radius: .375rem;
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
+    margin-top: .125rem;
+    z-index: 1000;
+}
+
+/* Option dans la liste */
+.ts-wrapper .ts-dropdown .option {
+    padding: .375rem .75rem;
+    cursor: pointer;
+}
+
+.ts-wrapper .ts-dropdown .option:hover,
+.ts-wrapper .ts-dropdown .option.active {
+    background-color: var(--cassiopeia-color-primary);
+    color: var(--body-color);
+}
+
+
+/** Pages d'accueil  pour les adherents */
+
+/* Navbar */
+
+.navbar-adherent {
+    background: var(--cassiopeia-color-hover);
+}
+
+
+
+/* Areas */
+
+
+.alertes{grid-area:alertes;}
+.campagnes{grid-area:campagnes;}
+.planning{grid-area:planning;}
+.documents{grid-area:documents;}
+.messages{grid-area:messages;}
+
+
+/**
+**  Personalisation du Carousel pour le template Adhesion et secretariat
+**/
+
+/* Anciens indicateurs carousel (remplacés par wizard-nav) */
+.carousel-indicators [data-bs-target] {
+    background-color: var(--noir);
+    opacity: .4;
+}
+
+/* Barre de navigation wizard en haut du carousel */
+.wizard-nav {
+    border-bottom: 2px solid var(--label-input-group-bg, #dee2e6);
+    padding-bottom: .5rem;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: .35rem;
+}
+.wizard-nav .nav-link {
+    /* color: var(--label-input-group-color, #6c757d); */
+    /* background: transparent; */
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 0;
+    border-bottom: 3px solid transparent;
+    font-weight: 500;
+    transition: color .2s, border-color .2s, background-color .2s;
+}
+
+.wizard-step-short {
+    display: none;
+}
+.wizard-nav .nav-link:hover {
+    color: var(--cassiopeia-color-primary);
+    background-color: rgba(0, 0, 0, 0.04);
+    border-bottom-color: var(--cassiopeia-color-primary);
+}
+.wizard-nav .nav-link:focus,
+.wizard-nav .nav-link:active {
+    color: inherit;
+    background-color: transparent;
+    border-bottom-color: transparent;
+    box-shadow: none;
+    outline: none;
+}
+
+.gda-preview-thumb {
+    object-fit: cover;
+    cursor: zoom-in;
+    border-radius: .25rem;
+    display: inline-block;
+}
+
+.gda-preview-thumb--64 {
+    width: 64px;
+    height: 64px;
+}
+
+.gda-preview-thumb--32 {
+    width: 32px;
+    height: 32px;
+}
+
+.gda-vignette-photo {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+}
+
+.gda-vignette-photo--empty {
+    background-color: #f7f9fc;
+}
+
+.gda-licence-chip {
+    display: inline-block;
+    padding: .25rem .5rem;
+    border-radius: .375rem;
+    font-weight: 600;
+    background-color: #e9ecef;
+    color: #212529;
+}
+
+.gda-licence-chip--warning {
+    background-color: #fff3cd;
+    color: #664d03;
+    border: 1px solid #ffecb5;
+}
+
+/* Permet de scroller horizontalement les tableaux du wizard secretaire si necessaire */
+#wizardSecretariat .card-body {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#wizardSecretariat .card-body > table.table {
+    min-width: 100%;
+    width: max-content;
+}
+
+.wizard-nav .nav-link.active,
+.wizard-nav .nav-link.active:focus {
+    color: #fff;
+    background-color: var(--cassiopeia-color-primary);
+    border-bottom-color: var(--cassiopeia-color-primary);
+    border-radius: .375rem .375rem 0 0;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+@media (max-width: 767.98px) {
+    .wizard-nav .nav-link {
+        text-align: center;
+        padding-left: .35rem;
+        padding-right: .35rem;
+    }
+
+    .wizard-nav .nav-link i,
+    .wizard-step-full {
+        display: none;
+    }
+
+    .wizard-step-short {
+        display: inline;
+        font-weight: 700;
+    }
+}
+
+/*
+ * Disabled buttons - surcharge locale du composant.
+ * Bootstrap/Cassiopeia definit ces variables par variante (.btn-success, .btn-primary, ...),
+ * donc on les redefinit avec plus de specificite sur le wizard.
+ */
+#wizardSecretariat .btn {
+    --btn-disabled-bg: var(--gda-btn-disabled-bg) !important;
+    --btn-disabled-color: var(--gda-btn-disabled-color) !important;
+    --btn-disabled-border-color: var(--gda-btn-disabled-border) !important;
+    --btn-disabled-opacity: 1;
+}
+
+#wizardSecretariat .btn:disabled,
+#wizardSecretariat .btn.disabled,
+#wizardSecretariat fieldset:disabled .btn {
+    opacity: 0.65;
+    cursor: not-allowed;
+    font-style: italic;
+}
+
+
+
+/* style pour helloasso  */
+
+.HaAuthorizeButton {
+    align-items: center;
+    justify-content: center;
+    background-color: #4B3FCF;
+    border: 0.0625rem solid #4B3FCF;
+    border-radius: 0.375rem;
+    display: inline-flex;
+    gap: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    text-decoration: none;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.HaAuthorizeButton:hover {
+    background-color: #3a30a8;
+    border-color: #3a30a8;
+}
+
+.HaAuthorizeButton:focus {
+    box-shadow: 0 0 0 0.25rem rgba(75, 63, 207, 0.35);
+}
+
+.HaAuthorizeButtonLogo {
+    height: 1.75rem;
+    width: auto;
+}
+
+.HaAuthorizeButtonTitle {
+    color: #FFFFFF;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+/*
+ * Simple-datatables - com_gdadhesions
+ * Scope global du composant: applique le style a toutes les vues com_gdadhesions.
+ */
+
+/* Variables visuelles alignees sur le theme actif (avec fallback safe). */
+.com_gdadhesions .gda-dt-container {
+    --gda-dt-border: var(--template-border-color, #d7dde5);
+    --gda-dt-surface: var(--template-bg-light, #f7f9fc);
+    --gda-dt-row-hover: #f8fbff;
+    --gda-dt-text-muted: #5c6a79;
+    font-size: small;
+}
+
+.com_gdadhesions .gda-dt-container .btn {
+    font-size: small;
+    margin: 0.15rem;
+    padding: 0.15rem;
+    cursor: default;
+}
+
+
+/* 1) Barre haute/basse + champs de controle (recherche et select) */
+.com_gdadhesions .gda-dt-top,
+.com_gdadhesions .gda-dt-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+    flex-wrap: wrap;
+    margin: .4rem 0;
+}
+
+/* Le vendor simple-datatables injecte un clearfix ::after (content:" "; display:table)
+   qui devient un 3eme item flex et pousse le champ recherche vers le centre.
+   On le neutralise ici pour que space-between ne s'applique qu'aux 2 vrais enfants. */
+.com_gdadhesions .gda-dt-top::after,
+.com_gdadhesions .gda-dt-bottom::after {
+    display: none;
+}
+
+.com_gdadhesions .gda-dt-input,
+.com_gdadhesions .gda-dt-selector {
+    border: 1px solid var(--gda-dt-border);
+    border-radius: .45rem;
+    min-height: 2.2rem;
+    background: var(--body-bg, #fff);
+    transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+
+/* Hover identique a la teinte utilisee par les champs du composant. */
+.com_gdadhesions .gda-dt-input:hover,
+.com_gdadhesions .gda-dt-selector:hover {
+    border-color: var(--gda-input-hover-border);
+}
+
+/* Focus aligne sur les inputs Bootstrap/TomSelect deja utilises dans le composant. */
+.com_gdadhesions .gda-dt-input:focus,
+.com_gdadhesions .gda-dt-selector:focus {
+    color: var(--body-color);
+    background: var(--body-bg, #fff);
+    border-color: var(--gda-input-focus-border);
+    outline: 0;
+    box-shadow: 0 0 0 .25rem var(--gda-input-focus-shadow);
+}
+
+/* 2) En-tete de tableau */
+.com_gdadhesions .gda-dt-table > thead > tr > th {
+    text-align: center;
+    background: var(--gda-dt-surface);
+    color: var(--body-color, #223041);
+    border-bottom: 1px solid var(--gda-dt-border);
+}
+
+/* 3) Lignes + survol pour la lisibilite */
+.com_gdadhesions .gda-dt-table > tbody > tr > td {
+    vertical-align: middle;
+    border-bottom: 1px solid var(--gda-dt-border);
+}
+
+.com_gdadhesions .gda-dt-table > tbody > tr:hover > td {
+    background: var(--gda-dt-row-hover);
+}
+
+/* 4) Pagination (etat normal, actif, desactive) */
+.com_gdadhesions .gda-dt-pagination a {
+    border: 1px solid var(--gda-dt-border);
+    border-radius: .35rem;
+    padding: .2rem .55rem;
+    background: var(--body-bg, #fff);
+    color: var(--body-color, #2e3b4b);
+    text-decoration: none;
+}
+
+.com_gdadhesions .gda-dt-active a {
+    color: var(--body-bg, #fff);
+    background: var(--cassiopeia-color-primary);
+    border-color: var(--cassiopeia-color-primary);
+}
+
+.com_gdadhesions .gda-dt-disabled a {
+    opacity: .45;
+    pointer-events: none;
+}
+
+/* 5) Texte d'information "Affichage de X a Y" */
+.com_gdadhesions .gda-dt-info {
+    color: var(--gda-dt-text-muted);
+    font-size: .92rem;
+}
+
+/* Cellules éditables (double-clic) - surbrillance au hover */
+.js-editable-date-caci,
+.js-editable-categorie {
+    position: relative;
+    transition: background-color 0.15s ease-in-out;
+}
+
+/* Petit triangle en haut a gauche pour signaler un champ editable. */
+.js-editable-date-caci::before,
+.js-editable-categorie::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    border-top: 10px solid var(--cassiopeia-color-primary);
+    border-right: 10px solid transparent;
+    opacity: .75;
+    pointer-events: none;
+}
+
+.js-editable-date-caci:hover,
+.js-editable-categorie:hover {
+    background-color: #fef8e7 !important;
+}
+    
+
+
+/* Style pour modifier la direction de la flèche lors de l'expansion */
+.toggle-card i {
+    transition: transform .25s ease;
+}
+
+.toggle-card[aria-expanded="true"] i {
+    transform: rotate(90deg);
+}

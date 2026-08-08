@@ -1,0 +1,132 @@
+/* Formulaire Adhesion */ 
+
+
+
+span.input-group-text {
+  background-color: var(--label-input-group-bg);
+  color:  var(--label-input-group-color);
+  min-width: 30%;
+}
+
+/* span.input-group-text:hover {
+  background-color: var(--gray-600);
+  color:  var(--gray-200);
+} */
+
+.form-control::placeholder {
+  font-style: italic;
+  opacity: 0.4;
+  font-weight: normal;
+}
+
+input.form-control, .form-select {
+  color: var(--cassiopeia-color-primary) !important;      /* Couleur du texte saisi */
+  font-size: var(--body-font-size);  
+  font-weight: bold;
+}
+
+input.form-control:-webkit-autofill {
+    -webkit-text-fill-color: var(--cassiopeia-color-primary) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+.gda-tooltip {
+  --bs-tooltip-bg: var(--bs-primary) ;
+}
+
+/* Supprimer complètement le style autofill */
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0px 1000px white inset !important;
+    -webkit-text-fill-color: #000 !important;
+    background-image: none !important;
+    background-color: white !important;
+    transition: background-color 5000s ease-in-out 0s; /* hack pour chrome */
+}
+/* seules tes classes Bootstrap (is-valid / is-invalid) gèrent les icônes */
+input:-webkit-autofill:is(.is-valid, .is-invalid) {
+    background-image: none !important;
+}
+  
+  
+  
+  .brevet-item {
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  .brevet-item.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .brevet-item.removing {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+
+/* un switch rouge pour "désactivé" et vert pour "activé" */
+.droit-image .form-check-input {
+  background-color:  var(--label-input-group-bg);
+  border-color: var(--label-input-group-bg);
+}
+
+.droit-image .form-check-input:checked {
+  background-color: var(--cassiopeia-color-primary);
+  border-color: var(--cassiopeia-color-primary);
+}
+
+div .droit-image {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  
+}
+
+.droit-image div.form-control { 
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: start;
+  border:0;
+  
+}
+.droit-image label.input-group-text { 
+   background-color: var(--label-input-group-bg);
+    color: var(--noir);
+    min-width: 30%;
+
+}
+
+ .droit-image input.form-check-input { 
+
+    float:none;
+    margin:0 0 0 10px;   
+    width: 4em;
+    height: 2em;
+     /* border:rgb(206,212,218) 5px solid; */
+ }
+
+
+ /*
+ ** Class recap
+ **/
+
+ span.label-recap {
+  font-weight: bold;
+
+ }
+
+ span.text-recap {
+  color: var(--cassiopeia-color-primary);      /* Couleur du texte saisi */
+  font-size: var(--body-font-size); 
+ }
+
+  span.text-verif {
+  color: var(--body-color);      /* Couleur du texte saisi */
+  font-size: var(--body-font-size); 
+ }
+
+
+ 

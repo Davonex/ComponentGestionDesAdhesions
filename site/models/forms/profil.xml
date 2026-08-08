@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+	<fieldset name="profil" label="COM_GDA_PROFIL_LABEL" description="COM_GDA_PROFIL_DESC">
+		<field name="id_profil"
+			type="hidden"
+		/>
+		<field name="status"
+			type="hidden"
+		/>	
+
+		<field name="photo"
+			type="hidden"
+		/>	
+
+
+		
+		
+		<field	name="civilite" 
+		
+			type="list"	
+			label="COM_GDA_CIVILITE_LABEL" 
+			description="COM_GDA_CIVILITE_DESC" 
+			class="form-control d-inline w-auto" 
+			default="M.">
+			
+			<!-- @TODO remplacer les valeurs par une variable de texte -->
+			<option value="Mme">Mme</option>
+			<option value="M.">M.</option>
+			<option value="Mlle">Mlle</option>
+		</field>
+		
+		<field
+			name="licence" 
+			type="hidden"
+		/>
+		<field
+			name="nom"
+			type="text"
+			label="COM_GDA_NOM_LABEL"
+			description="COM_GDA_NOM_DESC"
+			required="true"
+			class="form-control" 
+			size="25"
+		/>
+		<field
+			name="prenom"
+			type="text"
+			label="COM_GDA_PRENOM_LABEL"
+			description="COM_GDA_PRENOM_DESC"
+			required="true"
+			class="form-control" 
+			size="25"
+		/>
+		<field
+			name="date_de_naissance" 
+			type="Calendar"
+			label="COM_GDA_DATE_NAISSANCE_LABEL"
+			description="COM_GDA_DATE_NAISSANCE_DESC"
+			size="20" 
+			maxlength="20"
+			class="form-control" 
+			default="" 
+			required="true"
+			hint="31/10/1970" 
+			format="%d/%m/%Y"
+        	filterformat="d/m/Y"
+			pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d"
+			translateformat="false"
+		/>
+		
+		
+		<field
+			name="adresse"
+			type="text"
+			label="COM_GDA_ADRESSE_LABEL"
+			description="COM_GDA_ADRESSE_DESC"
+			required="true"
+			hint="25 avenue Ampère"
+			size="25"
+			class="form-control"
+		/>
+		<field
+			name="code_postal"
+			type="text"
+			label="COM_GDA_CODE_POSTAL_LABEL"
+			description="COM_GDA_CODE_POSTAL_DESC"
+			required="true"
+			hint="91000"
+			pattern="[0-9]{5}"
+			size="25"
+			class="form-control"
+		/>
+		<field
+			name="ville"
+			type="text"
+			label="COM_GDA_VILLE_LABEL"
+			description="COM_GDA_VILLE_DESC"
+			required="true"
+			size="25"
+            class="form-control"
+		/>
+		
+		<field
+			name="telephone"
+			type="telephone"
+			label="COM_GDA_TEL_LABEL"
+			description="COM_GDA_TEL_DESC"
+			required="true"
+			pattern="^(?:0|\(?\+33\)?\s?|0033\s?)[1-79](?:[\.\-\s]?\d\d){4}$"
+			size="25"
+            class="form-control"
+		/>
+		
+		
+		<field
+			name="email"
+			type="Email"
+			label="COM_GDA_EMAIL_LABEL"
+			description="COM_GDA_EMAIL_DESC"
+			required="true"
+			size="25"
+            class="form-control"
+		/>
+		
+		<field
+			name="email_secondaire"
+			type="Email"
+			label="COM_GDA_EMAIL_BIS_LABEL"
+			description="COM_GDA_EMAIL_BIS_DESC"
+			required="false"
+			size="25"
+            class="form-control"
+		/>
+		<field
+			name="a_prevenir"
+			type="text"
+			label="COM_GDA_A_PREVENIR_LABEL"
+			description="COM_GDA_A_PREVENIR_DESC"
+			required="false"
+			size="25"
+            class="form-control"
+		/>
+		<field
+			name="a_prevenir_tel"
+			type="telephone"
+			label="COM_GDA_A_PREVENIR_TEL_LABEL"
+			description="COM_GDA_A_PREVENIR_TEL_DESC"
+			required="true"
+			pattern="^(?:0|\(?\+33\)?\s?|0033\s?)[1-79](?:[\.\-\s]?\d\d){4}$"
+			size="25"
+            class="form-control"
+		/>
+		<field 
+			name="upload.photo" 
+			type="file" 
+			label="COM_GDA_PHOTO_LABEL"
+			description=""
+			accept=".jpg"
+            class="form-control"
+		/>  
+
+
+		
+	</fieldset>
+</form>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="helloasso" label="COM_GDA_CONFIGURATION_TAB_HELLOASSO">
+        <field
+            name="helloasso_client_id"
+            type="text"
+            label="COM_GDA_HELLOASSO_CLIENT_ID_LABEL"
+            description="COM_GDA_HELLOASSO_CLIENT_ID_DESC"
+            required="true"
+            size="60"
+            filter="string"
+        />
+
+        <field
+            name="helloasso_client_secret"
+            type="password"
+            label="COM_GDA_HELLOASSO_CLIENT_SECRET_LABEL"
+            description="COM_GDA_HELLOASSO_CLIENT_SECRET_DESC"
+            size="60"
+            autocomplete="new-password"
+            filter="raw"
+        />
+
+        <field
+            name="helloasso_base_url"
+            type="url"
+            label="COM_GDA_HELLOASSO_BASE_URL_LABEL"
+            description="COM_GDA_HELLOASSO_BASE_URL_DESC"
+            required="true"
+            default="https://api.helloasso.com"
+            size="60"
+            filter="string"
+        />
+
+        <field
+            name="helloasso_organization_slug"
+            type="text"
+            label="COM_GDA_HELLOASSO_ORGANIZATION_SLUG_LABEL"
+            description="COM_GDA_HELLOASSO_ORGANIZATION_SLUG_DESC"
+            required="true"
+            size="60"
+            filter="string"
+        />
+    </fieldset>
+
+    <fieldset name="mail" label="COM_GDA_CONFIGURATION_TAB_MAIL">
+        <field
+            name="devmailoverride"
+            type="email"
+            label="COM_GDA_CONFIGURATION_DEVMAIL_LABEL"
+            description="COM_GDA_CONFIGURATION_DEVMAIL_DESC"
+            size="60"
+            filter="string"
+        />
+    </fieldset>
+</form>

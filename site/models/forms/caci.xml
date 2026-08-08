@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+	<fieldset name="caci" label="COM_GDA_CACI_LABEL" description="COM_GDA_CACI_DESC">
+
+		<field name="id_profil"
+			type="hidden"
+		/>
+
+		<field name="caci"
+			type="hidden"
+		/>
+
+		<field
+			name="date_caci"
+			type="Calendar"
+			label="COM_GDA_DATE_CACI_LABEL"
+			description="COM_GDA_DATE_CACI_DESC"
+			size="20"
+			maxlength="20"
+			class="form-control"
+			required="false"
+			hint="dd/mm/yyyy"
+			format="%d/%m/%Y"
+			filterformat="d/m/Y"
+			pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d"
+			translateformat="false"
+		/>
+
+		<field
+			name="upload.caci"
+			type="file"
+			label="COM_GDA_CACI_LABEL"
+			description=""
+			accept=".jpg"
+			class="form-control"
+		/>
+
+	</fieldset>
+</form>

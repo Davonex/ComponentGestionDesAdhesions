@@ -1,0 +1,20 @@
+
+.table-inactive {
+    --table-color: #ababab;
+    --table-bg: #ffffff;
+    --table-border-color: #aeb8ae;
+
+    --table-striped-bg: #cfdbcf;
+    --table-striped-color: #000;
+
+    --table-active-bg: #c4cfc4;
+    --table-active-color: #000;
+
+    --table-hover-bg: #f7f7f7;
+    --table-hover-color: #7a7979;
+
+    color: var(--table-color);
+    border-color: var(--table-border-color);
+}
+
+

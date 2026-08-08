@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="component" method="upgrade">
+    <name>COM_GDADHESIONS</name>
+    <author><![CDATA[Didier MATHIEU]]></author>
+    <authorEmail></authorEmail>
+    <authorUrl></authorUrl>
+    <creationDate>2024-09-06</creationDate>
+    <copyright>Neptune Club de Brunoy</copyright>
+    <license>GNU General Public License version 2 or later; see LICENSE.txt</license>
+    <version>0.8.0</version>
+    <description><![CDATA[COM_GDA_DESCRIPTION]]></description>
+    <namespace path="src">NCB\Component\Gda</namespace>
+
+    <scriptfile>script.php</scriptfile>
+
+    <administration>
+        <files folder="admin">
+            <folder>language</folder>
+            <folder>forms</folder>
+            <folder>sql</folder>
+            <folder>services</folder>
+            <folder>src</folder>
+            <folder>tmpl</folder>
+            <file>access.xml</file>
+            <file>RELEASESNOTES.md</file>
+        </files>
+        <languages folder="admin/language/fr-FR">
+            <language tag="fr-FR">com_gdadhesions.sys.ini</language>
+            <language tag="fr-FR">com_gdadhesions.ini</language>
+        </languages>
+        <languages folder="admin/language/en-GB">
+            <language tag="en-GB">com_gdadhesions.sys.ini</language>
+        </languages>
+        <menu link="option=com_gdadhesions" img="class:default">COM_GDA_MENU_BACKEND</menu>
+        <submenu>
+            <menu link="option=com_gdadhesions&amp;view=configuration" img="default">COM_GDA_CONFIGURATION</menu>
+        </submenu>
+    </administration>
+
+    <files folder="site">
+        <folder>src</folder>
+        <folder>tmpl</folder>
+        <folder>models</folder>
+        <folder>layouts</folder>
+    </files>
+
+    <languages folder="language/fr-FR">
+        <language tag="fr-FR">com_gdadhesions.ini</language>
+    </languages>
+
+    <media folder="media" destination="com_gdadhesions">
+        <folder>css</folder>
+        <folder>images</folder>
+        <folder>js</folder>
+        <file>joomla.asset.json</file>
+    </media>
+
+    <install>
+        <sql>
+            <file driver="mysql" charset="utf8">sql/install.mysql.utf8.sql</file>
+        </sql>
+    </install>
+
+    <update>
+        <schemas>
+            <schemapath type="mysql">sql/updates/mysql</schemapath>
+        </schemas>
+    </update>
+
+    <uninstall>
+        <sql>
+            <file driver="mysql" charset="utf8">sql/uninstall.mysql.utf8.sql</file>
+        </sql>
+    </uninstall>
+</extension>

@@ -1,0 +1,75 @@
+
+
+.drop-area {
+  z-index: 1040;
+  visibility: hidden;
+  content: "";
+  opacity: 0;
+  background-color: #f5f5f5cc;
+  border: 3px dashed #999;
+  border-radius: .25rem;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  transition: all .2s .2s;
+  display: flex;
+  position: absolute;
+  inset: 6px 6px 1px;
+  transform: scale(.6);
+}
+
+.drop-area .upload-icon {
+  color: #1c3d5c;
+  opacity: 0;
+  font-size: 8rem;
+  transition: all .2s .1s;
+  transform: translateY(50%);
+}
+
+.drop-area p {
+  opacity: 0;
+  font-size: 1.4rem;
+  transition: all .2s;
+}
+
+.drop-area.active {
+  visibility: visible;
+  opacity: 1;
+  transition-delay: 0s;
+  transform: scale(1);
+}
+
+.drop-area.active .upload-icon {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.drop-area.active p {
+  opacity: 1;
+  transition-delay: .2s;
+}
+  
+.click-image {
+  cursor: pointer;
+}
+
+
+.img-thumbnail {
+    max-height: 320px;
+}
+
+/*
+ * Bouton "prendre une photo" (input file avec capture="environment") : n'a de sens que sur un
+ * appareil à écran tactile équipé d'un appareil photo (mobile/tablette). Sur desktop, il ouvrirait
+ * juste le sélecteur de fichiers classique, en doublon avec le bouton "choisir un fichier" — on le
+ * masque donc par défaut et on ne l'affiche que sous la media query ciblant le tactile.
+ */
+.gda-camera-trigger {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .gda-camera-trigger {
+    display: inline-block;
+  }
+}

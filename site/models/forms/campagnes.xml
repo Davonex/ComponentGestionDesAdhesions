@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+	<field
+                name="id_campagne"
+                type="hidden"
+                        />
+        <field
+                name="active"
+                type="hidden"
+                        />
+
+    <field
+        name="titre"
+        type="text"
+        label="Titre de la campagne"
+        size="40"
+        class="inputbox "
+        required="true" />
+
+    <field
+                name="description"
+                type="textarea" 
+                label="Courte description de la campagne"
+                rows="3" 
+                cols="255"
+                class=""
+         />
+        <field
+                name="nbr_place"
+                type="integer" 
+                label="Nombre de place"
+                description="Nombre de place disponible. (Mettre 0 si pas de limite)"
+                first="0"
+                last="200"
+                step="1"
+        />
+
+
+    <field
+                name="date_debut"
+                type="calendar"
+                default="5"
+                label="Date de debut de la campagne"
+                description=""
+                class="input-small"
+                required="true"
+                showtime="false"
+                todaybutton="true"
+                filltable="false"
+                translateformat="false"
+                format="%d/%m/%Y"
+                filterformat="d/m/Y"
+                pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d"
+                minyear="-2"
+                maxyear="2"
+	/>
+	<field
+                name="date_fin"
+                type="calendar"
+                default="5"
+                label="Date de fin de la campagne"
+                description=""
+                class="input-small"
+                required="true"
+                showtime="false"
+                todaybutton="true"
+                filltable="false"
+                translateformat="false"
+                format="%d/%m/%Y"
+                filterformat="d/m/Y"
+                pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d"
+                minyear="-2"
+                maxyear="2"
+	/>
+
+
+	<field 
+                name="id_article"
+                type="ArticlesByTag"
+                label="Article"
+                description="Choisissez un article pour le lier à cette campagne"
+        />
+
+        <field 
+                name="event_helloasso"
+                type="EventsHelloAsso"
+                label="Event HelloAsso"
+                description="Choisissez un event HelloAsso pour le lier à cette campagne"
+        />
+
+	<field 
+                name="id_type"
+                type="TypeDeCampagne"
+                label="Type de campagne"
+                required="true"
+        />
+
+        <field
+                name="id_groupes"
+                type="multiselect"
+                multiple="true"
+                table="#__gda_groupes"
+                key_field="id_groupe"
+                value_field="groupe_name"
+                ordering="groupe_tri ASC"
+                label="Choisissez des groupes"
+        />
+
+       
+
+</form>

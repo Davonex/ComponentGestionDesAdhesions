@@ -1,0 +1,82 @@
+.gda-spinner-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.9), rgba(220, 241, 255, 0.9));
+    backdrop-filter: blur(1px);
+}
+
+.gda-spinner-shell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.85rem 1rem;
+    border-radius: 0.85rem;
+    background: linear-gradient(160deg, rgba(0, 88, 125, 0.92), rgba(3, 134, 165, 0.92));
+    color: #f5fbff;
+    box-shadow: 0 8px 18px rgba(0, 34, 56, 0.28);
+}
+
+.gda-spinner-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    animation: gda-dive 1.7s ease-in-out infinite;
+}
+
+.gda-spinner-text {
+    font-size: 0.88rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-align: center;
+}
+
+.gda-spinner-bubbles {
+    display: inline-flex;
+    gap: 0.3rem;
+    height: 0.9rem;
+}
+
+.gda-spinner-bubbles span {
+    width: 0.34rem;
+    height: 0.34rem;
+    border-radius: 50%;
+    background: rgba(208, 244, 255, 0.95);
+    animation: gda-bubble 1s ease-in-out infinite;
+}
+
+.gda-spinner-bubbles span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.gda-spinner-bubbles span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes gda-bubble {
+    0%,
+    100% {
+        transform: translateY(0) scale(0.9);
+        opacity: 0.55;
+    }
+
+    50% {
+        transform: translateY(-5px) scale(1.08);
+        opacity: 1;
+    }
+}
+
+@keyframes gda-dive {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(3px);
+    }
+}
+

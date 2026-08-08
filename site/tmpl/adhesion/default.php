@@ -1,0 +1,553 @@
+<?php
+
+\defined('_JEXEC');
+
+use Joomla\CMS\Language\Text;
+// use Joomla\CMS\Router\Route;
+use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Factory;
+// use Joomla\CMS\Layout\LayoutHelper;
+use NCB\Component\Gda\Site\Helper\FileHelper;
+use NCB\Component\Gda\Site\Helper\AdhesionHelper;
+
+use Joomla\CMS\HTML\Helpers\Bootstrap;
+
+Bootstrap::carousel();
+Bootstrap::tooltip();
+
+
+
+/** @var Joomla\CMS\Application\SiteApplication $app */
+$app = Factory::getApplication();
+$wa = $app->getDocument()->getWebAssetManager();
+
+$wa->useStyle('com_gdadhesions.gda');
+
+$wa->useStyle('com_gdadhesions.adhesions');
+// JS pour gerer l'upload de la photo et du Caci par drag and drop
+$wa->useScript('com_gdadhesions.file_upload');
+$wa->useStyle('com_gdadhesions.file_upload');
+// QR code scanner
+$wa->useScript('com_gdadhesions.html5-qrcode');
+$wa->useStyle('com_gdadhesions.html5-qrcode');
+// FFESSM Scrap
+$wa->useScript('com_gdadhesions.scrap-ffessm');
+// Main Adhesion JS
+$wa->useScript('com_gdadhesions.adhesions');
+// Form Validator 
+$wa->useScript('com_gdadhesions.form-validator');
+// Submit Form JS
+$wa->useScript('com_gdadhesions.form_modal');
+
+// Code JS pour gerer la Liste dynamique répétable  (Dynamic Form Fiels)
+$wa->useScript('com_gdadhesions.brevets');
+
+// tom-select
+$wa->useStyle('com_gdadhesions.tom-select');
+$wa->useScript('com_gdadhesions.tom-select');
+
+// Jommla Dialog
+$wa->useScript('joomla.dialog');
+
+Text::script('COM_GDADHESIONS_DROIT_IMAGE_OUI');
+Text::script('COM_GDADHESIONS_DROIT_IMAGE_NON');
+Text::script('COM_GDADHESIONS_PAS_DE_LICENCE');
+Text::script('COM_GDA_ADHESION_RECAP_AUCUN_GROUPE');
+Text::script('COM_GDA_ADHESION_RECAP_AUCUN_BREVET');
+Text::script('COM_GDA_ADHESION_RECAP_CACI_CHARGE');
+Text::script('COM_GDA_ADHESION_RECAP_CACI_NON_CHARGE');
+Text::script('COM_GDA_ADHESION_RECAP_CACI_NON_RENSEIGNE');
+
+Text::script('COM_GDA_ADHESION_HEADER_STEP1');
+Text::script('COM_GDA_ADHESION_HEADER_STEP2');
+Text::script('COM_GDA_ADHESION_HEADER_STEP3');
+
+
+
+// Passer les brevets en JSON à JavaScript
+$brevetData = isset($this->brevets) && is_array($this->brevets) ? json_encode($this->brevets) : json_encode([]);
+$app->getDocument()->addScriptOptions('com_gdadhesions.brevets', $brevetData);
+
+
+
+// definir le chemin des images
+// La photo de profil
+$pathPhoto = FileHelper::getImageSrc($this->form->getField('photo')->value, "ProfilPhotoPath", "DefaultProfilPhoto");
+// le Caci
+$pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciPath", "DefaultCaci");
+
+
+
+
+
+// $new_adhesion = $this->form->getValue('new_adhesion');
+
+?>
+
+
+
+
+<div id="wizardInscription" class="carousel slide shadow-lg p-4">
+
+  <!-- Barre de navigation des étapes -->
+  <nav class="nav nav-fill mb-4 wizard-nav" id="wizardNav">
+    <button type="button" class="nav-link active" data-bs-target="#wizardInscription" data-bs-slide-to="0">
+      <span class="d-md-none"><?= Text::_('COM_GDA_ADHESION_STEP_PROFIL_SM') ?></span>
+      <span class="d-none d-md-inline"><?= Text::_('COM_GDA_ADHESION_STEP_PROFIL_MD') ?></span>
+    </button>
+    <button type="button" class="nav-link" data-bs-target="#wizardInscription" data-bs-slide-to="1">
+      <span class="d-md-none"><?= Text::_('COM_GDA_ADHESION_STEP_LICENCE_SM') ?></span>
+      <span class="d-none d-md-inline"><?= Text::_('COM_GDA_ADHESION_STEP_LICENCE_MD') ?></span>
+    </button>
+    <button type="button" class="nav-link" id="btnStepRecap" data-bs-target="#wizardInscription" data-bs-slide-to="2">
+      <span class="d-md-none"><?= Text::_('COM_GDA_ADHESION_STEP_RECAP_SM') ?></span>
+      <span class="d-none d-md-inline"><?= Text::_('COM_GDA_ADHESION_STEP_RECAP_MD') ?></span>
+    </button>
+  </nav>
+
+  <div class="carousel-inner">
+
+    <!-- Step indicators -->
+    <!-- <div class="mb-4 d-flex justify-content-between">
+        <span class="badge bg-primary" id="step-indicator-1">1</span>
+        <span class="badge bg-secondary" id="step-indicator-2">2</span>
+    </div> -->
+
+    <form id="form-adhesion" enctype="multipart/form-data">
+
+      <!-- Header -->
+      <div class=" mb-3 d-flex justify-content-between align-items-center">
+        <!-- header -->
+        <div>
+          <h3 class="mb-0" id="headerStep"><?= Text::_('COM_GDA_ADHESION_HEADER_STEP1') ?></h3>
+        </div>
+        <!-- Bouton / icône pour ouvrir le scan -->
+        <div>
+          <button id="openQrScanner" class="btn btn-outline-secondary" type="button">
+            <i class="fa fa-qrcode"></i> <?php echo Text::_('COM_GDA_SCAN_QRCODE'); ?>
+          </button>
+        </div>
+
+        <!-- Fenêtre plein écran pour le scanner -->
+
+        <div id="qrModal" class="qr-modal">
+          <button type="button" id="closeQrScanner" class="btn btn-danger qr-close">Fermer</button>
+          <div id="qrReader" style="width:100%;max-width:600px;margin:auto;"></div>
+          
+        </div>
+
+
+        <div>
+
+
+        </div>
+      </div> <!-- container header -->
+
+
+
+      <!-- STEP 0 Carousel  -->
+      <div class="carousel-item active" id="step-0">
+        <!-- Zone de capture du drag and drop -->
+        <div class="drop-area" id="photoDropArea">
+          <span class="icon-cloud-upload upload-icon" aria-hidden="true"></span>
+          <p><?= Text::_('COM_GDA_DROP_PHOTO'); ?></p>
+        </div>
+        <div class="spinner-border js-loading text-danger visually-hidden" role="status" aria-hidden="true">
+          <span class="visually-hidden"><?= Text::_('COM_GDA_LOADING'); ?></span>
+        </div>
+        <input id="photoUpload" class="position-absolute invisible" type="file" accept="image/jpeg, image/png" />
+        <!-- Fin Zone de capture du drag and drop -->
+
+        <div class="row">
+          <!-- Ligne 01-->
+
+          <div class="col-sm-12 col-md-3">
+            <?= AdhesionHelper::renderField($this->form->getField('civilite'));  ?>
+          </div>
+
+          <div class="col-sm-12 col-md-4">
+            <?= AdhesionHelper::renderField($this->form->getField('prenom'));  ?>
+          </div>
+
+          <div class="col-sm-12 col-md-5">
+            <?= AdhesionHelper::renderField($this->form->getField('nom'));  ?>
+          </div>
+        </div>
+
+        <div class="row">
+          <!-- Ligne 02-->
+          <div class="col-sm-12 col-md-12">
+            <?= AdhesionHelper::renderField($this->form->getField('adresse'));  ?>
+          </div>
+        </div>
+        <div class="row">
+          <!-- Ligne 03-->
+          <div class="col-sm-12 col-md-6">
+            <?= AdhesionHelper::renderField($this->form->getField('code_postal'));  ?>
+          </div>
+          <div class="col-sm-12 col-md-6">
+            <?= AdhesionHelper::renderField($this->form->getField('ville'));  ?>
+          </div>
+        </div>
+
+
+
+
+        <!-- Row :Photo -->
+        <div class="row">
+          <!-- Ligne 04-->
+          <div class="col-sm-12 col-md-6">
+            <!-- champ qui premet de gerer le click sur l'image -->
+            <label for="photoUpload" class="click-image form-text input-group-text"><?php echo Text::_('COM_GDA_PROFIL_DROP_PHOTO'); ?></label>
+            <img src="<?= $pathPhoto ?>" id="photoPreview" class="img-thumbnail rounded mx-auto d-block click-image" alt="photo">
+            <input type="hidden" id="photoFlag" value="<?= $this->form->getField('photo')->value ? '1' : '0' ?>" />
+
+            <?php
+            $options = ["class" => "position-absolute invisible"];
+            echo $this->form->renderField('upload.photo', null, null, $options);
+            ?>
+            <!-- getPhotoSrc -->
+          </div>
+          <div class="col-sm-12 col-md-6">
+            <?= AdhesionHelper::renderField($this->form->getField('date_de_naissance'));  ?>
+            <?= AdhesionHelper::renderField($this->form->getField('telephone'));  ?>
+            <?= AdhesionHelper::renderField($this->form->getField('email'));  ?>
+            <h4><?= Text::_('COM_GDA_EMERGENCY_CONTACT') ?></h4>
+            <?= AdhesionHelper::renderField($this->form->getField('a_prevenir'));  ?>
+            <?= AdhesionHelper::renderField($this->form->getField('a_prevenir_tel'));  ?>
+          </div>
+        </div>
+
+        <!-- Row :Droit image + reduction -->
+        <div class="row">
+          <!-- Ligne 04 - droit Images-->
+          <div class="col-sm-12 col-md-6">
+            <?= AdhesionHelper::renderField($this->form->getField('droit_img'));  ?>
+          </div>
+          <div class="col-sm-12 col-md-6">
+            <?= AdhesionHelper::renderField($this->form->getField('reduction'));  ?>
+          </div>
+        </div>
+
+        <!-- Bouton suivant -->
+        <!-- <button class="btn btn-primary float-end" data-bs-target="#wizardInscription"
+            data-bs-slide="next">Suivant</button> -->
+
+      </div>
+      <!--STEP 0-->
+
+      <!-- STEP 1 du carousel avec les CACI et le brevet -->
+      <!-- STEP 1 -->
+      <div class="carousel-item" id="step-1">
+
+        <!-- Zone de capture du drag and drop -->
+        <div class="drop-area" id="caciDropArea">
+          <span class="icon-cloud-upload upload-icon" aria-hidden="true"></span>
+          <p><?php echo Text::_('COM_GDA_DROP_CACI'); ?></p>
+        </div>
+        <div class="spinner-border js-loading text-danger visually-hidden" role="status" aria-hidden="true">
+          <span class="visually-hidden"> Loading...</span>
+        </div>
+        <input id="caciUpload" class="position-absolute invisible" type="file" accept="image/jpeg, image/png" />
+        <!-- Fin Zone de capture du drag and drop -->
+
+        <div class="row">
+          <!-- ligne lisence -->
+          <div class="col-sm-12 col-md-6">
+            <?= AdhesionHelper::renderField($this->form->getField('username'));  ?>
+          </div>
+          <div class="col-sm-12 col-md-6">
+            <?= AdhesionHelper::renderField($this->form->getField('date_licence'));  ?>
+
+          </div>
+        </div>
+
+
+        <div class="row">
+          <!-- Row select groupes -->
+          <div class="col-sm-12 col-md-12">
+            <?= AdhesionHelper::renderField($this->form->getField('id_groupes'));  ?>
+          </div>
+        </div>
+
+
+        <div class="row">
+          <!-- Row :CACI -->
+          <!-- Ligne CACI-->
+          <div class="col-sm-12 col-md-6">
+            <!-- champ qui premet de gerer le click sur l'image -->
+            <label for="caciUpload" class="click-image form-text"><?php echo Text::_('COM_GDA_DROP_CACI_DESC'); ?></label>
+            <img src="<?= $pathCaci ?>" id="caciPreview" class="img-thumbnail rounded mx-auto d-block click-image" alt="Caci">
+            <input type="hidden" id="caciFlag" value="<?= $this->form->getField('caci')->value ? '1' : '0' ?>" />
+            <?php
+            $options = ["class" => "position-absolute invisible"];
+            echo $this->form->renderField('upload.caci', null, null, $options);
+            ?>
+          </div>
+          <div class="col-sm-12 col-md-6">
+            <?= AdhesionHelper::renderField($this->form->getField('date_caci'));  ?>
+            <?= AdhesionHelper::renderField($this->form->getField('nbr_plongee'));  ?>
+            <?= AdhesionHelper::renderField($this->form->getField('nbr_plongee_35'));  ?>
+            <?= AdhesionHelper::renderField($this->form->getField('nbr_plongee_auto'));  ?>
+          </div>
+        </div> <!-- End CACI-->
+
+
+        <div class="row">
+          <!-- Row :Brevets -->
+          <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">Brevets acquis</h5>
+              <button type="button" class="btn btn-sm btn-primary" id="add-brevet-btn">
+                <i class="bi bi-plus-circle"></i> Ajouter un brevet
+              </button>
+            </div>
+            <div class="card-body" id="brevets-container">
+              <!-- Les lignes de brevets seront ajoutées ici -->
+            </div>
+          </div>
+
+        </div><!-- /Row :Brevets -->
+
+        <!-- <button class="btn btn-primary float-start" data-bs-target="#wizardInscription"
+          data-bs-slide="prev">Précédent</button>
+        <button class="btn btn-primary float-end" id="btnNextStep2" data-bs-target="#wizardInscription"
+          data-bs-slide="next">Suivant</button> -->
+
+
+      </div> <!-- step 1 -->
+
+
+      <!-- STEP 2 Carousel  recap de tous les element avant validation-->
+      <!-- STEP 2 -->
+      <div class="carousel-item" id="step-2">
+        <div class="card mb-3 shadow-sm">
+          <div class="card-body">
+            <!-- ligne avec la bouton valider -->
+            <div class="row">
+              <div class="col-8">
+                <span class="text-verif fw-bold">Merci de vérifier que toutes les informations sont correctes avant de valider votre adhésion.</span>
+              </div>
+              <div class="col-4">
+                <button id="btnValider" class="btn btn-success float-end d-none btn-lg" onclick='submitform(event,"form-adhesion",CBsubmitformAdhesion,null)'>
+                  <i class="fa-solid fa-check me-2"></i> Valider
+                </button>
+              </div>
+            </div>
+
+            <div class="row border-top mt-3 pt-3">
+              <!-- col 1  Photo -->
+              <div class="col-sm-12 col-md-6 col-lg-4">
+                <p><img id="recap_photo" src="" class="img-thumbnail rounded mx-auto d-block"></p>
+
+              </div>
+              <!-- col 2  Nom Preno etc..-->
+              <div class="col-sm-12 col-md-6 col-lg-4">
+                <p>
+                  <span class="label-recap">Nom Prénom:</span>
+                  <span class="text-recap" id="recap_civilite"></span>
+                  <span class="text-recap" id="recap_nom"></span>
+                  <span class="text-recap" id="recap_prenom"></span>
+                </p>
+                <p>
+                  <span class="label-recap">Adresse :</span>
+                  <span class="text-recap" id="recap_adresse"></span>
+                  <span class="text-recap" id="recap_code_postal"></span> <span class="text-recap"
+                    id="recap_ville"></span>
+                </p>
+                <p>
+                  <span class="label-recap">Date de naissance :</span>
+                  <span class="text-recap" id="recap_date_de_naissance"></span>
+                </p>
+                <p>
+                  <span class="label-recap">Email :</span>
+                  <span class="text-recap" id="recap_email"></span>
+                </p>
+                <p>
+                  <span class="label-recap">Téléphone :</span>
+                  <span class="text-recap" id="recap_telephone"></span>
+                </p>
+
+                <p>
+                  <span class="label-recap">Personne à prevenir :</span>
+                  <span class="text-recap" id="recap_a_prevenir"></span> au <span class="text-recap" id="recap_a_prevenir_tel"></span>
+                </p>
+              </div><!-- fin col 2  Nom Preno etc..-->
+
+              <!-- col 3  Licence + Brevets + Choix-->
+              <div class="col-sm-12 col-md-6 col-lg-4">
+                <p>
+                  <span class="label-recap">Licence :</span>
+                  <span class="text-recap" id="recap_licence"></span>
+                </p>
+                <p> <!-- recap CACI -->
+                  <span class="label-recap">CACI :</span>
+                  <span class="text-recap" id="recap_caci"></span>
+
+                </p>
+                <p>
+                  <span class="label-recap">Vous avez fait </span>
+                  <span class="text-recap" id="recap_nbr_plongee"></span> Plongée(s) dont
+                  <span class="text-recap" id="recap_nbr_plongee_auto"></span> autonomie(s) et
+                  <span class="text-recap" id="recap_nbr_plongee_35"></span> sous 35 mètres
+                </p>
+                <p>
+                  <span class="label-recap"><?php echo Text::_('COM_GDA_ADHESION_RECAP_GROUPES'); ?></span>
+                <p class="list-recap" id="recap_groupes"></p>
+                </p>
+
+
+              </div> <!-- fin col 3  Licence + Brevets + Choix-->
+
+
+            </div> <!-- fin row - recap-->
+            <!-- row droit à l'image + HelloAsso -->
+            <div class="row">
+              <div class="col-5">
+                <p><span id="recap_droit_img" class="text-recap"></span></p>
+              </div>
+              <div class="col-7">
+                <p>
+                  <span class="label-recap">Cotisation :</span>
+                  <span class="text-recap" id="recap_cotisation">
+                    <?= sprintf(Text::_('COM_GDA_COTISATION_TARIF_' . $this->form->getField('cotisation_code')->value), $this->form->getField('cotisation_montant')->value) ?>
+
+
+                  </span>
+                </p>
+                <p>
+                  <span class="label-recap">Inscription sur HelloAsso :</span>
+                  <span class="text-recap" id="recap_helloasso">
+                    <?= $this->form->getField('helloasso')->value !== "0" ? Text::_('COM_GDA_ADHESION_RECAP_HELLOASSO_OUI') : Text::_('COM_GDA_ADHESION_RECAP_HELLOASSO_NON') ?>
+                  </span>
+
+                </p>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-12">
+                <p>
+                  <span class="label-recap">Vous avez aquis les brevets suivants :</span>
+                <p class="list-recap" id="recap_brevets"></p>
+                </p>
+              </div>
+            </div>
+
+          </div> <!-- fin card body - recap-->
+        </div>
+
+
+        <!-- <button class="btn btn-primary float-start" data-bs-target="#wizardInscription" data-bs-slide="prev">
+          Précédent
+        </button> -->
+
+      </div> <!-- FIN STEP 2 Carousel  recap de tous les element avant validation-->
+
+
+      <!-- Hidden fields -->
+      <?= $this->form->renderField('key'); ?>
+      <?= $this->form->renderField('id'); ?>
+      <?= $this->form->renderField('photo'); ?>
+      <?= $this->form->renderField('caci'); ?>
+      <?= $this->form->renderField('ffessm_token'); ?>
+      <?= $this->form->renderField('cotisation_code'); ?>
+      <?= $this->form->renderField('cotisation_montant'); ?>
+      <?= $this->form->renderField('helloasso'); ?>
+      <!-- <?= HTMLHelper::_('form.token'); ?> -->
+      <input type="hidden" name="task" value="adhesion.save" />
+
+
+
+
+
+    </form>
+  </div> <!-- Close carousel inner -->
+
+  <!-- <button class="carousel-control-prev btn-arrow" type="button" data-bs-target="#wizardInscription" data-bs-slide="prev" aria-label="Précédent">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill="#007bff" />
+      <path d="M14 7L9 12L14 17" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    <span class="visually-hidden">Précédent</span>
+  </button>
+  <button class="carousel-control-next btn-arrow" type="button" data-bs-target="#wizardInscription"
+
+    data-bs-slide="next" aria-label="Suivant">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill="#007bff" />
+      <path d="M10 7L15 12L10 17" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    <span class="visually-hidden">Suivant</span>
+  </button> -->
+
+
+
+
+</div> <!-- Close carousel slide -->
+
+
+<script>
+
+</script>
+
+
+<!-- Template brevet caché -->
+<template id="brevet-template">
+  <div class="row g-2 brevet-item mb-2 align-items-end">
+    <div class="col-md-5">
+      <!-- <label class="form-label">Nom du brevet *</label> -->
+      <input type="text" name="brevets[][nom]" class="form-control" required placeholder="Nom du brevet">
+    </div>
+    <div class="col-md-3">
+      <!-- <label class="form-label">Date d’acquisition</label> -->
+      <input type="date" name="brevets[][obtention]" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <!-- <label class="form-label">Lieu</label> -->
+      <input type="text" name="brevets[][lieu]" class="form-control" placeholder="Lieu">
+    </div>
+    <div class="col-md-1 text-end">
+      <button type="button" class="btn btn-outline-danger remove-brevet-btn">
+        <i class="fa-solid fa-trash-can"></i>
+      </button>
+    </div>
+  </div>
+</template>
+<!-- Template caché -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script type="module">
+  import JoomlaDialog from 'joomla.dialog';
+  const dialog = new JoomlaDialog({
+    popupType: 'iframe',
+    textHeader: 'The header',
+    src: 'https://www.helloasso-sandbox.com/associations/asso-didou/adhesions/adhesion-ncb-saison-2026-2027/widget'
+    // buttons: [{
+    //   text: 'Fermer',
+    //   click: (dialog) => dialog.close()
+    // }],
+    // width: '80%',
+    // height: 'auto',
+    // modal: true
+  });
+
+  // Ouvrir la modale
+  // dialog.open();
+</script>
