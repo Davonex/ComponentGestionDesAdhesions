@@ -114,7 +114,9 @@ $licenceCostByCategorie = [
                   <span class="text-muted">—</span>
                 <?php endif; ?>
               </td>
-              <td><?= $this->escape(($item->civilite ?? '') . ' ' . ($item->nom ?? '') . ' ' . ($item->prenom ?? '')) ?></td>
+              <td>
+                <a href="#" class="js-show-profil-card" data-id-profil="<?= (int) ($item->id_profil ?? 0) ?>"><?= $this->escape(($item->civilite ?? '') . ' ' . ($item->nom ?? '') . ' ' . ($item->prenom ?? '')) ?></a>
+              </td>
               <td>
                 <?=  // Conatener CP + Ville et ajouter l'icon pour savoir si c'est au vald'yerre/de seine ou pas
                 $this->escape(($item->code_postal ?? '') . ' ' . ($item->ville ?? '')) .

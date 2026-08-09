@@ -31,7 +31,7 @@ $adherents = $groupe->adherents;
             <div class="col">
                 <div class="card h-100 text-center">
                     <div class="card-header py-2 text-truncate" title="<?= $this->escape($fullName) ?>">
-                        <?= $this->escape($fullName) ?>
+                        <a href="#" class="js-show-profil-card text-reset" data-id-profil="<?= (int) $adherent->id_profil ?>"><?= $this->escape($fullName) ?></a>
                     </div>
 
                     <?php if (!empty($pathPhoto)) : ?>

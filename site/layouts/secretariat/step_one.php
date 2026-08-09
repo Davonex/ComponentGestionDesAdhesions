@@ -122,7 +122,9 @@ $items = $displayData['items'];
                                 <?php endif; ?>
                             </td>
                             <!-- civilité -->
-                            <td><?= $this->escape($item->civilite . ' ' . $item->nom . ' ' . $item->prenom) ?></td>
+                            <td>
+                                <a href="#" class="js-show-profil-card" data-id-profil="<?= (int) $item->id_profil ?>"><?= $this->escape($item->civilite . ' ' . $item->nom . ' ' . $item->prenom) ?></a>
+                            </td>
                             <!-- email -->
                             <td><?= $this->escape($item->email) ?></td>
                             <!-- adresse -->

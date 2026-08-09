@@ -61,7 +61,9 @@ $adherents = $groupe->adherents;
                             <span class="text-muted">&mdash;</span>
                         <?php endif; ?>
                     </td>
-                    <td><?= $this->escape($fullName) ?></td>
+                    <td>
+                        <a href="#" class="js-show-profil-card" data-id-profil="<?= (int) $adherent->id_profil ?>"><?= $this->escape($fullName) ?></a>
+                    </td>
                     <td class="text-center">
                         <?php if (!empty($pathCaci)) : ?>
                             <a

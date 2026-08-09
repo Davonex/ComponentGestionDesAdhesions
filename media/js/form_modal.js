@@ -299,6 +299,34 @@ document.addEventListener('click', function (event) {
   }
 });
 
+// Handler délégué global pour js-show-profil-card (Groupe, Secretariat, ... toute vue chargeant ce script)
+document.addEventListener('click', function (event) {
+  const trigger = event.target.closest('.js-show-profil-card');
+  if (!trigger) { return; }
+
+  event.preventDefault();
+
+  const modalEl = document.getElementById('profilCardModal');
+  const modalContent = document.getElementById('profilCardModalContent');
+  if (!modalEl || !modalContent) { return; }
+
+  modalContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-success" role="status"><span class="visually-hidden">Chargement...</span></div></div>';
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+  const ajaxData = {
+    task: 'profil.showCard',
+    id_profil: parseInt(trigger.dataset.idProfil || '0', 10),
+  };
+  const csrfTokenName = Joomla.getOptions('csrf.token');
+  if (csrfTokenName) { ajaxData[csrfTokenName] = 1; }
+
+  simpleCallAjax(ajaxData, function (response) {
+    modalContent.innerHTML = decodeURIComponent(escape(atob(response.data)));
+  }, false, function (response) {
+    modalContent.innerHTML = '<div class="alert alert-danger">' + ((response && response.message) || 'Erreur inconnue') + '</div>';
+  });
+});
+
 /**
  * simpleCallAjax
  *

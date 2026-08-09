@@ -23,6 +23,9 @@ $wa->useStyle('simple-datatables');
 // Main Groupes JS
 $wa->useScript('com_gdadhesions.groupes');
 
+// Handler générique de popups ajax (fiche adhérent, ...)
+$wa->useScript('com_gdadhesions.form_modal');
+
 /** @var array $groupes */
 $groupes = $this->groupes;
 ?>
@@ -105,12 +108,21 @@ $groupes = $this->groupes;
 
     <?php endif; ?>
 
+    <!-- Modals -->        
     <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-body text-center p-2">
                     <img id="imagePreviewImage" src="" alt="" class="img-fluid">
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="profilCardModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" id="profilCardModalContent">
+                <!-- Le contenu de la modal est chargé dynamiquement via ajax -->
             </div>
         </div>
     </div>

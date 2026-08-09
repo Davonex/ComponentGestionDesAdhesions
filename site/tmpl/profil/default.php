@@ -69,12 +69,12 @@ if ($this->item !== null):
     if ($profil === null) {
       echo '<p>' . Text::_('COM_GDA_NO_PROFILE') . '</p>';
     } else {
-      echo $model->showCardProfil($profil);
+      echo LayoutHelper::render('profil.card_profil', ['profil' => $profil, 'principale' => true, 'editable' => true, 'taille' => 'col-md-6 col-sm-12']);
       echo LayoutHelper::render('profil.card_caci', ['profil' => $profil]);
     }
     //les profil OB
     foreach ($profilsOB as $profilOB) {
-      echo $model->showCardProfil($profilOB, false);
+      echo LayoutHelper::render('profil.card_profil', ['profil' => $profilOB, 'principale' => false, 'editable' => true, 'taille' => 'col-md-6 col-sm-12']);
       echo LayoutHelper::render('profil.card_caci', ['profil' => $profilOB]);
     }
     ?>

@@ -157,4 +157,12 @@ $wa->useScript('com_gdadhesions.secretariat');
       </div>
     </div>
   </div>
+
+  <div class="modal fade" id="profilCardModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" id="profilCardModalContent">
+        <!-- Le contenu de la modal est chargé dynamiquement via ajax -->
+      </div>
+    </div>
+  </div>
 </div>

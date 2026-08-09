@@ -11,6 +11,8 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Layout\LayoutHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
+use NCB\Component\Gda\Site\Helper\UsersHelper;
+use NCB\Component\Gda\Site\Model\ProfilModel;
 
 
 class ProfilController extends BaseController
@@ -139,6 +141,53 @@ class ProfilController extends BaseController
 
             $Response->success = true;
             $Response->data = base64_encode(LayoutHelper::render('profil.card_caci', ['profil' => $updatedProfil]));
+
+            echo $Response;
+        } catch (\Exception $e) {
+            echo new JsonResponse($e);
+        }
+    }
+
+    /**
+     * Ajax : fiche adhérent en lecture seule, affichée en popup depuis les vues Groupe et Secretariat
+     * (clic sur le Nom Prénom d'un adhérent). Réservé aux Moniteurs, Responsables de Groupe et membres
+     * du Bureau — contrairement aux vues, les tâches ajax ne sont pas protégées par le niveau d'accès
+     * du menu, la vérification doit donc être faite ici.
+     */
+    public function showCard()
+    {
+        $Response = new JsonResponse();
+        try {
+            $this->checkToken();
+
+            if (!UsersHelper::canViewMemberDetails()) {
+                throw new \Exception(Text::_('COM_GDA_ERROR_UNAUTHORIZED'), 403);
+            }
+
+            /** @var \Joomla\CMS\Application\SiteApplication $app */
+            $app = Factory::getApplication();
+            $idProfil = $app->input->getInt('id_profil', 0);
+
+            if ($idProfil <= 0) {
+                throw new \Exception('id_profil invalide');
+            }
+
+            /** @var \NCB\Component\Gda\Site\Model\ProfilModel $model */
+            $model = $this->getModel('Profil', 'site');
+            $profil = $model->getProfilById($idProfil);
+
+            if ($profil === null) {
+                throw new \Exception(Text::_('COM_GDA_PROFIL_NOT_FOUND'), 404);
+            }
+
+            $fields = UsersHelper::isBureauMember() ? ProfilModel::CARD_FIELDS_FULL : ProfilModel::CARD_FIELDS_LIGHT;
+
+            $Response->success = true;
+            $Response->data = base64_encode(LayoutHelper::render('profil.card_profil', [
+                'profil' => $profil,
+                'editable' => false,
+                'fields' => $fields,
+            ]));
 
             echo $Response;
         } catch (\Exception $e) {

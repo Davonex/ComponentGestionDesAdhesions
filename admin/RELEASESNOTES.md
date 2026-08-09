@@ -1,6 +1,22 @@
 # Component com_gadhesions
 
 
+## Version 0.8.1
+
+  - 📰 Nouveautés
+    - Site: ajout d'une carte "Mise à jour du CACI" dans la vue Profil (`layouts/profil/mgn_caci.php`) : dépôt par drag&drop ou sélection classique, prise de photo via l'appareil photo natif sur mobile, saisie de la date de fin de validité. Permet à l'adhérent de renouveler son CACI sans repasser par le formulaire d'adhésion complet.
+    - Site: popup "fiche adhérent" en lecture seule, accessible en cliquant sur le Nom Prénom d'un adhérent dans les vues Groupes et Secrétariat (`ProfilController::showCard()`) : fiche allégée (photo/nom/licence) pour les Moniteurs et Responsables de Groupe, fiche complète (coordonnées, personne à prévenir) pour le Bureau.
+
+  - 🔧 Améliorations
+    - `media/com_gdadhesions/js/file_upload.js` : factorisation du câblage drag&drop (`FileUpload.create()`), désormais réutilisé par les vues Adhésion et Profil au lieu d'être dupliqué par vue.
+    - `media/com_gdadhesions/js/form_modal.js` : `simpleCallAjax()` accepte désormais directement un `FormData` (en plus d'un objet clé/valeur) et un callback d'échec ; ajout d'un handler générique `.js-show-profil-card` réutilisable par toute vue chargeant ce script.
+    - `src/Model/ProfilModel.php` : extraction de `showCardProfil()` vers le layout `layouts/profil/card_profil.php`, réutilisé à la fois par la vue Profil (éditable) et la popup fiche adhérent (lecture seule).
+
+  - 🪲 Bugs
+    - Vue Adhésion : la zone de dépôt du CACI ne se surlignait pas pendant le glisser-déposer (incohérence d'ID entre le template et le JS).
+    - Vue Profil : une erreur JavaScript pouvait survenir en déposant un fichier invalide dans la zone photo (mauvais paramètre passé au composant d'upload).
+
+
 ## Version 0.8.0
   - Nouveautés
     - Site: ajout de la notion de saison courante (`#__gda_campagnes.courante`), distincte de la saison ouverte (`active`)

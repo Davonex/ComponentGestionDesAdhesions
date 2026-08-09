@@ -322,6 +322,69 @@ select.tomselected {
     background-color: #f7f9fc;
 }
 
+/*
+ * Toutes vues du composant : les boutons btn-outline-* utilisent le bleu/gris par defaut de
+ * Bootstrap, qui ne suit pas la charte NCB (--logo-gauche / --logo-droit definis dans
+ * media/templates/site/cassiopeia_ncb/css/user.css). Le Bootstrap compile par Cassiopeia
+ * expose ses variables de composant SANS le prefixe "bs-" (ex: --btn-color, pas --bs-btn-color),
+ * d'ou la double declaration ci-dessous pour rester compatible si le prefixe standard revient.
+ * Scope sur `.com_gdadhesions` (classe posee sur <body> par le template pour ce composant)
+ * pour s'appliquer a toutes les vues du composant sans deborder sur le reste du site.
+ */
+.com_gdadhesions .btn-outline-primary {
+    --btn-color: var(--cassiopeia-color-primary, #3d6e79);
+    --btn-border-color: var(--cassiopeia-color-primary, #3d6e79);
+    --btn-hover-color: var(--blanc, #fff);
+    --btn-hover-bg: var(--cassiopeia-color-primary, #3d6e79);
+    --btn-hover-border-color: var(--cassiopeia-color-primary, #3d6e79);
+    --btn-active-color: var(--blanc, #fff);
+    --btn-active-bg: var(--cassiopeia-color-primary, #3d6e79);
+    --btn-active-border-color: var(--cassiopeia-color-primary, #3d6e79);
+    --btn-focus-shadow-rgb: 61, 110, 121;
+
+    --bs-btn-color: var(--cassiopeia-color-primary, #3d6e79);
+    --bs-btn-border-color: var(--cassiopeia-color-primary, #3d6e79);
+    --bs-btn-hover-color: var(--blanc, #fff);
+    --bs-btn-hover-bg: var(--cassiopeia-color-primary, #3d6e79);
+    --bs-btn-hover-border-color: var(--cassiopeia-color-primary, #3d6e79);
+    --bs-btn-active-color: var(--blanc, #fff);
+    --bs-btn-active-bg: var(--cassiopeia-color-primary, #3d6e79);
+    --bs-btn-active-border-color: var(--cassiopeia-color-primary, #3d6e79);
+    --bs-btn-focus-shadow-rgb: 61, 110, 121;
+}
+
+.com_gdadhesions .btn-outline-secondary {
+    --btn-color: var(--cassiopeia-color-hover, #94cec8);
+    --btn-border-color: var(--cassiopeia-color-hover, #94cec8);
+    --btn-hover-color: var(--noir, #242021);
+    --btn-hover-bg: var(--cassiopeia-color-hover, #94cec8);
+    --btn-hover-border-color: var(--cassiopeia-color-hover, #94cec8);
+    --btn-active-color: var(--noir, #242021);
+    --btn-active-bg: var(--cassiopeia-color-hover, #94cec8);
+    --btn-active-border-color: var(--cassiopeia-color-hover, #94cec8);
+    --btn-focus-shadow-rgb: 148, 206, 200;
+
+    --bs-btn-color: var(--cassiopeia-color-hover, #94cec8);
+    --bs-btn-border-color: var(--cassiopeia-color-hover, #94cec8);
+    --bs-btn-hover-color: var(--noir, #242021);
+    --bs-btn-hover-bg: var(--cassiopeia-color-hover, #94cec8);
+    --bs-btn-hover-border-color: var(--cassiopeia-color-hover, #94cec8);
+    --bs-btn-active-color: var(--noir, #242021);
+    --bs-btn-active-bg: var(--cassiopeia-color-hover, #94cec8);
+    --bs-btn-active-border-color: var(--cassiopeia-color-hover, #94cec8);
+    --bs-btn-focus-shadow-rgb: 148, 206, 200;
+}
+
+.com_gdadhesions .form-check-input:checked {
+    background-color: var(--cassiopeia-color-primary, #3d6e79);
+    border-color: var(--cassiopeia-color-primary, #3d6e79);
+}
+
+.com_gdadhesions .form-check-input:focus {
+    border-color: var(--cassiopeia-color-primary, #3d6e79);
+    box-shadow: 0 0 0 .25rem rgba(61, 110, 121, .25);
+}
+
 .gda-licence-chip {
     display: inline-block;
     padding: .25rem .5rem;

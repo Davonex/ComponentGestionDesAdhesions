@@ -7,7 +7,6 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\User\UserFactoryInterface;
 use Joomla\CMS\MVC\Model\ListModel;
-use Joomla\CMS\Language\Text;
 
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
@@ -17,6 +16,14 @@ use NCB\Component\Gda\Site\Helper\FileHelper;
 
 class ProfilModel extends ListModel
 {
+    /**
+     * Blocs de contenu affichés par le layout profil.card_profil.
+     * Seul endroit à modifier pour ajuster la composition de la fiche allégée
+     * (popup "fiche adhérent" côté Groupe) selon les retours des beta-testeurs.
+     */
+    const CARD_FIELDS_FULL  = ['photo', 'coordonnees', 'telephone', 'email', 'urgence'];
+    const CARD_FIELDS_LIGHT = ['photo','telephone', 'email', 'urgence'];
+
     protected $_item = null;
     protected $_itemsOB = null;
 
@@ -87,8 +94,32 @@ class ProfilModel extends ListModel
     }
 
     /**
+     * Récupère un profil par id_profil (indépendamment de la session courante) — utilisé par la popup
+     * "fiche adhérent" (ProfilController::showCard()) pour afficher le profil d'un AUTRE adhérent.
+     */
+    function getProfilById(int $idProfil): ?object
+    {
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true);
+
+        $query->select($this->getSelectItemFields($db));
+        $query->from($db->quoteName('#__users', 'u'));
+        $query->leftjoin($db->quoteName('#__gda_profils', 'p'), 'p.id_profil = u.id');
+        $query->where($db->quoteName('u.id') . ' = :id_profil')
+            ->bind(':id_profil', $idProfil, \Joomla\Database\ParameterType::INTEGER);
+
+        $db->setQuery($query);
+
+        try {
+            return $db->loadObject() ?: null;
+        } catch (\RuntimeException $e) {
+            throw new \Exception($e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Recupe tous les  profils avec id on behalf
-     * 
+     *
      */
     function getItemsOB($pk = null)
     {
@@ -435,89 +466,6 @@ class ProfilModel extends ListModel
 
         return true;
     }
-
-
-    /**
-     * retourner le code HTMH d'un profil
-     *
-     * @param   object   $profil         Tous les donnée du profil utilisateu
-     * @param   boolean  $principale         The path  to move the uploaded file to
-     
-     *
-     * @return  string  texte html d'un profil
-     *
-     * @since   1.0
-     * @throws  
-     */
-
-    function showCardProfil($profil, $principale = true)
-    {
-        if ($profil === null) {
-            return false;
-        }
-        $extra_class = " text-bg-gda";
-        if (! $principale) {
-            $extra_class = ' text-white bg-secondary';
-        }
-
-        $result = '<div id="id_' . $profil->id_profil . '" class="h-100 col-md-6 col-sm-12">';
-        $result .= '<div class="card' . $extra_class . '">';
-        $result .= '<div class="card-header">';
-        $result .= '<p class="pt-2 float-start">'
-            . $this->spanModal('civilite', $profil->civilite) . ' '
-            . $this->spanModal('nom', $profil->nom) . ' '
-            . $this->spanModal('prenom', $profil->prenom) . ' '
-            . '(' . $this->spanModal('licence', $profil->username) . ')'
-            . '</p>';
-        $result .= '<a class="btn btn-success float-end" 
-                                type="button" 
-                                id="openForm" 
-                                data-bs-id_profil="id_' . $profil->id_profil . '"
-                                data-bs-toggle="modal" 
-                                data-bs-target="#myModal" 
-                                data-toggle="tooltip" 
-                                data-placement="top" 
-                                title="' . Text::_('COM_GDA_PROFIL_EDIT_TOOLTIP') . '">';
-        $result .= '<i class="fa-solid fa-user-pen"></i> ' . Text::_('COM_GDA_PROFIL_EDIT');
-        $result .= '</a>';
-        $result .= '</div>'; // class="card-header"
-        $result .= '<div class="row g-0">';
-        $result .= '<div class="col-md-5">';
-        $result .= '<img data-bs name="Srcphoto" src="' . FileHelper::getImageSrc($profil->photo, "ProfilPhotoPath", "DefaultProfilPhoto") . '" class="img-thumbnail rounded mx-auto d-block" alt="photo">';
-        $result .= '</div>';
-        $result .= '<div class="col-md-7">';
-        $result .= '<div class="card-body">';
-        $result .= '<dl class="card-text">';
-        $result .= '<dt><span>Coordonnées</span> </dt>';
-        $result .= '<dd class="ms-2"><i class="fa-solid fa-house"></i> : ' . $this->spanModal('adresse', $profil->adresse) . ', ';
-        $result .= $this->spanModal('code_postal', $profil->code_postal) . ' ' . $this->spanModal('ville', $profil->ville) . '</dd>';
-        $result .= '<dd class="ms-2"><i class="fa-solid fa-phone"></i> : ' . $this->spanModal('telephone', ToolsHelper::ShowTel($profil->telephone)) . '</dd>';
-
-
-        $result .= '<dd class="ms-2"><i class="fa-solid fa-at"></i> : ' . $this->spanModal('email', $profil->email) . '</dd>';
-        $result .= '<dt><span>Personne a prévenir</span> </dt>';
-        $result .= '<dd class="ms-2"><i class="fa-solid fa-person-drowning"></i> : ' . $this->spanModal('a_prevenir', $profil->a_prevenir) . '</dd>';
-        $result .= '<dd class="ms-2"><i class="fa-solid fa-phone"></i> : ' . $this->spanModal('a_prevenir_tel', ToolsHelper::ShowTel($profil->a_prevenir_tel)) . '</dd>';
-        $result .= '</dl>';
-        $result .= $this->spanModal('date_de_naissance', ToolsHelper::from_sqldate($profil->date_de_naissance), "position-absolute invisible");
-        $result .= $this->spanModal('id_profil', $profil->id_profil, "position-absolute invisible");
-        $result .= $this->spanModal('photo', $profil->photo, "position-absolute invisible");
-        $result .= '</div>';
-        $result .= '</div>';
-        $result .= '</div>';
-
-        $result .= '</div> <!-- class="card" -->';
-        $result .= '</div>  <!-- class="col" -->';
-        return $result;
-    }
-
-
-    private function spanModal(string $name,  $value, string $class = '')
-    {
-        $ret = '<span class="' . $class . '" data-bs name="' . $name . '">' . (string) $value . '</span>';
-        return $ret;
-    }
-
 
 
     /**

@@ -140,7 +140,9 @@ $items = $displayData['items'] ?? [];
                   <span class="text-muted">—</span>
                 <?php endif; ?>
               </td>
-              <td><?= $this->escape(($item->civilite ?? '') . ' ' . ($item->nom ?? '') . ' ' . ($item->prenom ?? '')) ?></td>
+              <td>
+                <a href="#" class="js-show-profil-card" data-id-profil="<?= (int) ($item->id_profil ?? 0) ?>"><?= $this->escape(($item->civilite ?? '') . ' ' . ($item->nom ?? '') . ' ' . ($item->prenom ?? '')) ?></a>
+              </td>
               <td><?= $this->escape((string) ($item->email ?? '')) ?></td>
               <td><?= HTMLHelper::date($item->date_de_naissance, 'd/m/Y') ?></td>
               <td><?= $this->escape(Text::_('COM_GDA_COTISATION_TARIF_' . ($item->cotisation_code ?? ''))) ?></td>

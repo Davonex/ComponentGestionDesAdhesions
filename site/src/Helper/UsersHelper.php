@@ -101,8 +101,61 @@ class UsersHelper
      */
     public static function isBlocked($username)
     {
-        $userFactory = Factory::getContainer()->get(UserFactoryInterface::class);  
+        $userFactory = Factory::getContainer()->get(UserFactoryInterface::class);
         $user = $userFactory->loadUserByUsername($username);
         return ($user && $user->id && $user->block == 1) ? true : false;
+    }
+
+    /**
+     * Vérifie si l'utilisateur connecté est autorisé pour un niveau d'accès Joomla donné (recherché par
+     * titre, car les ID de groupes/niveaux d'accès "NA Bureau"/"NA Responsable de Groupe"/"NA Moniteur"
+     * sont générés dynamiquement à l'installation par administrator/components/com_gdadhesions/script.php
+     * et ne sont donc pas des constantes fiables.
+     */
+    private static function userHasViewLevel(string $viewLevelTitle): bool
+    {
+        $db = Factory::getContainer()->get('DatabaseDriver');
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->from($db->quoteName('#__viewlevels'))
+            ->where($db->quoteName('title') . ' = :title')
+            ->bind(':title', $viewLevelTitle);
+
+        $db->setQuery($query);
+        $levelId = (int) $db->loadResult();
+
+        if ($levelId <= 0) {
+            return false;
+        }
+
+        $user = Factory::getApplication()->getIdentity();
+
+        if ($user === null) {
+            return false;
+        }
+
+        // array_map(intval) : getAuthorisedViewLevels() peut renvoyer des entiers ou des chaînes numériques
+        // selon le contexte ; on normalise pour une comparaison stricte fiable.
+        return in_array($levelId, array_map('intval', $user->getAuthorisedViewLevels()), true);
+    }
+
+    /**
+     * Vrai si l'utilisateur connecté est membre du Bureau (niveau d'accès "NA Bureau").
+     */
+    public static function isBureauMember(): bool
+    {
+        return self::userHasViewLevel('NA Bureau');
+    }
+
+    /**
+     * Vrai si l'utilisateur connecté peut consulter la fiche d'un adhérent (Moniteur, Responsable de
+     * Groupe ou membre du Bureau) — utilisé pour protéger la popup "fiche adhérent" (Groupe/Secretariat),
+     * les tâches ajax n'étant pas protégées par le niveau d'accès du menu contrairement aux vues.
+     */
+    public static function canViewMemberDetails(): bool
+    {
+        return self::isBureauMember()
+            || self::userHasViewLevel('NA Responsable de Groupe')
+            || self::userHasViewLevel('NA Moniteur');
     }
 }

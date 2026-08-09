@@ -7,11 +7,15 @@
     <creationDate>2024-09-06</creationDate>
     <copyright>Neptune Club de Brunoy</copyright>
     <license>GNU General Public License version 2 or later; see LICENSE.txt</license>
-    <version>0.8.0</version>
+    <version>0.8.1</version>
     <description><![CDATA[COM_GDA_DESCRIPTION]]></description>
     <namespace path="src">NCB\Component\Gda</namespace>
 
     <scriptfile>script.php</scriptfile>
+
+    <updateservers>
+        <server type="extension" priority="1" name="Gestion des Adhesions NCB Update Site">https://raw.githubusercontent.com/Davonex/ComponentGestionDesAdhesions/main/updates.xml</server>
+    </updateservers>
 
     <administration>
         <files folder="admin">
