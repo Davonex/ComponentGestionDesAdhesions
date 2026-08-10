@@ -158,4 +158,73 @@ class UsersHelper
             || self::userHasViewLevel('NA Responsable de Groupe')
             || self::userHasViewLevel('NA Moniteur');
     }
+
+    /**
+     * Infos d'affichage (clé de langue + icône Font Awesome) du rôle de l'utilisateur connecté,
+     * par priorité Bureau > Responsable de Groupe > Moniteur > Adhérent (groupe Registered, rôle
+     * de base retourné si aucun des 3 rôles métier n'est présent).
+     *
+     * @return array{label: string, icon: string}
+     */
+    public static function getCurrentUserRole(): array
+    {
+        if (self::isBureauMember()) {
+            return ['label' => 'COM_GDA_ROLE_BUREAU', 'icon' => 'fa-solid fa-user-tie'];
+        }
+
+        if (self::userHasViewLevel('NA Responsable de Groupe')) {
+            return ['label' => 'COM_GDA_ROLE_RESPONSABLE_GROUPE', 'icon' => 'fa-solid fa-people-group'];
+        }
+
+        if (self::userHasViewLevel('NA Moniteur')) {
+            return ['label' => 'COM_GDA_ROLE_MONITEUR', 'icon' => 'fa-solid fa-chalkboard-user'];
+        }
+
+        return ['label' => 'COM_GDA_ROLE_ADHERENT', 'icon' => 'fa-solid fa-user'];
+    }
+
+    /**
+     * Résout par titre l'id d'un groupe Joomla (#__usergroups). Les ids sont générés
+     * dynamiquement à l'installation (voir administrator/components/com_gdadhesions/script.php)
+     * et ne sont donc pas des constantes fiables.
+     */
+    private static function getGroupIdByTitle(string $groupTitle): ?int
+    {
+        $db = Factory::getContainer()->get('DatabaseDriver');
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->from($db->quoteName('#__usergroups'))
+            ->where($db->quoteName('title') . ' = :title')
+            ->bind(':title', $groupTitle);
+
+        $db->setQuery($query);
+        $id = (int) $db->loadResult();
+
+        return $id > 0 ? $id : null;
+    }
+
+    /**
+     * Ids des 3 groupes métier du club (Bureau, Responsable de Groupe, Moniteur), résolus par
+     * titre. Clés stables ('bureau', 'responsable', 'moniteur') utilisables par le Model/Controller
+     * de la vue Utilisateurs pour valider les groupes attribuables.
+     *
+     * @return array<string, int|null>
+     */
+    public static function getClubGroupIds(): array
+    {
+        return [
+            'bureau' => self::getGroupIdByTitle('Membre du Bureau'),
+            'responsable' => self::getGroupIdByTitle('Responsable de Groupe'),
+            'moniteur' => self::getGroupIdByTitle('Moniteur'),
+        ];
+    }
+
+    /**
+     * Id du groupe Joomla natif "Super Users", utilisé pour exclure les comptes d'administration
+     * de la liste des utilisateurs gérés par le Bureau (vue Utilisateurs).
+     */
+    public static function getSuperUsersGroupId(): ?int
+    {
+        return self::getGroupIdByTitle('Super Users');
+    }
 }

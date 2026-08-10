@@ -644,3 +644,19 @@ select.tomselected {
 .toggle-card[aria-expanded="true"] i {
     transform: rotate(90deg);
 }
+
+
+/* Badge de rôle (Bureau / Responsable de Groupe / Moniteur) affiché sur le dashboard Accueil */
+.gda-role-badge {
+    vertical-align: middle;
+    font-weight: 500;
+}
+
+.gda-role-badge i {
+    margin-right: .3rem;
+}
+
+/* Vue Utilisateurs : tableau plus dense (police réduite) */
+.gda-table-compact {
+    font-size: .85rem;
+}

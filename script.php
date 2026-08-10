@@ -33,6 +33,7 @@ class com_gdadhesionsInstallerScript
     private $data_profil = [];
     private $data_secretariat = [];
     private $data_groupes = [];
+    private $data_utilisateurs = [];
 
     private $templateStyleId = NULL;
 
@@ -158,6 +159,9 @@ class com_gdadhesionsInstallerScript
 
         $this->createFrontendMenuItem($this->data_secretariat);
 
+        //== creation menu pour la gestion des groupes/acces des utilisateurs (Bureau uniquement) ===
+        $this->createUtilisateursMenuItem($idMenuAdherent);
+
         //== creation menu pour la gestion des groupes (visible uniquement par les membres du bureau) ===
         $this->createGroupesMenuItem($idMenuAdherent);
 
@@ -180,6 +184,7 @@ class com_gdadhesionsInstallerScript
     {
         $this->removeObsoleteFiles();
         $this->addGroupesMenuItemOnUpdate();
+        $this->addUtilisateursMenuItemOnUpdate();
 
         return true;
     }
@@ -236,6 +241,59 @@ class com_gdadhesionsInstallerScript
         ];
 
         $this->createFrontendMenuItem($this->data_groupes);
+    }
+
+    /**
+     * Ajoute le menu "Utilisateurs" pour les sites déjà installés (mise à jour depuis une version
+     * antérieure à cette fonctionnalité). accessLevelIdBureau existe déjà depuis l'installation
+     * initiale (utilisé par Secrétariat/Campagnes/Profils) ; on le reconstruit ici au cas où
+     * update() est exécuté isolément (voir addGroupesMenuItemOnUpdate() pour le même besoin).
+     */
+    private function addUtilisateursMenuItemOnUpdate(): void
+    {
+        $this->componentId = $this->componentId ?: $this->getComponentId();
+        $this->templateStyleId = $this->templateStyleId ?: $this->getDefaultSiteTemplateStyleId();
+
+        $this->groupIdBureau = $this->groupIdBureau ?: $this->createUserGroup('Membre du Bureau', 2);
+        $this->accessLevelIdBureau = $this->accessLevelIdBureau
+            ?: $this->createAccessLevel('NA Bureau', [$this->groupIdBureau]);
+
+        $idMenuAdherent = $this->getMenuIdByAlias('adherents');
+
+        if ($idMenuAdherent === null) {
+            Factory::getApplication()->enqueueMessage(
+                'Menu parent "adherents" introuvable, impossible de créer le menu "Utilisateurs"',
+                'warning'
+            );
+            return;
+        }
+
+        $this->createUtilisateursMenuItem($idMenuAdherent);
+    }
+
+    /**
+     * Créé le menu frontend "Utilisateurs" (accès réservé au Bureau) sous le menu parent donné.
+     * Permet au Bureau de consulter/modifier les groupes club et l'activation des comptes déclarés.
+     *
+     * @param int $parentMenuId Identifiant du menu parent (ex: "Adhérents").
+     */
+    private function createUtilisateursMenuItem(int $parentMenuId): void
+    {
+        $this->data_utilisateurs = [
+            'title'        => 'Utilisateurs',
+            'alias'        => 'utilisateurs_mgt',
+            'menutype'     => 'mainmenu',
+            'link'         => 'index.php?option=com_gdadhesions&view=utilisateurs',
+            'path'         => 'adherents/utilisateurs',
+            'type'         => 'component',
+            'parent_id'    => $parentMenuId,
+            'level'        => 2,
+            'component_id' => $this->componentId,
+            'access'       => $this->accessLevelIdBureau, // Accès réservé au Bureau
+            'params'       => [],
+        ];
+
+        $this->createFrontendMenuItem($this->data_utilisateurs);
     }
 
     /**

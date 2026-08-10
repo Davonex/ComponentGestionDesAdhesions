@@ -51,6 +51,18 @@ class SecretariatController extends BaseController
   }
 
   /**
+   * Nom d'affichage de l'utilisateur connecté qui effectue l'action (pour traçabilité des logs).
+   * Basé sur l'identité Joomla réelle plutôt que sur l'état de session 'session' alimenté par
+   * DisplayController::display(), car les tâches ajax n'y passent pas systématiquement.
+   */
+  private function getActingUserName(): string
+  {
+    $actingUser = Factory::getApplication()->getIdentity();
+
+    return $actingUser && $actingUser->id ? $actingUser->name : 'unknown';
+  }
+
+  /**
    * Ajax: suppression definitive d'un adherent (profil + user).
    */
   public function deleteAdherent(): void
@@ -65,8 +77,6 @@ class SecretariatController extends BaseController
       $idProfil = $input->getInt('id_profil', 0);
       $idCampagne = $input->getInt('id_campagne', 0);
 
-      $session = $app->getUserState('session');
-
       if ($idProfil <= 0 || $idCampagne <= 0) {
         throw new \InvalidArgumentException('Données invalides: id_profil et id_campagne sont obligatoires.');
       }
@@ -76,7 +86,7 @@ class SecretariatController extends BaseController
       $deletedInfo = $model->deleteAdherentDefinitif($idProfil);
 
       GdaLogger::info(
-        '[' . ($session['name'] ?? 'unknown') . '] ' .
+        '[' . $this->getActingUserName() . '] ' .
           'Adherent supprimé (id_profil=' . $idProfil . '): ' . ($deletedInfo['display_name'] ?? '') . ' (' . ($deletedInfo['username'] ?? '') .
           ')'
       );
@@ -128,7 +138,7 @@ class SecretariatController extends BaseController
       $response->success = true;
       $response->message = 'Le CACI a été de-valide';
       GdaLogger::info(
-        '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+        '[' . $this->getActingUserName() . '] ' .
           'CACI dé-validé (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $name
       );
     } catch (\Throwable $e) {
@@ -136,7 +146,7 @@ class SecretariatController extends BaseController
       $response->success = false;
       $response->message = 'Erreur: ' . $e->getMessage();
       GdaLogger::error(
-        '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+        '[' . $this->getActingUserName() . '] ' .
           'Erreur lors de la dé-validation du CACI (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $e->getMessage()
       );
     }
@@ -247,7 +257,7 @@ class SecretariatController extends BaseController
       $response->success = true;
       $response->message = "Le CACI de <b>$name</b> a été validé";
       GdaLogger::info(
-        '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+        '[' . $this->getActingUserName() . '] ' .
           'CACI validé (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $name
       );
     } catch (\Throwable $e) {
@@ -255,7 +265,7 @@ class SecretariatController extends BaseController
       $response->success = false;
       $response->message = 'Erreur: ' . $e->getMessage();
       GdaLogger::error(
-        '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+        '[' . $this->getActingUserName() . '] ' .
           'Erreur lors de la validation du CACI (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $e->getMessage()
       );
     }
@@ -296,19 +306,19 @@ class SecretariatController extends BaseController
       $response = new JsonResponse();
       $response->success = true;
       $response->message = "Le paiement de <b>$name</b> a été validé";
+      GdaLogger::info(
+        '[' . $this->getActingUserName() . '] ' .
+          'Paiement validé (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $name
+      );
     } catch (\Throwable $e) {
       $response = new JsonResponse();
       $response->success = false;
       $response->message = 'Erreur: ' . $e->getMessage();
-      GDALogger::error(
-        '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+      GdaLogger::error(
+        '[' . $this->getActingUserName() . '] ' .
           'Erreur lors de la validation du paiement (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $e->getMessage()
       );
     }
-    GDALogger::info(
-      '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
-        'Paiement validé (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $name
-    );
     echo $response;
     $app->close();
   }
@@ -342,19 +352,19 @@ class SecretariatController extends BaseController
       $response = new JsonResponse();
       $response->success = true;
       $response->message = "Le paiement de <b>$name</b> a été dé-validé";
+      GdaLogger::info(
+        '[' . $this->getActingUserName() . '] ' .
+          'Paiement dé-validé (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $name
+      );
     } catch (\Throwable $e) {
       $response = new JsonResponse();
       $response->success = false;
       $response->message = 'Erreur: ' . $e->getMessage();
       GdaLogger::error(
-        '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+        '[' . $this->getActingUserName() . '] ' .
           'Erreur lors de la dé-validation du paiement (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $e->getMessage()
       );
     }
-    GdaLogger::info(
-      '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
-        'Paiement dé-validé (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $name
-    );
     echo $response;
     $app->close();
   }
@@ -393,7 +403,7 @@ class SecretariatController extends BaseController
       $response->success = true;
       $response->message = "L'inscription de <b>$name</b> a été finalisée";
       GdaLogger::info(
-        '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+        '[' . $this->getActingUserName() . '] ' .
           'Inscription finalisée (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $name
       );
     } catch (\Throwable $e) {
@@ -401,7 +411,7 @@ class SecretariatController extends BaseController
       $response->success = false;
       $response->message = 'Erreur: ' . $e->getMessage();
       GdaLogger::error(
-        '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+        '[' . $this->getActingUserName() . '] ' .
           'Erreur lors de la finalisation de l\'inscription (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $e->getMessage()
       );
     }
@@ -441,7 +451,7 @@ class SecretariatController extends BaseController
       $response->success = true;
       $response->message = "L'inscription de <b>$name</b> a été dé-finalisée";
       GdaLogger::info(
-        '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+        '[' . $this->getActingUserName() . '] ' .
           'Inscription dé-finalisée (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $name
       );
     } catch (\Throwable $e) {
@@ -449,7 +459,7 @@ class SecretariatController extends BaseController
       $response->success = false;
       $response->message = 'Erreur: ' . $e->getMessage();
       GdaLogger::error(
-        '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+        '[' . $this->getActingUserName() . '] ' .
           'Erreur lors de la dé-finalisation de l\'inscription (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $e->getMessage()
       );
     }

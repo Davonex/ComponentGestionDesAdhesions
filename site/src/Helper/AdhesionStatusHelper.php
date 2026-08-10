@@ -258,6 +258,91 @@ class AdhesionStatusHelper
     }
 
     /**
+     * Statuts simplifiés (3 états), pour un affichage synthétique (ex: colonne "Statut" de la
+     * vue Utilisateurs) sans exposer le détail des étapes CACI/Paiement/Licence.
+     */
+    const SIMPLIFIED_STATUS_NOT_SUBSCRIBED = 'NOT_SUBSCRIBED';
+    const SIMPLIFIED_STATUS_IN_PROGRESS = 'IN_PROGRESS';
+    const SIMPLIFIED_STATUS_COMPLETED = 'COMPLETED';
+
+    /**
+     * Regroupe un statut détaillé (STATUS_*) en un statut simplifié à 3 états :
+     * pas d'adhésion / adhésion en cours (CACI, paiement ou licence en attente) / adhésion finalisée.
+     *
+     * @param string $statusEnum Code du statut détaillé (voir getStatusEnum())
+     * @return string Un des SIMPLIFIED_STATUS_*
+     */
+    public static function getSimplifiedStatus(string $statusEnum): string
+    {
+        if ($statusEnum === self::STATUS_NOT_SUBSCRIBED) {
+            return self::SIMPLIFIED_STATUS_NOT_SUBSCRIBED;
+        }
+
+        if ($statusEnum === self::STATUS_COMPLETED) {
+            return self::SIMPLIFIED_STATUS_COMPLETED;
+        }
+
+        return self::SIMPLIFIED_STATUS_IN_PROGRESS;
+    }
+
+    /**
+     * Libellé traduit du statut simplifié.
+     *
+     * @param string $simplifiedStatus Un des SIMPLIFIED_STATUS_*
+     * @return string Libellé traduit
+     */
+    public static function getSimplifiedStatusLabel(string $simplifiedStatus): string
+    {
+        $labels = [
+            self::SIMPLIFIED_STATUS_NOT_SUBSCRIBED => 'COM_GDA_UTILISATEURS_ADHESION_STATUS_NOT_SUBSCRIBED',
+            self::SIMPLIFIED_STATUS_IN_PROGRESS    => 'COM_GDA_UTILISATEURS_ADHESION_STATUS_IN_PROGRESS',
+            self::SIMPLIFIED_STATUS_COMPLETED      => 'COM_GDA_UTILISATEURS_ADHESION_STATUS_COMPLETED',
+        ];
+
+        return Text::_($labels[$simplifiedStatus] ?? 'COM_GDA_STATUS_UNKNOWN');
+    }
+
+    /**
+     * Couleur de badge Bootstrap associée au statut simplifié.
+     *
+     * @param string $simplifiedStatus Un des SIMPLIFIED_STATUS_*
+     * @return string Classe Bootstrap (bg-danger, bg-warning, bg-success, ...)
+     */
+    public static function getSimplifiedStatusBadgeClass(string $simplifiedStatus): string
+    {
+        switch ($simplifiedStatus) {
+            case self::SIMPLIFIED_STATUS_NOT_SUBSCRIBED:
+                return 'danger';
+            case self::SIMPLIFIED_STATUS_IN_PROGRESS:
+                return 'warning';
+            case self::SIMPLIFIED_STATUS_COMPLETED:
+                return 'success';
+            default:
+                return 'secondary';
+        }
+    }
+
+    /**
+     * Icône Font Awesome associée au statut simplifié (cohérente avec getStatusDescription()).
+     *
+     * @param string $simplifiedStatus Un des SIMPLIFIED_STATUS_*
+     * @return string Classe icône (ex: "fa-solid fa-check-circle")
+     */
+    public static function getSimplifiedStatusIcon(string $simplifiedStatus): string
+    {
+        switch ($simplifiedStatus) {
+            case self::SIMPLIFIED_STATUS_NOT_SUBSCRIBED:
+                return 'fa-solid fa-user-plus';
+            case self::SIMPLIFIED_STATUS_IN_PROGRESS:
+                return 'fa-solid fa-hourglass-half';
+            case self::SIMPLIFIED_STATUS_COMPLETED:
+                return 'fa-solid fa-check-circle';
+            default:
+                return 'fa-solid fa-circle-info';
+        }
+    }
+
+    /**
      * Retourne une description enrichie du statut, sous forme de données structurées
      * (type d'alerte, icône, message traduit) à charge du layout de produire le HTML.
      *

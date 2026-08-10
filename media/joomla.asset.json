@@ -117,6 +117,13 @@
       "uri": "com_gdadhesions/groupes.js",
       "dependencies": ["simple-datatables"],
       "version": "nocache"
+    },
+    {
+      "name": "com_gdadhesions.utilisateurs",
+      "type": "script",
+      "uri": "com_gdadhesions/utilisateurs.js",
+      "dependencies": ["simple-datatables"],
+      "version": "nocache"
     }
   ]
 }

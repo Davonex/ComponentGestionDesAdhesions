@@ -14,6 +14,7 @@ use Joomla\CMS\Layout\LayoutHelper;
 
 use Joomla\CMS\HTML\Helpers\Bootstrap;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
+use NCB\Component\Gda\Site\Helper\UsersHelper;
 
 Bootstrap::framework();
 
@@ -23,10 +24,10 @@ Bootstrap::framework();
 /** @var Joomla\CMS\Application\SiteApplication $app */
 $app = Factory::getApplication();
 $wa = $app->getDocument()->getWebAssetManager();
-  // $wa->useScript('core');
-  // $wa->useScript('keepalive');
-  // $wa->useScript('field.modal-fields');
-  // $wa->useScript('joomla.dialog');
+// $wa->useScript('core');
+// $wa->useScript('keepalive');
+// $wa->useScript('field.modal-fields');
+// $wa->useScript('joomla.dialog');
 
 
 $wa->useStyle('com_gdadhesions.gda');
@@ -43,43 +44,48 @@ $wa->useScript('com_gdadhesions.tom-select');
 <!-- bloc de bienvenue collapsable -->
 <div class="card">
 
-    <div class="card-header d-flex align-items-center">
+  <div class="card-header d-flex align-items-center">
 
-        <button class="btn btn-sm p-0 me-2 toggle-card"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#welcomeCard"
-        aria-expanded="false">
-    <i class="fa-solid fa-chevron-right"></i>
-</button>    
+    <button class="btn btn-sm p-0 me-2 toggle-card"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#welcomeCard"
+      aria-expanded="false">
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
 
-        <h5 class="mb-0">
-          <?php echo $this->user->name . " [" . $this->user->username . "]"; ?>
-        </h5>
+    <h5 class="mb-0">
+      <?php echo $this->user->name . " [" . $this->user->username . "]"; ?>
+    </h5>
 
+    <?php $userRole = UsersHelper::getCurrentUserRole(); ?>
+    <span class="badge gda-role-badge bg-secondary ms-auto">
+      <i class="<?php echo $this->escape($userRole['icon']); ?>" aria-hidden="true"></i><?php echo $this->escape(Text::_($userRole['label'])); ?>
+    </span>
+
+  </div>
+
+  <div class="collapse" id="welcomeCard">
+    <div class="card-body">
+      <p class="mb-0">
+        Bienvenue dans votre espace adhérent
+      </p>
     </div>
-
-    <div class="collapse" id="welcomeCard">
-        <div class="card-body">
-            <p class="mb-0">
-                Bienvenue dans votre espace adhérent
-            </p>
-        </div>
-    </div>
+  </div>
 
 </div>
 
 
 <div class="row g-2 dashboard">
-<!-- container dashboard py-4 -->
+  <!-- container dashboard py-4 -->
 
 
   <!-- ALERTES - Suivi Adhésion et CACI -->
   <?php
   // Récupérer les données de souscription
-  
+
   $model = $this->getModel();
-  
+
   // Déterminer la saison courante (suivi CACI/licence, indépendant de l'ouverture des inscriptions)
   $saisonCourante = ConfHelper::getSaisonService()->getSaisonCourante();
 
@@ -119,9 +125,10 @@ $wa->useScript('com_gdadhesions.tom-select');
   <!-- Campagnes -->
 
   <?php echo LayoutHelper::render(
-            'accueil.dash_campagnes',   ['campagne' => $this->campagnes, 'user' => $this->user]
-        );
-    ?>
+    'accueil.dash_campagnes',
+    ['campagne' => $this->campagnes, 'user' => $this->user]
+  );
+  ?>
 
   <!-- PLANNING -->
 
@@ -175,7 +182,7 @@ $wa->useScript('com_gdadhesions.tom-select');
 
 
 
-<?php    
+<?php
 //     foreach ($this->campagnes as $cle => $campagne) {
 //     if ($cle%2 == 0) // 1er carte de la ligne
 //     {
@@ -191,17 +198,17 @@ $wa->useScript('com_gdadhesions.tom-select');
 //     }
 //   }
 echo LayoutHelper::render(
-            'accueil.souscription_modale',   
-            [
-              'form' => $this->form,
-              'task' => 'souscrit',
-              ]
-        );
+  'accueil.souscription_modale',
+  [
+    'form' => $this->form,
+    'task' => 'souscrit',
+  ]
+);
 
- // Code de la mb_encoding_aliases
+// Code de la mb_encoding_aliases
 
 
-  ?>
+?>
 
 
 
@@ -213,11 +220,11 @@ echo LayoutHelper::render(
 
 
 <script type="module">
-// document.addEventListener('DOMContentLoaded', function() {
-//   LstModal("modalSign", "souscription")
+  // document.addEventListener('DOMContentLoaded', function() {
+  //   LstModal("modalSign", "souscription")
   // queryAjax ("submitSignIn","form_souscrit",campagneCB,"closeSignIn");
 
   // LstModal("modalSignOut","campagne")
   // queryAjax ("submitSignOut","form_desouscrit",campagneCB,"closeSignOut");
-// });
+  // });
 </script>

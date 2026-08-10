@@ -1,5 +1,17 @@
 # Component com_gadhesions
 
+## Version 0.8.2
+
+ - 📰 Nouveautés
+    - Affichage du role utilisateur  dans *Accueil / Adhérents*
+    - Site: Nouvelle vue *Utilisateur* reservé au **Membre du Bureau** pour donner les roles et Activer/bloquer les utilisateurs.
+
+- 🔧 Améliorations
+    - Ajouter du loggin pour toutes les étapes de validation ou de-validation de la vue Secretariat
+
+- 🪲 Bugs
+  - Mise a jour du tooltips: "Licence temporaire ..."
+  - Vue *Secrétariat* : validation/dé-validation d'un paiement toujours loggée comme réussie même en cas d'échec (log de succès placé après le bloc try/catch, donc exécuté inconditionnellement)
 
 ## Version 0.8.1
 
