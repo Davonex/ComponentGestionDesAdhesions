@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS `#__gda_profils` (
   `nbr_plongee_35` smallint UNSIGNED DEFAULT '0' COMMENT 'Nombre de plongée en dessous de 35m',
   `nbr_plongee_auto` smallint UNSIGNED DEFAULT '0' COMMENT 'Nombre de plongée en  autonomie',
   `key` varchar(25) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fonction` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Fonction au sein du Bureau',
   PRIMARY KEY (`id_profil`),
   UNIQUE KEY `id_profile` (`id_profil`),
   CONSTRAINT `gda_profils_users_FK` FOREIGN KEY (`id_profil`) REFERENCES `#__users` (`id`)

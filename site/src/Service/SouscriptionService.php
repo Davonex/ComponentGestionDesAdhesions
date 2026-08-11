@@ -6,7 +6,7 @@ namespace NCB\Component\Gda\Site\Service;
 
 use Joomla\Database\DatabaseInterface;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
-use NCB\Component\Gda\Site\Helper\toolsHelper;
+use NCB\Component\Gda\Site\Helper\ToolsHelper;
 
 /**
  * Service réutilisable pour gérer les souscriptions (inscriptions / désinscriptions) à une campagne.
@@ -34,8 +34,8 @@ final class SouscriptionService
         $idCampagne = (int) ($data['id_campagne'] ?? 0);
         $idProfil   = (int) ($data['id_profil'] ?? 0);
         $categorie = $data['categorie'] ?? null;
-        $date_souscription = $data['date_souscription'] ?? toolsHelper::now();
-        $last_update = toolsHelper::now();
+        $date_souscription = $data['date_souscription'] ?? ToolsHelper::now();
+        $last_update = ToolsHelper::now();
         $cotisation_code = $data['cotisation_code'] ?? null;
         $id_order = $data['id_order'] ?? null;
         // $caci_check = $data['caci_check'] ?? false;

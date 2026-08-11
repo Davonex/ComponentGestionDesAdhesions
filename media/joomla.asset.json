@@ -9,7 +9,8 @@
     {
       "name": "com_gdadhesions.gda",
       "type": "style",
-      "uri": "com_gdadhesions/gda.css"
+      "uri": "com_gdadhesions/gda.css",
+      "version": "nocache"
     },
     {
       "name": "com_gdadhesions.gda",
@@ -123,6 +124,17 @@
       "type": "script",
       "uri": "com_gdadhesions/utilisateurs.js",
       "dependencies": ["simple-datatables"],
+      "version": "nocache"
+    },
+    {
+      "name": "com_gdadhesions.saisons",
+      "type": "style",
+      "uri": "com_gdadhesions/saisons-override.css"
+    },
+    {
+      "name": "com_gdadhesions.saisons",
+      "type": "script",
+      "uri": "com_gdadhesions/saisons.js",
       "version": "nocache"
     }
   ]

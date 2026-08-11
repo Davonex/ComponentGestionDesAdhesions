@@ -1,5 +1,25 @@
 # Component com_gadhesions
 
+## Version 0.9.0
+
+  - 📰 Nouveautés
+    - Vue pour gerer Les saisons!
+      - Modifier les infos de la courante (Titre lienn dates, helloAsso etc..)
+      - Modifier les groupes ouverts aux adhésions
+      - Ouvrir / fermé  les saisons 
+
+  - 🔧 Améliorations
+    - site: Nettoyage du fichier com_gdadhesions.ini
+    - site: vue utilisateur 
+      - Ajout de la fontion pour les membre du bureau 
+      - Ajout du filtre pour afficher que les membre d'un groupe
+      - Ajout du lien pour editer le profil de chaque utilisateur 
+    - Site: possibilité de telecharger le CACI au format PDF  ( Adhesion & Profils)
+
+  - 🪲 Bugs
+    - pb de case avec ToolHelper.
+    - save profil: ajout le control du  niveau d'acces
+
 ## Version 0.8.2
 
  - 📰 Nouveautés

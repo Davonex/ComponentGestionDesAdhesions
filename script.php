@@ -34,6 +34,7 @@ class com_gdadhesionsInstallerScript
     private $data_secretariat = [];
     private $data_groupes = [];
     private $data_utilisateurs = [];
+    private $data_saisons = [];
 
     private $templateStyleId = NULL;
 
@@ -165,6 +166,9 @@ class com_gdadhesionsInstallerScript
         //== creation menu pour la gestion des groupes (visible uniquement par les membres du bureau) ===
         $this->createGroupesMenuItem($idMenuAdherent);
 
+        //== creation menu pour la gestion des saisons (visible uniquement par les membres du bureau) ===
+        $this->createSaisonsMenuItem($idMenuAdherent);
+
 
         $data_dma = [
             'name' => 'MATHIEU Didier',
@@ -183,8 +187,13 @@ class com_gdadhesionsInstallerScript
     public function update(InstallerAdapter $parent): bool
     {
         $this->removeObsoleteFiles();
+
+        // creation des menus "Groupes" et "Utilisateurs" pour les sites déjà installés (< 0.8.0)
         $this->addGroupesMenuItemOnUpdate();
         $this->addUtilisateursMenuItemOnUpdate();
+
+        // creation du menu "Saisons" pour les sites déjà installés (< 0.8.1)
+        $this->addSaisonsMenuItemOnUpdate();
 
         return true;
     }
@@ -297,6 +306,61 @@ class com_gdadhesionsInstallerScript
     }
 
     /**
+     * Ajoute le menu "Saisons" pour les sites déjà installés (mise à jour depuis une version
+     * antérieure à cette fonctionnalité). accessLevelIdBureau existe déjà depuis l'installation
+     * initiale (utilisé par Secrétariat/Campagnes/Profils/Utilisateurs) ; on le reconstruit ici
+     * au cas où update() est exécuté isolément (voir addUtilisateursMenuItemOnUpdate() pour le
+     * même besoin).
+     */
+    private function addSaisonsMenuItemOnUpdate(): void
+    {
+        $this->componentId = $this->componentId ?: $this->getComponentId();
+        $this->templateStyleId = $this->templateStyleId ?: $this->getDefaultSiteTemplateStyleId();
+
+        $this->groupIdBureau = $this->groupIdBureau ?: $this->createUserGroup('Membre du Bureau', 2);
+        $this->accessLevelIdBureau = $this->accessLevelIdBureau
+            ?: $this->createAccessLevel('NA Bureau', [$this->groupIdBureau]);
+
+        $idMenuAdherent = $this->getMenuIdByAlias('adherents');
+
+        if ($idMenuAdherent === null) {
+            Factory::getApplication()->enqueueMessage(
+                'Menu parent "adherents" introuvable, impossible de créer le menu "Saisons"',
+                'warning'
+            );
+            return;
+        }
+
+        $this->createSaisonsMenuItem($idMenuAdherent);
+    }
+
+    /**
+     * Créé le menu frontend "Saisons" (accès réservé au Bureau) sous le menu parent donné.
+     * Permet au Bureau de gérer la saison courante et l'historique des saisons, séparément
+     * de la vue "Campagnes" qui gère les autres types de campagnes.
+     *
+     * @param int $parentMenuId Identifiant du menu parent (ex: "Adhérents").
+     */
+    private function createSaisonsMenuItem(int $parentMenuId): void
+    {
+        $this->data_saisons = [
+            'title'        => 'Saisons',
+            'alias'        => 'saisons_mgt',
+            'menutype'     => 'mainmenu',
+            'link'         => 'index.php?option=com_gdadhesions&view=saisons',
+            'path'         => 'adherents/saisons',
+            'type'         => 'component',
+            'parent_id'    => $parentMenuId,
+            'level'        => 2,
+            'component_id' => $this->componentId,
+            'access'       => $this->accessLevelIdBureau, // Accès réservé au Bureau
+            'params'       => [],
+        ];
+
+        $this->createFrontendMenuItem($this->data_saisons);
+    }
+
+    /**
      * Supprime les fichiers/dossiers devenus obsolètes lors d'une mise à jour.
      * Le programme d'installation Joomla copie les nouveaux fichiers mais ne
      * supprime jamais ceux retirés du package : ce nettoyage doit être fait ici.
@@ -358,7 +422,7 @@ class com_gdadhesionsInstallerScript
         $existingId = $db->loadResult();
 
         if ($existingId) {
-            Factory::getApplication()->enqueueMessage('La catégorie "GestionDesAdhésions" existe déjà (id=' . $existingId . ')', 'info');
+            // Factory::getApplication()->enqueueMessage('La catégorie "GestionDesAdhésions" existe déjà (id=' . $existingId . ')', 'info');
             return (int) $existingId;
         }
 
@@ -402,7 +466,7 @@ class com_gdadhesionsInstallerScript
         $existingId = $db->loadResult();
 
         if ($existingId) {
-            Factory::getApplication()->enqueueMessage('L\'article pour les adhésions fermées existe déjà (id=' . $existingId . ')', 'info');
+            // Factory::getApplication()->enqueueMessage('L\'article pour les adhésions fermées existe déjà (id=' . $existingId . ')', 'info');
             return (int) $existingId;
         }
 
@@ -511,9 +575,10 @@ class com_gdadhesionsInstallerScript
             $model->save($data);
             $menuId = $model->getState($model->getName() . '.id');
             Factory::getApplication()->enqueueMessage('Creation de l\'item de menu "' . $data['title'] . '" [' . $menuId . ']', 'info');
-        } else {
-            Factory::getApplication()->enqueueMessage('L\'item de menu "' . $data['title'] . '" existe déjà [' . $menuId . ']', 'info');
-        }
+        } 
+        // else {
+        //     Factory::getApplication()->enqueueMessage('L\'item de menu "' . $data['title'] . '" existe déjà [' . $menuId . ']', 'info');
+        // }
 
         return $menuId;
     }
@@ -569,7 +634,7 @@ class com_gdadhesionsInstallerScript
         $existingId = $db->loadResult();
 
         if ($existingId) {
-            Factory::getApplication()->enqueueMessage('Le groupe "' . $title . '" existe déjà (id=' . $existingId . ')', 'info');
+            // Factory::getApplication()->enqueueMessage('Le groupe "' . $title . '" existe déjà (id=' . $existingId . ')', 'info');
             return (int) $existingId;
         }
 
@@ -618,7 +683,7 @@ class com_gdadhesionsInstallerScript
         $existingId = $db->loadResult();
 
         if ($existingId) {
-            Factory::getApplication()->enqueueMessage('Le niveau d\'accès "' . $title . '" existe déjà (id=' . $existingId . ')', 'info');
+            // Factory::getApplication()->enqueueMessage('Le niveau d\'accès "' . $title . '" existe déjà (id=' . $existingId . ')', 'info');
             return (int) $existingId;
         }
 

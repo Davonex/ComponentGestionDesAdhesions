@@ -23,7 +23,7 @@ class HtmlView extends BaseHtmlView
         //$user =  $app->getIdentity();
 
         // $this->state      = $this->get('State');
-        $this->item = $model->getItem(); 
+        $this->item = $model->getItem();
 
          if ( $this->item !== null) {
 

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <field
+        name="id_campagne"
+        type="hidden"
+    />
+
+    <field
+        name="titre"
+        type="text"
+        label="Titre de la saison"
+        size="40"
+        class="inputbox"
+        required="true" />
+
+    <field
+        name="description"
+        type="textarea"
+        label="Courte description de la saison"
+        rows="3"
+        cols="255"
+    />
+
+    <field
+        name="date_debut"
+        type="calendar"
+        label="Date d'ouverture de la saison"
+        class="input-small"
+        required="true"
+        showtime="false"
+        todaybutton="true"
+        filltable="false"
+        translateformat="false"
+        format="%d/%m/%Y"
+        filterformat="d/m/Y"
+        pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d"
+        minyear="-2"
+        maxyear="2"
+    />
+
+    <field
+        name="date_fin"
+        type="calendar"
+        label="Date de fermeture de la saison"
+        class="input-small"
+        required="true"
+        showtime="false"
+        todaybutton="true"
+        filltable="false"
+        translateformat="false"
+        format="%d/%m/%Y"
+        filterformat="d/m/Y"
+        pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d"
+        minyear="-2"
+        maxyear="2"
+    />
+
+    <field
+        name="id_article"
+        type="ArticlesByTag"
+        label="Article"
+        description="Choisissez un article pour les consignes de cette saison"
+    />
+
+    <field
+        name="event_helloasso"
+        type="EventsHelloAsso"
+        label="Event HelloAsso"
+        description="Choisissez un event HelloAsso pour le lier à cette saison"
+    />
+</form>

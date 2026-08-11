@@ -327,6 +327,102 @@ document.addEventListener('click', function (event) {
   });
 });
 
+// Handler délégué global pour js-edit-profil-card (vue Utilisateurs, réservé au Bureau) : ouvre
+// #profilCardModal avec le formulaire d'édition complet (champs + photo) du profil ciblé.
+document.addEventListener('click', function (event) {
+  const trigger = event.target.closest('.js-edit-profil-card');
+  if (!trigger) { return; }
+
+  event.preventDefault();
+
+  const modalEl = document.getElementById('profilCardModal');
+  const modalContent = document.getElementById('profilCardModalContent');
+  if (!modalEl || !modalContent) { return; }
+
+  modalContent.innerHTML = '<div class="modal-body text-center py-4"><div class="spinner-border text-success" role="status"><span class="visually-hidden">Chargement...</span></div></div>';
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+  const ajaxData = {
+    task: 'profil.showEditForm',
+    id_profil: parseInt(trigger.dataset.idProfil || '0', 10),
+  };
+  const csrfTokenName = Joomla.getOptions('csrf.token');
+  if (csrfTokenName) { ajaxData[csrfTokenName] = 1; }
+
+  simpleCallAjax(ajaxData, function (response) {
+    modalContent.innerHTML = decodeURIComponent(escape(atob(response.data)));
+
+    // Câblage du drag&drop photo sur le formulaire fraîchement injecté (sûr à rappeler à chaque
+    // ouverture : FileUpload.create() se lie aux éléments du DOM courant, les anciens éléments
+    // détachés et leurs listeners sont recyclés par le garbage collector).
+    if (typeof FileUpload !== 'undefined') {
+      FileUpload.create('photo', {
+        mediaBrowserId: 'profilEditFormBody',
+        dropAreaId: 'drop-area',
+        previewId: 'image-preview',
+        inputId: 'image-upload',
+        flagId: 'photoFlag',
+      });
+    }
+  }, false, function (response) {
+    modalContent.innerHTML = '<div class="modal-body"><div class="alert alert-danger">' + ((response && response.message) || 'Erreur inconnue') + '</div></div>';
+  });
+});
+
+// Handler délégué global pour js-save-profil-popup : sauvegarde le formulaire injecté par
+// js-edit-profil-card et met à jour la ligne correspondante (nom, photo) dans le tableau appelant,
+// sans recharger la page.
+document.addEventListener('click', function (event) {
+  const saveButton = event.target.closest('.js-save-profil-popup');
+  if (!saveButton) { return; }
+
+  const modalEl = document.getElementById('profilCardModal');
+  const form = document.getElementById('adminForm');
+  if (!modalEl || !form) { return; }
+
+  const formData = new FormData(form);
+  const upPhoto = window.GdaFileUploads && window.GdaFileUploads.photo;
+  if (upPhoto && upPhoto.File !== undefined) {
+    formData.append('jform_Profil[upload]', upPhoto.File);
+  }
+
+  saveButton.disabled = true;
+
+  simpleCallAjax(formData, function (response) {
+    saveButton.disabled = false;
+
+    if (response.data && response.data.id_profil) {
+      const row = document.querySelector('tr[data-id-user="' + response.data.id_profil + '"]');
+
+      if (row) {
+        const nameEl = row.querySelector('.js-utilisateur-name');
+        if (nameEl) {
+          nameEl.textContent = (
+            (response.data.civilite || '') + ' ' + (response.data.nom || '') + ' ' + (response.data.prenom || '')
+          ).trim();
+        }
+
+        const img = row.querySelector('.js-utilisateur-photo-img');
+        if (img && response.data.photoSrc) {
+          // URL déjà résolue côté serveur (dossier ProfilPhotoPath) : évite de la reconstruire ici
+          // à partir du src affiché jusque là, qui peut pointer vers la photo par défaut (dossier
+          // différent) si l'adhérent n'avait pas encore de photo.
+          img.src = response.data.photoSrc + '?id=' + Date.now();
+
+          const photoLink = row.querySelector('.js-utilisateur-photo-link');
+          if (photoLink) {
+            photoLink.dataset.imageSrc = img.src;
+          }
+        }
+      }
+    }
+
+    bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+  }, true, function () {
+    saveButton.disabled = false;
+  });
+});
+
 /**
  * simpleCallAjax
  *

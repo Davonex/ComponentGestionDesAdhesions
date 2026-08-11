@@ -28,6 +28,17 @@ th {
     text-align: center;
 }
 
+/** bootstrap Card **/
+/* Spécificité ".card > .card-header" (0,2,0) volontairement supérieure au simple
+   ".card-header" (0,1,0) de Bootstrap (media/templates/site/cassiopeia/css/template.css),
+   pour ne pas dépendre de l'ordre de chargement des feuilles de style. */
+.card > .card-header {
+    background-color: var(--logo-gauche);
+    color: var(--blanc);
+    font-weight: var(--body-font-weight);
+    text-transform: uppercase;
+    border-bottom: none;
+}
 
 
 /* Saisons */
@@ -609,14 +620,16 @@ select.tomselected {
 
 /* Cellules éditables (double-clic) - surbrillance au hover */
 .js-editable-date-caci,
-.js-editable-categorie {
+.js-editable-categorie,
+.js-editable-fonction {
     position: relative;
     transition: background-color 0.15s ease-in-out;
 }
 
 /* Petit triangle en haut a gauche pour signaler un champ editable. */
 .js-editable-date-caci::before,
-.js-editable-categorie::before {
+.js-editable-categorie::before,
+.js-editable-fonction::before {
     content: "";
     position: absolute;
     top: 0;
@@ -630,7 +643,8 @@ select.tomselected {
 }
 
 .js-editable-date-caci:hover,
-.js-editable-categorie:hover {
+.js-editable-categorie:hover,
+.js-editable-fonction:hover {
     background-color: #fef8e7 !important;
 }
     
@@ -659,4 +673,62 @@ select.tomselected {
 /* Vue Utilisateurs : tableau plus dense (police réduite) */
 .gda-table-compact {
     font-size: .85rem;
+}
+
+/*
+ * Largeur des colonnes de #tableUtilisateurs (Adhésion / Photo / Nom / Identifiant /
+ * Email / Groupes / Fonction / Statut). table-layout: fixed force le respect strict des
+ * pourcentages ; ajustable ici sans toucher au JS (simple-datatables n'expose pas d'option
+ * de largeur de colonne).
+ */
+#tableUtilisateurs {
+    table-layout: fixed;
+}
+
+#tableUtilisateurs th:nth-child(1),
+#tableUtilisateurs td:nth-child(1) {
+    width: 6%;
+}
+
+#tableUtilisateurs th:nth-child(2),
+#tableUtilisateurs td:nth-child(2) {
+    width: 7%;
+}
+
+#tableUtilisateurs th:nth-child(3),
+#tableUtilisateurs td:nth-child(3) {
+    width: 16%;
+}
+
+#tableUtilisateurs th:nth-child(4),
+#tableUtilisateurs td:nth-child(4) {
+    width: 12%;
+}
+
+#tableUtilisateurs th:nth-child(5),
+#tableUtilisateurs td:nth-child(5) {
+    width: 18%;
+}
+
+#tableUtilisateurs th:nth-child(6),
+#tableUtilisateurs td:nth-child(6) {
+    width: 18%;
+}
+
+#tableUtilisateurs th:nth-child(7),
+#tableUtilisateurs td:nth-child(7) {
+    width: 13%;
+}
+
+#tableUtilisateurs th:nth-child(8),
+#tableUtilisateurs td:nth-child(8) {
+    width: 10%;
+}
+
+#tableUtilisateurs td:nth-child(3),
+#tableUtilisateurs td:nth-child(4),
+#tableUtilisateurs td:nth-child(5) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

@@ -20,6 +20,13 @@ $wa = $app->getDocument()->getWebAssetManager();
 $wa->useStyle('com_gdadhesions.gda');
 $wa->useScript('com_gdadhesions.form_modal');
 
+// Formulaire d'édition du profil (popup au clic sur le Nom Prénom, réservé au Bureau) :
+// même assets que la vue Profil pour le drag&drop photo et le spinner de sauvegarde.
+$wa->useScript('com_gdadhesions.file_upload');
+$wa->useStyle('com_gdadhesions.file_upload');
+$wa->useScript('com_gdadhesions.spinner');
+$wa->useStyle('com_gdadhesions.spinner');
+
 $wa->useScript('simple-datatables');
 $wa->useStyle('simple-datatables');
 
@@ -42,20 +49,33 @@ $clubGroups = [
     <?php if (empty($utilisateurs)) : ?>
         <p class="text-muted"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_EMPTY') ?></p>
     <?php else : ?>
-        <div class="d-flex align-items-center gap-2 mb-3">
-            <label for="filterAdhesionStatus" class="form-label mb-0"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_ADHESION') ?></label>
-            <select id="filterAdhesionStatus" class="form-select form-select-sm w-auto">
-                <option value=""><?= Text::_('COM_GDA_UTILISATEURS_FILTER_ADHESION_ALL') ?></option>
-                <option value="<?= $this->escape(AdhesionStatusHelper::getSimplifiedStatusLabel(AdhesionStatusHelper::SIMPLIFIED_STATUS_NOT_SUBSCRIBED)) ?>">
-                    <?= Text::_('COM_GDA_UTILISATEURS_ADHESION_STATUS_NOT_SUBSCRIBED') ?>
-                </option>
-                <option value="<?= $this->escape(AdhesionStatusHelper::getSimplifiedStatusLabel(AdhesionStatusHelper::SIMPLIFIED_STATUS_IN_PROGRESS)) ?>">
-                    <?= Text::_('COM_GDA_UTILISATEURS_ADHESION_STATUS_IN_PROGRESS') ?>
-                </option>
-                <option value="<?= $this->escape(AdhesionStatusHelper::getSimplifiedStatusLabel(AdhesionStatusHelper::SIMPLIFIED_STATUS_COMPLETED)) ?>">
-                    <?= Text::_('COM_GDA_UTILISATEURS_ADHESION_STATUS_COMPLETED') ?>
-                </option>
-            </select>
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <label for="filterAdhesionStatus" class="form-label mb-0"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_ADHESION') ?></label>
+                <select id="filterAdhesionStatus" class="form-select form-select-sm w-auto">
+                    <option value=""><?= Text::_('COM_GDA_UTILISATEURS_FILTER_ADHESION_ALL') ?></option>
+                    <option value="<?= $this->escape(AdhesionStatusHelper::getSimplifiedStatusLabel(AdhesionStatusHelper::SIMPLIFIED_STATUS_NOT_SUBSCRIBED)) ?>">
+                        <?= Text::_('COM_GDA_UTILISATEURS_ADHESION_STATUS_NOT_SUBSCRIBED') ?>
+                    </option>
+                    <option value="<?= $this->escape(AdhesionStatusHelper::getSimplifiedStatusLabel(AdhesionStatusHelper::SIMPLIFIED_STATUS_IN_PROGRESS)) ?>">
+                        <?= Text::_('COM_GDA_UTILISATEURS_ADHESION_STATUS_IN_PROGRESS') ?>
+                    </option>
+                    <option value="<?= $this->escape(AdhesionStatusHelper::getSimplifiedStatusLabel(AdhesionStatusHelper::SIMPLIFIED_STATUS_COMPLETED)) ?>">
+                        <?= Text::_('COM_GDA_UTILISATEURS_ADHESION_STATUS_COMPLETED') ?>
+                    </option>
+                </select>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <label for="filterGroupe" class="form-label mb-0"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_GROUPES') ?></label>
+                <select id="filterGroupe" class="form-select form-select-sm w-auto">
+                    <option value=""><?= Text::_('COM_GDA_UTILISATEURS_FILTER_GROUPE_ALL') ?></option>
+                    <?php foreach ($clubGroups as $clubGroup) : ?>
+                        <?php if ($clubGroup['id'] !== null) : ?>
+                            <option value="grp:<?= $this->escape($clubGroup['label']) ?>"><?= $this->escape($clubGroup['label']) ?></option>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </select>
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-striped align-middle gda-table-compact" id="tableUtilisateurs">
@@ -67,6 +87,7 @@ $clubGroups = [
                         <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_USERNAME') ?></th>
                         <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_EMAIL') ?></th>
                         <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_GROUPES') ?></th>
+                        <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_FONCTION') ?></th>
                         <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_STATUT') ?></th>
                     </tr>
                 </thead>
@@ -91,7 +112,7 @@ $clubGroups = [
                                 <?php if (!empty($pathPhoto)) : ?>
                                     <a
                                         href="#"
-                                        class="js-image-preview-thumb"
+                                        class="js-image-preview-thumb js-utilisateur-photo-link"
                                         data-image-src="<?= $this->escape($pathPhoto) ?>"
                                         data-image-alt="<?= $this->escape($displayName) ?>"
                                         data-bs-toggle="modal"
@@ -103,11 +124,18 @@ $clubGroups = [
                                             width="48"
                                             height="48"
                                             loading="lazy"
-                                            class="gda-preview-thumb">
+                                            class="gda-preview-thumb js-utilisateur-photo-img">
                                     </a>
                                 <?php endif; ?>
                             </td>
-                            <td><?= $this->escape($displayName) ?></td>
+                            <td>
+                                <a href="#"
+                                    class="js-edit-profil-card"
+                                    data-id-profil="<?= (int) $utilisateur->id ?>"
+                                    title="<?= $this->escape(Text::_('COM_GDA_UTILISATEURS_EDIT_PROFIL_TOOLTIP')) ?>">
+                                    <span class="js-utilisateur-name"><?= $this->escape($displayName) ?></span>
+                                </a>
+                            </td>
                             <td><?= $this->escape($utilisateur->username) ?></td>
                             <td><?= $this->escape($utilisateur->email) ?></td>
                             <td>
@@ -128,6 +156,22 @@ $clubGroups = [
                                         </div>
                                     <?php endif; ?>
                                 <?php endforeach; ?>
+                                <span class="visually-hidden">
+                                    <?php foreach ($clubGroups as $clubGroup) : ?>
+                                        <?php if ($clubGroup['id'] !== null && in_array((int) $clubGroup['id'], $assignedGroupIds, true)) : ?>
+                                            grp:<?= $this->escape($clubGroup['label']) ?>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </span>
+                            </td>
+                            <td class="js-editable-fonction" data-id-user="<?= (int) $utilisateur->id ?>">
+                                <span class="fonction-display"><?= $this->escape($utilisateur->fonction ?? '') ?></span>
+                                <input
+                                    type="text"
+                                    class="form-control form-control-sm fonction-input d-none"
+                                    maxlength="100"
+                                    value="<?= $this->escape($utilisateur->fonction ?? '') ?>"
+                                    data-current-fonction="<?= $this->escape($utilisateur->fonction ?? '') ?>">
                             </td>
                             <td>
                                 <div class="form-check form-switch mb-0">
@@ -160,6 +204,15 @@ $clubGroups = [
                 <div class="modal-body text-center p-2">
                     <img id="imagePreviewImage" src="" alt="" class="img-fluid">
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'édition du profil (formulaire complet, chargé en ajax au clic sur le Nom Prénom) -->
+    <div class="modal fade" id="profilCardModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" id="profilCardModalContent">
+                <!-- Le contenu de la modal est chargé dynamiquement via ajax -->
             </div>
         </div>
     </div>

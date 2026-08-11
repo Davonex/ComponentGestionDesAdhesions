@@ -29,6 +29,19 @@ class CampagnesController extends BaseController
     // return parent::execute($task);
     // }
 
+    /**
+     * Les campagnes de type Saison sont exclusivement gérées par la vue Saisons (ouverture,
+     * fermeture, saison courante). Rejette toute tentative de créer/modifier/supprimer une
+     * campagne de ce type via cette vue — y compris un appel ajax direct, puisque le champ
+     * "Type de campagne" du formulaire n'expose déjà plus Saison comme option sélectionnable
+     * (voir models/fields/typedecampagne.php).
+     */
+    private function guardNonSaison($idType): void
+    {
+        if ((string) $idType === (string) ConfHelper::getValue('IdTypeSaison')) {
+            throw new \Exception(Text::_('COM_GDA_CAMPAGNE_TYPE_SAISON_EXCLU'), 501);
+        }
+    }
 
     /**
      *   *   Ajax pour activer ou desactiver une camapgne dans la View admin
@@ -54,23 +67,7 @@ class CampagnesController extends BaseController
 
             if (!empty($dataForm['jform_campagne'])) {
                 $app->setUserState('campagne.activer', $dataForm['jform_campagne']);
-                /**
-                 * A FAIRE !IMPORTANT
-                 */
-                // $validData = $model->validate($form, $data['jform_Profil']);
-                // Verifier si une AUTRE campagne de type saison est deja ouverte, uniquement lors d'une ouverture
-                // (fermer la campagne actuellement ouverte ne doit jamais être bloqué)
-
-                $ouvreUneSaison = (int) $dataForm['jform_campagne']['active'] === 1
-                    && (string) $dataForm['jform_campagne']['id_type'] === (string) ConfHelper::getValue('IdTypeSaison');
-
-                if ($ouvreUneSaison) {
-                    $saisonOuverte = $model->SaisonOuverte();
-                    if ($saisonOuverte !== null && (int) $saisonOuverte->id_campagne !== (int) $dataForm['jform_campagne']['id_campagne']) {
-                        throw new \Exception(Text::_('COM_GDA_CAMPAGNE_SAISON_ALLREADY_OPEN'), 501);
-                    }
-                }
-
+                $this->guardNonSaison($dataForm['jform_campagne']['id_type']);
 
                 $model->Activer();
                 // $model->saveUser();
@@ -104,56 +101,6 @@ class CampagnesController extends BaseController
 
 
     /**
-     *   Ajax pour déclarer/retirer une campagne comme saison courante dans la View admin
-     */
-    public function declarerCourante($key = null, $urlVar = null)
-    {
-
-        $Response = new JsonResponse();
-        try {
-            $this->checkToken();
-
-            /** @var \Joomla\CMS\Application\SiteApplication $app */
-            $app   = Factory::getApplication();
-            /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
-            $model = $this->getModel('campagnes', 'site');
-
-            // Get data
-            $dataForm = $app->input->getArray(array('jform_campagne' => 'ARRAY'));
-
-            if (!empty($dataForm['jform_campagne'])) {
-                $app->setUserState('campagne.courante', $dataForm['jform_campagne']);
-
-                if ((string) $dataForm['jform_campagne']['id_type'] !== (string) ConfHelper::getValue('IdTypeSaison')) {
-                    throw new \Exception(Text::_('COM_GDA_CAMPAGNE_COURANTE_TYPE_INVALIDE'), 501);
-                }
-
-                $model->DeclarerCourante();
-                $Response->success = true;
-
-                $Campagne = $model->getCampagne($dataForm['jform_campagne']['id_campagne']);
-                $Response->data =  base64_encode(
-                    LayoutHelper::render('campagnes.row', [
-                        'item' => $Campagne,
-                        'task' => 'sauver'
-                    ])
-                );
-                $Response->message = $Campagne->courante
-                    ? Text::sprintf('COM_GDA_CAMPAGNE_COURANTE_DECLAREE', $Campagne->titre)
-                    : Text::sprintf('COM_GDA_CAMPAGNE_COURANTE_RETIREE', $Campagne->titre);
-            } else {
-                $Response->success = false;
-            }
-
-            echo $Response;
-        } catch (\Exception $e) {
-            echo new JsonResponse($e);
-        }
-        $app->close();  // stoppe l’exécution pour que seule la réponse JSON parte
-    }
-
-
-    /**
      *  Ajax pour effacer une camapgne dans la View admin
      */
     public function effacer()
@@ -175,10 +122,8 @@ class CampagnesController extends BaseController
 
             if (!empty($dataForm['jform_campagne'])) {
                 $app->setUserState('campagne.effacer', $dataForm['jform_campagne']);
-                /**
-                 * A FAIRE !IMPORTANT
-                 */
-                // $validData = $model->validate($form, $data['jform_Profil']);
+                $this->guardNonSaison($dataForm['jform_campagne']['id_type']);
+
                 $model->Effacer();
                 // $model->saveUser();
                 $Response->success = true;
@@ -253,6 +198,7 @@ class CampagnesController extends BaseController
 
             if (!empty($dataForm['jform_campagne'])) {
                 $app->setUserState('campagne.sauver', $dataForm['jform_campagne']);
+                $this->guardNonSaison($dataForm['jform_campagne']['id_type']);
 
                 // $validData = $model->validate($form, $data['jform_Profil']);
                 if ($dataForm['jform_campagne']['titre'] === "") {

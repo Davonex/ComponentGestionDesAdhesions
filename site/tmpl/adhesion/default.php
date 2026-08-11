@@ -248,7 +248,7 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
         <div class="spinner-border js-loading text-danger visually-hidden" role="status" aria-hidden="true">
           <span class="visually-hidden"> Loading...</span>
         </div>
-        <input id="caciUpload" class="position-absolute invisible" type="file" accept="image/jpeg, image/png" />
+        <input id="caciUpload" class="position-absolute invisible" type="file" accept="image/jpeg, image/png, application/pdf" />
         <!-- Fin Zone de capture du drag and drop -->
 
         <div class="row">

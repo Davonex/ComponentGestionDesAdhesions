@@ -3,7 +3,6 @@
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\HTML\HTMLHelper;
-use NCB\Component\Gda\Site\Helper\ConfHelper;
 
 /**
  * @var array $displayData
@@ -29,18 +28,10 @@ $data_active = [
         'task' => "campagnes.activer"
     ];
 
-$data_courante = [
-        'jform_campagne[id_campagne]' => $item->id_campagne,
-        'jform_campagne[courante]' => $item->courante ? '0' : '1',
-        'jform_campagne[id_type]' => $item->id_type,
-        'task' => "campagnes.declarerCourante"
-    ];
-
-$id_type_saison = (int) ConfHelper::getValue('IdTypeSaison');
-
 $data_remove = [
         'jform_campagne[titre]' => $item->titre,
         'jform_campagne[id_campagne]' => $item->id_campagne,
+        'jform_campagne[id_type]' => $item->id_type,
         'task' => "campagnes.effacer"
     ];
 
@@ -115,30 +106,8 @@ $data_rapport = [
             <span class="hidden" data-bs name="id_groupes"><?= $item->id_groupes;?></span>
             <span class="hidden" data-bs name="id_campagne"><?= $item->id_campagne; ?></span>
             <span class="hidden" data-bs name="active"><?= $item->active; ?></span>
-            <span class="hidden" data-bs name="courante"><?= $item->courante; ?></span>
              <span class="hidden" data-bs name="nbr_place"><?= $item->nbr_place; ?></span>
             <span class="hidden" data-bs name="modal-title"><?= Text::_('COM_GDA_CAMPAGNE_EDIT'); ?></span>
-            </td>
-            <td>
-                <?php if ($id_type_saison === (int) $item->id_type) : ?>
-                    <?php if ($item->courante) : ?>
-                        <a class="btn btn-warning btn-sm" type="button" name="courante"
-                            data-toggle="tooltip" data-placement="top"
-                            onclick='simpleCallAjax(<?= json_encode($data_courante) ?>,campagneAdmCB)'
-                            title="<?= Text::_('COM_GDA_CAMPAGNE_COURANTE_RETIRER_TOOLTIP'); ?>"
-                        >
-                                <span class="fa-solid fa-star"></span>
-                        </a>
-                    <?php else : ?>
-                        <a class="btn btn-outline-secondary btn-sm" type="button" name="courante"
-                            data-toggle="tooltip" data-placement="top"
-                            onclick='simpleCallAjax(<?= json_encode($data_courante) ?>,campagneAdmCB)'
-                            title="<?= Text::_('COM_GDA_CAMPAGNE_COURANTE_DECLARER_TOOLTIP'); ?>"
-                        >
-                                <span class="fa-regular fa-star"></span>
-                        </a>
-                    <?php endif; ?>
-                <?php endif; ?>
             </td>
             <td>
                     <?php

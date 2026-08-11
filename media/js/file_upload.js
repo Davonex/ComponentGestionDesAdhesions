@@ -2,16 +2,32 @@
 // const JoomlaDialog = require('joomla.dialog');
 /** Class manage download */
 
+// Capturé à l'exécution (synchrone) du script : sert de base pour charger pdf.js
+// depuis le même dossier, quelle que soit la vue qui inclut file_upload.js.
+const GDA_FILE_UPLOAD_BASE_URL = document.currentScript ? document.currentScript.src : '';
+let gdaPdfJsPromise = null;
 
+/** Charge pdf.js (module ES) une seule fois, uniquement quand un PDF est réellement sélectionné. */
+function loadPdfJs() {
+  if (!gdaPdfJsPromise) {
+    gdaPdfJsPromise = import(new URL('pdf.min.js', GDA_FILE_UPLOAD_BASE_URL).href).then((pdfjsLib) => {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdf.worker.min.js', GDA_FILE_UPLOAD_BASE_URL).href;
+      return pdfjsLib;
+    });
+  }
+  return gdaPdfJsPromise;
+}
 
 // function file_upload  (mediaBrowser, dropArea,previewImage,imputImage,dialog)
 // {
   class FileUpload {
 
   /** Define event  */
-  constructor( mediaBrowser, dropArea,previewImage,imputImage, flag ) {   
+  constructor( mediaBrowser, dropArea,previewImage,imputImage, flag, acceptPdf = false ) {
 
       this._accepted = ["image/jpeg", "image/png", "image/jpg","image/webp"];
+      this._maxSize = 3097152; // ~2.95 Mo
+      this._acceptPdf = acceptPdf;
       this._dropArea = dropArea;
       this._imputImage = imputImage;
       this._previewImage = previewImage;
@@ -89,13 +105,50 @@
 
 
     /** Telecharge le fichier et  le previsualise*/
-    uploadFile(file) {    
+    uploadFile(file) {
+        if (this._acceptPdf && file.type === 'application/pdf') {
+          this.convertPdfToImage(file);
+          return;
+        }
         const fileReader = new FileReader();
         this._tmpfile = file;
         fileReader.addEventListener("loadend", this.fileOnLoaded.bind(this), false);
         fileReader.readAsDataURL(this._tmpfile);
       };
-      
+
+      /**
+       * Convertit la 1ère page d'un PDF en image JPEG, puis poursuit le flux normal
+       * (preview, flag, _file) via uploadFile() comme si un JPEG avait été sélectionné.
+       * Le serveur ne reçoit donc jamais de PDF.
+       */
+      async convertPdfToImage(file) {
+        if (this.isFileTooLarge(file)) {
+          return;
+        }
+        try {
+          const pdfjsLib = await loadPdfJs();
+          const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale: 2 });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+          if (!blob) {
+            throw new Error('canvas.toBlob a renvoyé un résultat vide');
+          }
+
+          const imageFile = new File([blob], file.name.replace(/\.pdf$/i, '.jpg'), { type: 'image/jpeg' });
+          this.uploadFile(imageFile);
+        } catch (e) {
+          console.error(e);
+          Joomla.renderMessages({ error: ['Le fichier PDF "' + file.name + '" n\'a pas pu être converti en image.'] });
+        }
+      }
+
+
       /** 
        * Une fois le fichier chargé, lancez le traitement.  
        */
@@ -117,14 +170,21 @@
     * We’ll discuss `isValidFileType` function down the road
     */
 
+    /** Signale (et affiche l'erreur) si le fichier dépasse la taille max autorisée */
+    isFileTooLarge(file) {
+      if (file.size > this._maxSize) {
+        Joomla.renderMessages({error: ['Le fichier "' + file.name + '" est trop gros : ' + Math.round(file.size/1048576 * 100)/100 + ' Mo. Votre fichier ne doit pas depasser 2 Mo.']});
+        return true;
+      }
+      return false;
+    }
+
     isValidFileType(file) {
 
       //console.debug (file)
-      if (file.size > 3097152) { 
-        Joomla.renderMessages({error: ['Le fichier "' + file.name + '" est trop gros : ' + Math.round(file.size/1048576 * 100)/100 + ' Mo. Votre fichier ne doit pas depasser 2 Mo.']});
-        // this._dialog.popupContent = 'Le fichier "' + file.name + '" est trop gros : ' + Math.round(file.size/1048576 * 100)/100 + ' Mo.';
-        // this._dialog.popupContent += '<br>Votre fichier ne doit pas depasser 2 Mo.'
-        return false;}
+      if (this.isFileTooLarge(file)) {
+        return false;
+      }
       if ( this._accepted.includes(file.type) === false) {
         Joomla.renderMessages({error: ['Le format "' + file.type + '" n\'est pas accepté. Uniquement les images de type jpeg et png sont acceptées']});
         // this._dialog.popupContent = 'Le format <b>"' + file.type + '"</b> n\'est pas accepté.';
@@ -148,9 +208,11 @@
      * @param {string} [ids.captureInputId] Input file optionnel dédié à la prise de photo (doit porter
      *   statiquement les attributs accept="image/*" et capture="environment" dans le HTML : ces attributs
      *   ne sont pas fiables lorsqu'ils sont ajoutés dynamiquement en JS sur certains navigateurs mobiles).
+     * @param {boolean} [ids.acceptPdf] Si true, un PDF déposé/sélectionné est converti en JPEG
+     *   (1ère page) avant d'être traité comme une image. pdf.js n'est chargé que dans ce cas.
      * @returns {FileUpload|null}
      */
-    static create(name, { mediaBrowserId, dropAreaId, previewId, inputId, flagId, captureInputId } = {}) {
+    static create(name, { mediaBrowserId, dropAreaId, previewId, inputId, flagId, captureInputId, acceptPdf } = {}) {
       const mediaBrowser = document.getElementById(mediaBrowserId);
       const dropArea = document.getElementById(dropAreaId);
       const previewImage = document.getElementById(previewId);
@@ -162,7 +224,7 @@
         return null;
       }
 
-      const instance = new FileUpload(mediaBrowser, dropArea, previewImage, imputImage, flag);
+      const instance = new FileUpload(mediaBrowser, dropArea, previewImage, imputImage, flag, !!acceptPdf);
 
       if (captureInputId) {
         const captureInput = document.getElementById(captureInputId);

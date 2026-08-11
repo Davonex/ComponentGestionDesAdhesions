@@ -16,6 +16,7 @@ class HtmlView extends BaseHtmlView
 
     public function display($tpl=null): void
     {
+        /** @var \Joomla\CMS\Application\CMSApplication $app */
         $app = Factory::getApplication();
 
         $this->user = $app->getIdentity();

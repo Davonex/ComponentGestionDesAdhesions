@@ -309,6 +309,7 @@ document.addEventListener('DOMContentLoaded', function () {
         previewId: 'caciPreview',
         inputId: 'caciUpload',
         flagId: 'caciFlag',
+        acceptPdf: true,
     });
 
     // Alias conservés pour compatibilité avec form_modal.js::submitform()

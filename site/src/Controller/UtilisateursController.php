@@ -64,6 +64,43 @@ class UtilisateursController extends BaseController
     }
 
     /**
+     * Ajax: met à jour la fonction (rôle libre) d'un membre.
+     */
+    public function updateFonction(): void
+    {
+        /** @var \Joomla\CMS\Application\SiteApplication $app */
+        $app = Factory::getApplication();
+
+        try {
+            $this->checkToken();
+            $this->guardBureauMember();
+
+            $input = $app->input;
+            $userId = $input->getInt('id_user', 0);
+            $fonction = $input->getString('fonction', '');
+
+            /** @var \NCB\Component\Gda\Site\Model\UtilisateursModel $model */
+            $model = $this->getModel('utilisateurs', 'site');
+            $model->updateUserFonction($userId, $fonction);
+
+            $response = new JsonResponse();
+            $response->success = true;
+            $response->message = Text::_('COM_GDA_UTILISATEURS_FONCTION_UPDATED');
+        } catch (\Throwable $e) {
+            $response = new JsonResponse();
+            $response->success = false;
+            $response->message = 'Erreur: ' . $e->getMessage();
+            GdaLogger::error(
+                '[' . ($app->getUserState('session')['name'] ?? 'unknown') . '] ' .
+                    'Erreur lors de la mise à jour de la fonction: ' . $e->getMessage()
+            );
+        }
+
+        echo $response;
+        $app->close();
+    }
+
+    /**
      * Ajax: active ou bloque un compte utilisateur.
      */
     public function toggleBlock(): void

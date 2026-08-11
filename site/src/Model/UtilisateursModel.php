@@ -60,6 +60,7 @@ class UtilisateursModel extends ListModel
                 $db->quoteName('p.nom'),
                 $db->quoteName('p.prenom'),
                 $db->quoteName('p.photo'),
+                $db->quoteName('p.fonction'),
             ])
             ->from($db->quoteName('#__users', 'u'))
             ->join('LEFT', $db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('u.id'))
@@ -266,6 +267,55 @@ class UtilisateursModel extends ListModel
 
         GdaLogger::info(
             '[' . $this->getActingUserName() . '] Statut mis à jour pour ' . $user->username . ' (id=' . $userId . '): ' . ($blocked ? 'bloqué' : 'activé')
+        );
+
+        return true;
+    }
+
+    /**
+     * Met à jour la fonction (rôle libre, ex: Trésorier, Responsable Communication) d'un membre.
+     *
+     * @param int    $userId   Identifiant de l'utilisateur (id_profil).
+     * @param string $fonction Libellé de la fonction (100 caractères max). Chaîne vide = efface la valeur.
+     *
+     * @return bool
+     *
+     * @since  1.0.0
+     */
+    public function updateUserFonction(int $userId, string $fonction): bool
+    {
+        if ($userId <= 0) {
+            throw new \InvalidArgumentException('Identifiant utilisateur invalide.');
+        }
+
+        $fonction = trim($fonction);
+
+        if (mb_strlen($fonction) > 100) {
+            throw new \InvalidArgumentException('La fonction ne peut pas dépasser 100 caractères.');
+        }
+
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__gda_profils'))
+            ->where($db->quoteName('id_profil') . ' = :id_profil')
+            ->bind(':id_profil', $userId);
+
+        if ($fonction === '') {
+            $query->set($db->quoteName('fonction') . ' = NULL');
+        } else {
+            $query->set($db->quoteName('fonction') . ' = :fonction')
+                ->bind(':fonction', $fonction);
+        }
+
+        $db->setQuery($query);
+        $db->execute();
+
+        if ((int) $db->getAffectedRows() === 0) {
+            throw new \RuntimeException('Aucun profil trouvé pour cet utilisateur.');
+        }
+
+        GdaLogger::info(
+            '[' . $this->getActingUserName() . '] Fonction mise à jour (id=' . $userId . '): "' . $fonction . '"'
         );
 
         return true;

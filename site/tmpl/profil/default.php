@@ -2,8 +2,6 @@
 defined('_JEXEC') or die('Restricted access');
 
 use Joomla\CMS\Language\Text;
-use Joomla\CMS\Router\Route;
-use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Factory;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
@@ -99,90 +97,11 @@ Fenêtre modale Bootstrap +++
           <button type="button" id="btnClose" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div> <!--  class="modal-header" -->
         <div class="modal-body" id="modalFormBody">
-          <!-- Zone de capture du drag and drop -->
-          <div class="drop-area" id="drop-area">
-            <span class="icon-cloud-upload upload-icon" aria-hidden="true"></span>
-            <p><?php echo Text::_('COM_GDA_DROP_PHOTO'); ?></p>
-          </div>
-          <div class="spinner-border js-loading text-danger visually-hidden" role="status" aria-hidden="true">
-            <span class="visually-hidden">Loading...</span>
-          </div>
-          <input id="image-upload" class="position-absolute invisible" type="file" accept="image/jpeg, image/png" />
-          <input type="hidden" id="photoFlag" value="<?php echo $profil !== null && $profil->photo ? '1' : '0'; ?>" />
-          <form action="<?php echo Route::_('index.php?option=com_gdadhesions&Itemid=' . $this->MenuItemId); ?>"
-            method="post" name="adminForm" id="adminForm" enctype="multipart/form-data">
-
-            <fieldset class="profil-edit">
-              <!-- <h2><?php //echo Text::_($this->form->getFieldsets()['profil']->label) 
-                        ?></h2> -->
-              <!-- Row : M. Nom Prénom -->
-              <div class="row">
-                <div class="col-sm-12 col-md-4">
-
-
-                  <?php echo $this->form->renderField('civilite');  ?>
-                </div>
-                <div class="col-sm-12 col-md-4">
-                  <?php echo $this->form->renderField('nom');  ?>
-                </div>
-                <div class="col-sm-12 col-md-4">
-                  <?php echo $this->form->renderField('prenom');  ?>
-                </div>
-              </div>
-              <!-- Row : Adresse -->
-              <div class="row">
-                <div class="col-sm-12 ">
-                  <?php echo $this->form->renderField('adresse');  ?>
-                </div>
-              </div>
-              <!-- Row : CP Ville -->
-              <div class="row">
-                <div class="col-sm-12 col-md-6">
-                  <?php echo $this->form->renderField('code_postal');  ?>
-                </div>
-                <div class="col-sm-12 col-md-6">
-                  <?php echo $this->form->renderField('ville');  ?>
-                </div>
-              </div>
-              <!-- Row :Photo -->
-              <div class="row">
-                <div class="col-sm-12 col-md-6">
-                  <!-- champ qui premet de gerer le click sur l'image -->
-                  <img src="" id="image-preview" class="img-thumbnail rounded mx-auto d-block click-image" alt="photo">
-                  <label for="image-upload" class="click-image form-text"><?php echo Text::_('COM_GDA_PROFIL_DROP_PHOTO'); ?></label>
-                  <?php
-                  $options = ["class" => "position-absolute invisible"];
-                  // $options = [];
-                  echo $this->form->renderField('upload.photo', null, null, $options);
-                  ?>
-
-                </div>
-                <div class="col-sm-12 col-md-6">
-                  <?php echo $this->form->renderField('telephone');  ?>
-                  <?php echo $this->form->renderField('email');  ?>
-                  <?php echo $this->form->renderField('date_de_naissance');  ?>
-                </div>
-                <div>
-                  <!-- Row :Personne à prevenir -->
-                  <div class="row">
-                    <div class="col-sm-12 col-md-6">
-                      <?php echo $this->form->renderField('a_prevenir');  ?>
-                    </div>
-                    <div class="col-sm-12 col-md-6">
-                      <?php echo $this->form->renderField('a_prevenir_tel');  ?>
-                    </div>
-                  </div>
-
-
-
-
-            </fieldset>
-            <input type="hidden" name="task" value="profil.save" />
-            <?php echo $this->form->renderField('photo');  ?>
-            <?php echo $this->form->renderField('id_profil');  ?>
-            <?php echo $this->form->renderField('licence');  ?>
-            <?php echo HtmlHelper::_('form.token'); ?>
-          </form>
+          <?php echo LayoutHelper::render('profil.edit_form', [
+            'form' => $this->form,
+            'photoFlag' => $profil !== null && !empty($profil->photo),
+            'itemid' => $this->MenuItemId,
+          ]); ?>
         </div> <!--  class="modal-body" -->
         <div class="modal-footer">
           <button id="SaveModalForm" type="button" class="btn btn-secondary float-end">
@@ -294,6 +213,7 @@ Joomla\CMS\Language\Text::script('COM_GDA_DROP_PHOTO');
       inputId: 'caciModalUpload',
       flagId: 'caciModalFlag',
       captureInputId: 'caciModalCameraInput',
+      acceptPdf: true,
     });
 
     /**

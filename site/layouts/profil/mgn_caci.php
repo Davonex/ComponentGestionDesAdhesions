@@ -27,7 +27,7 @@ if ($form === null) {
 <div class="spinner-border js-loading text-danger visually-hidden" role="status" aria-hidden="true">
   <span class="visually-hidden">Loading...</span>
 </div>
-<input id="caciModalUpload" class="position-absolute invisible" type="file" accept="image/jpeg, image/png" />
+<input id="caciModalUpload" class="position-absolute invisible" type="file" accept="image/jpeg, image/png, application/pdf" />
 <input type="hidden" id="caciModalFlag" value="<?php echo $form->getField('caci')->value ? '1' : '0'; ?>" />
 <!--
   Input dédié à la prise de photo : les attributs accept="image/*" et capture="environment"

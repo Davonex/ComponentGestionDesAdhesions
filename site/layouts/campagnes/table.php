@@ -37,7 +37,6 @@ $form  = $displayData['form'];
         <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_PLACES');?></td>
         <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_ARTICLE');?></td>
         <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_ACTIVE');?></td>
-        <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_COURANTE');?></td>
         <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_HELLOASSO');?></td>
         <td></td>
       </tr>

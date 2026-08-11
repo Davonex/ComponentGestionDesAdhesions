@@ -55,13 +55,13 @@ class CampagnesModel extends ListModel
         return $item[0];
     }
     /**
-     *  Liste tous les items de campagnes
+     *  Liste tous les items de campagnes, hors campagnes de type Saison (gérées exclusivement
+     *  par la vue Saisons).
      */
     function getCampagnes()
     {
-        // $db    = $this->getDbo();
         $db = $this->getDatabase();
-        $select = $db->getQuery(true);
+        $id_type_saison = ConfHelper::getValue('IdTypeSaison');
 
         $select = $db->getQuery(true);
 
@@ -71,8 +71,8 @@ class CampagnesModel extends ListModel
         $select->join('left', $db->quoteName('#__gda_type_de_campagne', 'tc'), $db->quoteName('c.id_type') . ' = ' . $db->quoteName('tc.id_type'));
 
         $select->where($db->quoteName('c.effacer') . '= 0');
-
-        
+        $select->where($db->quoteName('c.id_type') . ' != :id_type_saison');
+        $select->bind(':id_type_saison', $id_type_saison);
 
         $db->setQuery($select);
             try {
@@ -82,16 +82,6 @@ class CampagnesModel extends ListModel
                 // $select->__toString()
             }
         return $this->_items;
-    }
-
-
-    /**
-     * Retourne la saison ouverte (type de campagne qui est actif)
-     */
-    function SaisonOuverte(): ?object
-    {
-        $service = new \NCB\Component\Gda\Site\Service\SaisonService($this->getDatabase(), new \NCB\Component\Gda\Site\Service\GdaConfigService($this->getDatabase()));
-        return $service->getSaisonOuverte();   
     }
 
    /**
@@ -161,54 +151,6 @@ class CampagnesModel extends ListModel
         return $result;
     }
 
-
-    /**
-     * Déclarer ou retirer une campagne comme saison courante (suivi CACI/licence/groupes),
-     * indépendamment de son état d'ouverture aux inscriptions (active).
-     * Une seule campagne de type Saison peut être courante à la fois.
-     */
-    function DeclarerCourante(): int
-    {
-        /** @var SiteApplication $app */
-        $app = Factory::getApplication();
-        $data = $app->getUserState('campagne.courante');
-
-        $db = $this->getDatabase();
-        $courante_value = intval($data['courante']);
-        $id_campagne_value = intval($data['id_campagne']);
-        $id_type_saison = ConfHelper::getValue('IdTypeSaison');
-
-        $db->transactionStart();
-
-        try {
-            if ($courante_value === 1) {
-                // Exclusivité : une seule saison courante à la fois
-                $queryReset = $db->getQuery(true);
-                $queryReset->update($db->quoteName('#__gda_campagnes'))
-                    ->set($db->quoteName('courante') . ' = 0')
-                    ->where($db->quoteName('id_type') . ' = :id_type_saison')
-                    ->bind(':id_type_saison', $id_type_saison);
-                $db->setQuery($queryReset);
-                $db->execute();
-            }
-
-            $query = $db->getQuery(true);
-            $fields = array($db->quoteName('courante') . ' = :courante_value');
-            $conditions = array($db->quoteName('id_campagne') . ' = :id_campagne_value');
-            $query->update($db->quoteName('#__gda_campagnes'))->set($fields)->where($conditions);
-            $query->bind(':courante_value', $courante_value);
-            $query->bind(':id_campagne_value', $id_campagne_value);
-            $db->setQuery($query);
-            $result = $db->execute();
-
-            $db->transactionCommit();
-        } catch (\RuntimeException $e) {
-            $db->transactionRollback();
-            throw new \Exception($e->getMessage(), 500);
-        }
-
-        return $result;
-    }
 
     /**
      * Sauver une camapgne
