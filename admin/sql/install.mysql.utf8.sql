@@ -6,6 +6,8 @@
 -- drop if exists 
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `#__gda_composition_groupes`;
+DROP TABLE IF EXISTS `#__gda_reservation_places`;
+DROP TABLE IF EXISTS `#__gda_reservation`;
 DROP TABLE IF EXISTS `#__gda_souscriptions`;
 DROP TABLE IF EXISTS `#__gda_niveaux`;
 DROP TABLE IF EXISTS `#__gda_brevets`;
@@ -13,6 +15,7 @@ DROP TABLE IF EXISTS `#__gda_profils`;
 DROP TABLE IF EXISTS `#__gda_groupes`;
 DROP TABLE IF EXISTS `#__gda_cotisation`;
 DROP TABLE IF EXISTS `#__gda_type_de_campagne`;
+DROP TABLE IF EXISTS `#__gda_role_de_campagne`;
 DROP TABLE IF EXISTS `#__gda_campagnes`;
 DROP TABLE IF EXISTS `#__gda_conf`;
 SET FOREIGN_KEY_CHECKS = 1;
@@ -28,17 +31,16 @@ CREATE TABLE IF NOT EXISTS `#__gda_type_de_campagne` (
   `type_image` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `type_class` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 --
 -- Rechargement des données de la table `#__gda_type_de_campagne`
 --
 INSERT INTO `#__gda_type_de_campagne` (`id_type`, `type_name`, `type_image`, `type_class`) VALUES
 (1, 'Saison', 'saison.jpg', 'campagne-saison'),
-(2, 'Fosse', 'fosse.jpg', NULL),
-(3, 'Sortie technique', 'sortie.jpg', 'campagne-sortie'),
-(4, 'Sortie Club', 'sortie.jpg', 'campagne-sortie'),
-(5, 'Formation', '', NULL),
-(6, 'Fête du club', '', NULL);
+(2, 'Formation', 'fosse.jpg', 'campagne-formation'),
+(3, 'Sortie', 'sortie.jpg', 'campagne-sortie'),
+(4, 'Soirée', 'sortie.jpg', 'campagne-soiree'),
+(5, 'Boutique', '', 'campagne-boutique');
 
 --
 -- Structure de la table `#__gda_campagnes`
@@ -50,10 +52,13 @@ CREATE TABLE `#__gda_campagnes` (
   `event_helloasso` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `date_debut` date NOT NULL,
   `date_fin` date NOT NULL,
+  `date_evenement` datetime DEFAULT NULL COMMENT 'Date et heure de l''événement (distinct de la période de souscription)',
   `active` tinyint(1) NOT NULL,
   `courante` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Saison de suivi courante (distincte de active = ouverte)',
   `id_article` int unsigned DEFAULT '0',
   `nbr_place` int unsigned DEFAULT NULL COMMENT 'Nombre place totale pour cette campagnes',
+  `reservation_multiple` tinyint(1) unsigned NOT NULL DEFAULT 0 COMMENT 'Active la demande du nombre de places à la souscription (0 = 1 place fixe, 1 = le nombre est demandé)',
+  `role_actif` tinyint(1) unsigned NOT NULL DEFAULT 0 COMMENT 'Un rôle est demandé par place à la souscription (liste fixe déterminée par la nature)',
   `id_type` int unsigned DEFAULT NULL,
   `id_groupes` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `effacer` int unsigned NOT NULL DEFAULT '0' COMMENT 'Campagne Effacer',
@@ -61,6 +66,20 @@ CREATE TABLE `#__gda_campagnes` (
   UNIQUE KEY `id` (`id_campagne`) USING BTREE,
   CONSTRAINT `gda_campagnes_gda_type_de_campagne_FK` FOREIGN KEY (`id_type`) REFERENCES `#__gda_type_de_campagne` (`id_type`)
 ) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Liste des campagnes';
+
+--
+-- Structure de la table `#__gda_role_de_campagne`
+--
+CREATE TABLE IF NOT EXISTS `#__gda_role_de_campagne` (
+  `id_type` int unsigned NOT NULL,
+  `roles` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Rôles proposés pour cette nature, séparés par ;',
+  PRIMARY KEY (`id_type`),
+  CONSTRAINT `gda_role_de_campagne_gda_type_de_campagne_FK` FOREIGN KEY (`id_type`) REFERENCES `#__gda_type_de_campagne` (`id_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Liste fixe des rôles par nature de campagne (Formation, Sortie, ...)';
+
+INSERT INTO `#__gda_role_de_campagne` (`id_type`, `roles`) VALUES
+(2, 'Encadrants;Participants'),
+(3, 'Plongeur;Non Plongeur');
 
 --
 -- Structure de la table `#__gda_conf`
@@ -84,6 +103,7 @@ INSERT INTO `#__gda_conf` (`id`, `key`, `value`) VALUES
 (4, 'CampagneImageDefault', 'campagnes_default.jpg'),
 (5, 'IdTypeSaison', '1'),
 (6, 'IdCategorieCampagne', '16'),
+(24, 'IdTypeFormation', '2'),
 (7, 'DefaultCaci', 'caci.png'),
 (8, 'CaciPath', '/images/GestionDesAdhesions/Caci/'),
 (9, 'IdArticleAdhesionClos', '23'),
@@ -205,6 +225,49 @@ CREATE TABLE IF NOT EXISTS `#__gda_souscriptions` (
   CONSTRAINT `gda_souscriptions_gda_campagnes_FK` FOREIGN KEY (`id_campagne`) REFERENCES `#__gda_campagnes` (`id_campagne`),
   CONSTRAINT `gda_souscriptions_gda_profils_FK` FOREIGN KEY (`id_profil`) REFERENCES `#__gda_profils` (`id_profil`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Table qui enregistre les souscriptions';
+
+--
+-- Structure de la table `#__gda_reservation`
+--
+-- #__gda_souscriptions ci-dessus reste réservée aux souscriptions de la SAISON (workflow CACI /
+-- cotisation / licence géré par le secrétariat). Les réservations aux autres campagnes
+-- (Formation / Sortie / Soirée / Boutique) vivent ici : pas de colonnes de validation saison,
+-- mais une notion de places, de file d'attente et de rôle.
+--
+CREATE TABLE IF NOT EXISTS `#__gda_reservation` (
+  `id_reservation` int unsigned NOT NULL AUTO_INCREMENT,
+  `id_campagne` int NOT NULL COMMENT 'Campagne concernée (jamais une campagne de type Saison)',
+  `id_profil` int NOT NULL,
+  `date_reservation` datetime DEFAULT NULL COMMENT 'Horodatage de la réservation initiale : rang dans la file d''attente',
+  `date_demande` datetime DEFAULT NULL COMMENT 'Horodatage de la dernière demande de places supplémentaires : rang du complément dans la file',
+  `nbr_places` int unsigned NOT NULL DEFAULT 1 COMMENT 'Places demandées',
+  `nbr_places_confirmees` int unsigned NOT NULL DEFAULT 0 COMMENT 'Places effectivement accordées (< nbr_places = complément en attente)',
+  `statut` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'attente' COMMENT 'confirmee | attente | annulee',
+  `commentaire` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `id_order` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Commande HelloAsso (paiement)',
+  `last_update` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_reservation`),
+  UNIQUE KEY `uniq_campagne_profil` (`id_campagne`,`id_profil`),
+  KEY `gda_reservation_gda_profils_FK` (`id_profil`),
+  CONSTRAINT `gda_reservation_gda_campagnes_FK` FOREIGN KEY (`id_campagne`) REFERENCES `#__gda_campagnes` (`id_campagne`),
+  CONSTRAINT `gda_reservation_gda_profils_FK` FOREIGN KEY (`id_profil`) REFERENCES `#__gda_profils` (`id_profil`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Réservations aux campagnes hors saison';
+
+--
+-- Structure de la table `#__gda_reservation_places`
+--
+-- Une ligne par place réservée, uniquement quand la campagne a role_actif = 1.
+-- Sinon la table reste vide : nbr_places de la réservation parente fait foi.
+--
+CREATE TABLE IF NOT EXISTS `#__gda_reservation_places` (
+  `id_place` int unsigned NOT NULL AUTO_INCREMENT,
+  `id_reservation` int unsigned NOT NULL,
+  `role` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Rôle choisi pour cette place, parmi #__gda_role_de_campagne',
+  `tri` int unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id_place`),
+  KEY `gda_reservation_places_gda_reservation_FK` (`id_reservation`),
+  CONSTRAINT `gda_reservation_places_gda_reservation_FK` FOREIGN KEY (`id_reservation`) REFERENCES `#__gda_reservation` (`id_reservation`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Rôle par place réservée (campagnes avec role_actif = 1)';
 
 --
 -- Structure de la table `#__gda_composition_groupes`

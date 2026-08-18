@@ -17,6 +17,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Factory;
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
+use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 
@@ -122,7 +123,7 @@ $isCompleted = $statusEnum === AdhesionStatusHelper::STATUS_COMPLETED;
           <?php elseif (($action['type'] ?? '') === 'external_link') : ?>
             <a href="<?= $this->escape((string) $action['url']) ?>" class="<?= $btnClasses ?> btn-lg" target="_blank" rel="noopener noreferrer">
               <?= $label ?>
-              <img src="https://api.helloasso.com/v5/img/logo-ha.svg" alt="HelloAsso" width="20" height="20" class="me-2"> 
+              <img src="<?= FileHelper::getHelloAssoLogoSrc() ?>" alt="HelloAsso" width="20" height="20" class="me-2"> 
             </a>
           <?php else : ?>
             <a href="<?= Route::_($action['url'], false) ?>" class="<?= $btnClasses ?> btn-lg">

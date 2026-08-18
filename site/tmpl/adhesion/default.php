@@ -6,7 +6,7 @@ use Joomla\CMS\Language\Text;
 // use Joomla\CMS\Router\Route;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Factory;
-// use Joomla\CMS\Layout\LayoutHelper;
+use Joomla\CMS\Layout\LayoutHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Helper\AdhesionHelper;
 
@@ -30,6 +30,9 @@ $wa->useStyle('com_gdadhesions.file_upload');
 // QR code scanner
 $wa->useScript('com_gdadhesions.html5-qrcode');
 $wa->useStyle('com_gdadhesions.html5-qrcode');
+$wa->useScript('com_gdadhesions.qr_scanner');
+// Popups (retour du scan QR)
+$wa->useScript('com_gdadhesions.dialog');
 // FFESSM Scrap
 $wa->useScript('com_gdadhesions.scrap-ffessm');
 // Main Adhesion JS
@@ -57,6 +60,16 @@ Text::script('COM_GDA_ADHESION_RECAP_AUCUN_BREVET');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_CHARGE');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_NON_CHARGE');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_NON_RENSEIGNE');
+
+Text::script('COM_GDA_QRCODE_CAMERA_ERROR');
+
+// Popups de retour du scan de la carte licence
+Text::script('COM_GDA_ADHESION_SCAN_TITLE');
+Text::script('COM_GDA_ADHESION_SCAN_CONFIRM');
+Text::script('COM_GDA_ADHESION_SCAN_CONFIRM_WARN');
+Text::script('COM_GDA_ADHESION_SCAN_NOT_FOUND');
+Text::script('COM_GDA_CANCEL');
+Text::script('COM_GDA_CONFIRM');
 
 Text::script('COM_GDA_ADHESION_HEADER_STEP1');
 Text::script('COM_GDA_ADHESION_HEADER_STEP2');
@@ -464,25 +477,18 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
     </form>
   </div> <!-- Close carousel inner -->
 
-  <!-- <button class="carousel-control-prev btn-arrow" type="button" data-bs-target="#wizardInscription" data-bs-slide="prev" aria-label="Précédent">
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="12" cy="12" r="12" fill="#007bff" />
-      <path d="M14 7L9 12L14 17" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-    <span class="visually-hidden">Précédent</span>
-  </button>
-  <button class="carousel-control-next btn-arrow" type="button" data-bs-target="#wizardInscription"
-
-    data-bs-slide="next" aria-label="Suivant">
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="12" cy="12" r="12" fill="#007bff" />
-      <path d="M10 7L15 12L10 17" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-    <span class="visually-hidden">Suivant</span>
-  </button> -->
-
-
-
+  <!-- Navigation Précédent/Suivant en bas de page : contrairement aux flèches natives du
+       carousel Bootstrap (.carousel-control-prev/next, positionnées en absolu au milieu de la
+       slide), ces boutons restent dans le flux normal du document, donc sous le contenu de
+       chaque étape, atteignables sans remonter en haut de page sur mobile. -->
+  <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top gda-wizard-footer-nav">
+    <button type="button" id="btnFooterPrev" class="btn btn-outline-secondary invisible">
+      <i class="fa-solid fa-arrow-left me-2" aria-hidden="true"></i><?= Text::_('COM_GDA_WIZARD_PRECEDENT') ?>
+    </button>
+    <button type="button" id="btnFooterNext" class="btn btn-primary">
+      <?= Text::_('COM_GDA_WIZARD_SUIVANT') ?><i class="fa-solid fa-arrow-right ms-2" aria-hidden="true"></i>
+    </button>
+  </div>
 
 </div> <!-- Close carousel slide -->
 
@@ -492,29 +498,8 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
 </script>
 
 
-<!-- Template brevet caché -->
-<template id="brevet-template">
-  <div class="row g-2 brevet-item mb-2 align-items-end">
-    <div class="col-md-5">
-      <!-- <label class="form-label">Nom du brevet *</label> -->
-      <input type="text" name="brevets[][nom]" class="form-control" required placeholder="Nom du brevet">
-    </div>
-    <div class="col-md-3">
-      <!-- <label class="form-label">Date d’acquisition</label> -->
-      <input type="date" name="brevets[][obtention]" class="form-control">
-    </div>
-    <div class="col-md-3">
-      <!-- <label class="form-label">Lieu</label> -->
-      <input type="text" name="brevets[][lieu]" class="form-control" placeholder="Lieu">
-    </div>
-    <div class="col-md-1 text-end">
-      <button type="button" class="btn btn-outline-danger remove-brevet-btn">
-        <i class="fa-solid fa-trash-can"></i>
-      </button>
-    </div>
-  </div>
-</template>
-<!-- Template caché -->
+<!-- Template brevet caché (partagé avec la modale d'édition des brevets de la vue Profil) -->
+<?= LayoutHelper::render('brevets.row_template'); ?>
 
 
 

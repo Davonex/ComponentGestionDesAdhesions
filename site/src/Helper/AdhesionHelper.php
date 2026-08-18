@@ -63,6 +63,28 @@ class AdhesionHelper
 
 
     /**
+     * Met en forme le titulaire d'une carte licence scannée : "M. Jean DUPONT (062553)".
+     *
+     * Le scraping peut ne pas retrouver l'état civil (structure de page FFESSM modifiée) : on se
+     * rabat alors sur le seul numéro de licence, toujours présent à ce stade.
+     *
+     * @param   array  $informations  Le sous-tableau "informations" retourné par scrap().
+     */
+    public static function formatPorteurLicence(array $informations): string
+    {
+        $licence = trim((string) ($informations['licence'] ?? ''));
+
+        $etatCivil = trim(implode(' ', array_filter([
+            $informations['civilite'] ?? '',
+            $informations['prenom'] ?? '',
+            $informations['nom'] ?? '',
+        ])));
+
+        return $etatCivil !== '' ? $etatCivil . ' (' . $licence . ')' : $licence;
+    }
+
+
+    /**
      * Scrapes data from the given URL.
      *
      * @param   string  $url  The URL to scrape.

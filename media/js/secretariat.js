@@ -32,6 +32,22 @@
 
   const wizard = document.getElementById('wizardSecretariat');
   const navButtons = document.querySelectorAll('#wizardNav .nav-link');
+
+  // Navigation Précédent/Suivant du bas de page : réutilise tel quel les boutons de la barre du
+  // haut (#wizardNav), donc le chargement ajax de chaque étape (loadStepTwo/Three/Four, cf. plus
+  // bas) reste déclenché puisqu'il dépend de l'index de la slide, pas du bouton cliqué.
+  const btnFooterPrev = document.getElementById('btnFooterPrev');
+  const btnFooterNext = document.getElementById('btnFooterNext');
+  let currentWizardStep = 0;
+
+  btnFooterPrev?.addEventListener('click', function () {
+    navButtons[currentWizardStep - 1]?.click();
+  });
+
+  btnFooterNext?.addEventListener('click', function () {
+    navButtons[currentWizardStep + 1]?.click();
+  });
+
   const licenceFinalizeModal = document.getElementById('licenceFinalizeModal');
   const licenceFinalizeInput = document.getElementById('licenceFinalizeInput');
   const licenceFinalizeMessage = document.getElementById('licenceFinalizeMessage');
@@ -414,6 +430,8 @@
    */
   if (wizard) {
     wizard.addEventListener('slid.bs.carousel', function (e) {
+      currentWizardStep = e.to;
+
       // Mise à jour barre de navigation
       navButtons.forEach(function (btn) {
         btn.classList.remove('active');
@@ -421,6 +439,15 @@
 
       if (navButtons[e.to]) {
         navButtons[e.to].classList.add('active');
+      }
+
+      // Navigation Précédent/Suivant du bas de page : Précédent masqué sur la 1ere étape,
+      // Suivant masqué sur la dernière.
+      if (btnFooterPrev) {
+        btnFooterPrev.classList.toggle('invisible', e.to === 0);
+      }
+      if (btnFooterNext) {
+        btnFooterNext.classList.toggle('d-none', e.to === navButtons.length - 1);
       }
 
       // Chargement AJAX du contenu de l'etape 1 a chaque retour sur le slide 0.
@@ -1102,6 +1129,12 @@
    * @returns {void}
    */
   document.addEventListener('blur', function (event) {
+    // En capture, blur remonte aussi les pertes de focus de la fenêtre entière (ex: alt-tab) :
+    // event.target vaut alors window/document, sans .closest().
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
     const input = event.target.closest('.date-input:not(.d-none)');
 
     if (!input) {
@@ -1136,6 +1169,10 @@
 
   // Sauvegarde categorie a la perte de focus.
   document.addEventListener('blur', function (event) {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
     const select = event.target.closest('.categorie-input:not(.d-none)');
 
     if (!select) {

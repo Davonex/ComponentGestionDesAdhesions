@@ -17,9 +17,11 @@ use Joomla\CMS\Mail\MailerFactoryInterface;
 // use Joomla\Plugin\Fields\Integer\Extension\Integer;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
+use NCB\Component\Gda\Site\Helper\GdaLogger;
 // use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 // use NCB\Component\Gda\Site\Service\GdaConfigService;
+use NCB\Component\Gda\Site\Service\BrevetService;
 use NCB\Component\Gda\Site\Service\CotisationService;
 use NCB\Component\Gda\Site\Service\NotificationMailService;
 use NCB\Component\Gda\Site\Service\SaisonService;
@@ -40,6 +42,7 @@ class AdhesionModel extends FormModel
     private  $compositionGroupes = [];
     private $brevets = [];
     private ?SouscriptionService $souscriptionService = null;
+    private ?BrevetService $brevetService = null;
 
     /**
      * Getter pour obtenir le service Saison (singleton partagé)
@@ -59,6 +62,23 @@ class AdhesionModel extends FormModel
             Factory::getContainer()->get(MailerFactoryInterface::class),
             ConfHelper::getConfigService()
         );
+    }
+
+    /**
+     * Getter pour obtenir le service Brevet (lazy loading).
+     *
+     * Instanciation directe et non résolution via le conteneur : services/provider.php enregistre
+     * dans le conteneur du *composant*, alors que Factory::getContainer() renvoie le conteneur
+     * *global* de Joomla — la résolution y échouerait ("has not been registered with the
+     * container"). Même approche que getSouscriptionService() et ConfHelper.
+     */
+    private function getBrevetService(): BrevetService
+    {
+        if ($this->brevetService === null) {
+            $this->brevetService = new BrevetService($this->getDatabase());
+        }
+
+        return $this->brevetService;
     }
 
     /**
@@ -223,8 +243,20 @@ class AdhesionModel extends FormModel
         }
 
         // Force refresh : l'utilisateur vient de réaliser son paiement, le cache serait périmé
-        $helloAsso = new \NCB\Component\Gda\Site\Service\HelloAssoService();
-        $idOrder = $helloAsso->findOrderByUsername($saison->formType, $saison->formSlug, $profil->username, true);
+        try {
+            $helloAsso = new \NCB\Component\Gda\Site\Service\HelloAssoService();
+            $idOrder = $helloAsso->findOrderByUsername($saison->formType, $saison->formSlug, $profil->username, true);
+        } catch (\Throwable $e) {
+            // Ne doit jamais bloquer la vue Adhesion (ex: HelloAsso indisponible, VPN refusé, ...) :
+            // on se contente de journaliser et de traiter la campagne comme non payée pour l'instant.
+            GdaLogger::warning(sprintf(
+                'AdhesionModel::getSouscriptionHelloAsso() - Echec recherche HelloAsso pour username "%s" (campagne %d) : %s',
+                $profil->username,
+                (int) $saison->id_campagne,
+                $e->getMessage()
+            ));
+            return '0';
+        }
 
         if ($idOrder !== null) {
             $this->getSouscriptionService()->updateIdOrder(
@@ -806,7 +838,6 @@ class AdhesionModel extends FormModel
     function saveInBrevets(): bool
     {
         $app = $this->getApp();
-        //$session = $app->getUserState('session');
         $brevets = $app->getUserState('adhesion.brevets');
         $adhesion = $app->getUserState('adhesion.save');
 
@@ -815,51 +846,11 @@ class AdhesionModel extends FormModel
             return true; // Pas de brevets à enregistrer
         }
 
-        $db = $this->getDatabase();
+        // La règle "annule et remplace" vit dans BrevetService, partagée avec l'édition des
+        // brevets depuis la fiche Profil (ProfilController::saveBrevets).
+        $this->getBrevetService()->replaceBrevets((int) $adhesion['id'], $brevets);
 
-        try {
-            // Supprimer les anciens brevets pour cet utilisateur
-            $query = $db->getQuery(true);
-            $query->delete($db->quoteName('#__gda_brevets'))
-                ->where($db->quoteName('id_profil') . ' = :id_profil')
-                ->bind(':id_profil', $adhesion['id']);
-            $db->setQuery($query);
-            $db->execute();
-
-            // Insérer les nouveaux brevets
-            foreach ($brevets as $brevet) {
-
-                if (empty($brevet['nom'])) {
-                    continue; // Ignorer les brevets sans nom
-                }
-
-                $query = $db->getQuery(true);
-                $columns = array(
-                    $db->quoteName('nom'),
-                    $db->quoteName('lieu'),
-                    $db->quoteName('obtention'),
-                    $db->quoteName('id_profil')
-                );
-
-                $values = array(
-                    $db->quote($brevet['nom']),
-                    $db->quote(!empty($brevet['lieu']) ? strtoupper($brevet['lieu']) : ''),
-                    $db->quote(!empty($brevet['obtention']) ? ToolsHelper::to_sqldate($brevet['obtention']) : null),
-                    $db->quote($adhesion['id'])
-                );
-
-                $query->insert($db->quoteName('#__gda_brevets'))
-                    ->columns($columns)
-                    ->values(implode(',', $values));
-
-                $db->setQuery($query);
-                $db->execute();
-            }
-
-            return true;
-        } catch (\RuntimeException $e) {
-            throw new \Exception($e->getMessage(), 500);
-        }
+        return true;
     }
 
 

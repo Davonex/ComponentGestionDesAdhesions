@@ -1,22 +1,27 @@
-const campagneCB = function (response) {
+/**
+ *  Initialise (ou réinitialise) les tooltips Bootstrap de la zone donnée, sur la base de
+ *  l'attribut title (et non data-bs-toggle="tooltip", déjà utilisé par le bouton "éditer"
+ *  pour ouvrir la modal). À rappeler après tout remplacement/ajout de contenu (ligne du
+ *  tableau remplacée après save/toggle, ...), les tooltips ne suivant pas le innerHTML.
+ */
+const initTooltips = function (root = document) {
+    if (!window.bootstrap || !bootstrap.Tooltip) {
+        return;
+    }
 
-    // console.log("campagneCB called with data: ", data);
-    // let html = atob(response.data)
-    let html = decodeURIComponent(escape(atob(response.data)))
+    root.querySelectorAll('[title]').forEach(function (el) {
+        const existingTooltip = bootstrap.Tooltip.getInstance(el);
 
-    // console.log("html: ", html)
-    // console.log("html2: ", html2)
+        if (existingTooltip) {
+            existingTooltip.dispose();
+        }
 
-    let parser = new DOMParser();
-    let doc = parser.parseFromString(html, 'text/html');
-    let IdContainer = doc.querySelector('div').id;
-
-    // console.log("IdContainer: ", IdContainer)
-
-    let Source = doc.querySelector('.card-footer')
-    let Cible = document.querySelector('#' + IdContainer + ' .card-footer');
-
-    Cible.innerHTML = Source.innerHTML
+        new bootstrap.Tooltip(el, {
+            trigger: 'hover focus',
+            container: 'body',
+            placement: 'top'
+        });
+    });
 }
 
 const campagneAdmCB = function (response) {
@@ -39,6 +44,7 @@ const campagneAdmCB = function (response) {
             console.debug('l``élément "TABLE#table-campagne TBODY" est introuvable')
         }
     }
+    initTooltips(Cible)
 }
 
 const campagneAdmRemoveCB = function (response) {
@@ -67,7 +73,7 @@ const campagneRapportCB = function (response) {
     const frenchDataTableOptions = {
         labels: {
             placeholder: 'Rechercher...',
-            perPage: '{select} lignes par page',
+            perPage: 'lignes par page',
             noRows: 'Aucune donnee disponible',
             noResults: 'Aucun resultat trouve',
             info: 'Affichage de {start} a {end} sur {rows} entrees'
@@ -104,29 +110,220 @@ const campagneRapportCB = function (response) {
 }
 
 /**
- *  fonction de callback pour le rapport de campagne, affiche les données dans la console pour l'instant
- * @param {*} response 
+ *  Filtres du tableau de gestion des campagnes (statut Ouverte/Fermée + nature),
+ *  appliqués côté client sur les attributs data-active / data-id-type des <tr>.
  */
-const campagneSouscritCB = function (response) {
-    let html = decodeURIComponent(escape(atob(response.data)))
+document.addEventListener('DOMContentLoaded', function () {
+    const table = document.getElementById('table-campagne');
 
-    //console.log("html: ", html)
-    // console.log("html2: ", html2)
+    if (!table) {
+        return;
+    }
 
-    let parser = new DOMParser();
-    let doc = parser.parseFromString(html, 'text/html');
-    let Source = doc.querySelector('.card.dashboard-campagne');
-    let Cible = document.querySelector('.card.dashboard-campagne');
+    initTooltips(table);
 
-    Cible.innerHTML = Source.innerHTML
+    const filterActive = document.querySelectorAll('input[name="campagneFilterActive"]');
+    const filterType = document.getElementById('campagneFilterType');
 
+    const applyFilters = function () {
+        const checkedActive = document.querySelector('input[name="campagneFilterActive"]:checked');
+        const activeValue = checkedActive ? checkedActive.value : 'all';
+        const typeValue = filterType ? filterType.value : '';
 
+        table.querySelectorAll('tbody tr').forEach(function (tr) {
+            const matchActive = activeValue === 'all' || tr.dataset.active === activeValue;
+            const matchType = typeValue === '' || tr.dataset.idType === typeValue;
 
+            tr.classList.toggle('d-none', !(matchActive && matchType));
+        });
+    };
 
-}
+    filterActive.forEach(function (el) {
+        el.addEventListener('change', applyFilters);
+    });
 
+    if (filterType) {
+        filterType.addEventListener('change', applyFilters);
+    }
+});
 
+/**
+ *  Modal d'ajout/édition : affiche la description d'aide de la nature sélectionnée, adapte le
+ *  switch "réservation de plusieurs places" (forcé sur Non pour Formation - une formation est
+ *  toujours 1 place, masqué pour Boutique qui n'a pas de réservation), et le switch "rôle par
+ *  place" (visible seulement pour Formation/Sortie, avec la liste fixe de rôles de la nature
+ *  affichée en lecture seule quand il est activé).
+ *
+ *  Se déclenche au changement du select ET à l'ouverture de la modal ('shown.bs.modal',
+ *  après que LstModal ait préempli/réinitialisé le formulaire) : ouvrir la modal ne
+ *  déclenche pas d'évènement 'change' sur le select, sans quoi l'encart de description
+ *  restait vide-mais-visible tant qu'on n'y touchait pas.
+ */
+document.addEventListener('DOMContentLoaded', function () {
+    const modalForm = document.getElementById('modalForm');
+    const typeSelect = document.getElementById('jform_campagne_id_type');
+    const descriptionEl = document.getElementById('jform_campagne_type_description');
+    const fieldReservationMultiple = document.getElementById('fieldReservationMultiple');
+    const fieldsetReservationMultiple = document.getElementById('jform_campagne_reservation_multiple');
+    const fieldRoleActif = document.getElementById('fieldRoleActif');
+    const fieldsetRoleActif = document.getElementById('jform_campagne_role_actif');
+    const roleDescriptionEl = document.getElementById('jform_campagne_role_description');
 
+    if (!modalForm || !typeSelect || !descriptionEl) {
+        return;
+    }
+
+    // Icônes "?" (tooltip) des champs : le contenu de la modal est statique (rendu une seule
+    // fois au chargement de la page, pas réinjecté en ajax), une init au chargement suffit.
+    initTooltips(modalForm);
+
+    const currentMeta = function () {
+        const descriptions = JSON.parse(descriptionEl.dataset.descriptions || '{}');
+        return descriptions[typeSelect.value] || null;
+    };
+
+    // Affiche la liste fixe de rôles de la nature courante, uniquement si le switch
+    // "rôle par place" est activé et que la nature en propose une.
+    const updateRoleDescription = function (meta) {
+        if (!roleDescriptionEl) {
+            return;
+        }
+
+        const checkedRoleActif = fieldsetRoleActif
+            ? fieldsetRoleActif.querySelector('input[type="radio"]:checked')
+            : null;
+        const roleActifOn = checkedRoleActif !== null && checkedRoleActif.value === '1';
+        const roles = meta && Array.isArray(meta.roles) ? meta.roles : [];
+
+        if (roleActifOn && roles.length) {
+            roleDescriptionEl.textContent = roles.join(' / ');
+            roleDescriptionEl.classList.remove('d-none');
+        } else {
+            roleDescriptionEl.textContent = '';
+            roleDescriptionEl.classList.add('d-none');
+        }
+    };
+
+    const updateTypeUi = function () {
+        const meta = currentMeta();
+
+        descriptionEl.textContent = meta ? meta.desc : '';
+        descriptionEl.classList.toggle('d-none', !meta || !meta.desc);
+
+        if (fieldReservationMultiple && fieldsetReservationMultiple) {
+            if (meta && meta.name === 'Boutique') {
+                fieldReservationMultiple.classList.add('d-none');
+                fieldsetReservationMultiple.disabled = false;
+            } else if (meta && meta.name === 'Formation') {
+                fieldReservationMultiple.classList.remove('d-none');
+                const radioNon = fieldsetReservationMultiple.querySelector('input[type="radio"][value="0"]');
+                if (radioNon) {
+                    radioNon.checked = true;
+                }
+                fieldsetReservationMultiple.disabled = true;
+            } else {
+                fieldReservationMultiple.classList.remove('d-none');
+                fieldsetReservationMultiple.disabled = false;
+            }
+        }
+
+        if (fieldRoleActif && fieldsetRoleActif) {
+            const natureAvecRole = meta !== null && (meta.name === 'Formation' || meta.name === 'Sortie');
+
+            fieldRoleActif.classList.toggle('d-none', !natureAvecRole);
+
+            if (!natureAvecRole) {
+                const radioNon = fieldsetRoleActif.querySelector('input[type="radio"][value="0"]');
+                if (radioNon) {
+                    radioNon.checked = true;
+                }
+            }
+        }
+
+        updateRoleDescription(meta);
+    };
+
+    typeSelect.addEventListener('change', updateTypeUi);
+    modalForm.addEventListener('shown.bs.modal', updateTypeUi);
+
+    if (fieldsetRoleActif) {
+        fieldsetRoleActif.addEventListener('change', function () {
+            updateRoleDescription(currentMeta());
+        });
+    }
+});
+
+/**
+ *  Onglet "Réservations formation" : filtre la liste déroulante par statut (Ouvertes/Fermées/
+ *  Toutes) sur l'attribut data-active des <option>, puis charge en ajax le layout de suivi de
+ *  la formation sélectionnée.
+ */
+document.addEventListener('DOMContentLoaded', function () {
+    const select = document.getElementById('campagneSuiviSelect');
+
+    if (!select) {
+        return;
+    }
+
+    const filterActive = document.querySelectorAll('input[name="campagneSuiviFilterActive"]');
+    const container = document.getElementById('campagneSuiviContent');
+
+    const resetContent = function () {
+        if (container) {
+            container.innerHTML = '<p class="text-muted">' + (select.dataset.emptyLabel || '') + '</p>';
+        }
+    };
+
+    const applyFilter = function () {
+        const checked = document.querySelector('input[name="campagneSuiviFilterActive"]:checked');
+        const activeValue = checked ? checked.value : 'all';
+        let selectedHidden = false;
+
+        select.querySelectorAll('option').forEach(function (option) {
+            if (option.value === '') {
+                return;
+            }
+
+            const match = activeValue === 'all' || option.dataset.active === activeValue;
+            option.hidden = !match;
+
+            if (!match && option.selected) {
+                selectedHidden = true;
+            }
+        });
+
+        if (selectedHidden) {
+            select.value = '';
+            resetContent();
+        }
+    };
+
+    filterActive.forEach(function (el) {
+        el.addEventListener('change', applyFilter);
+    });
+
+    select.addEventListener('change', function () {
+        if (!select.value) {
+            resetContent();
+            return;
+        }
+
+        simpleCallAjax(
+            { task: 'campagnes.suivi', id_campagne: select.value },
+            campagneSuiviCB,
+            false
+        );
+    });
+});
+
+const campagneSuiviCB = function (response) {
+    const html = decodeURIComponent(escape(atob(response.data)));
+    const container = document.getElementById('campagneSuiviContent');
+
+    if (container) {
+        container.innerHTML = html;
+    }
+};
 
 const multiselectInit = function (selectId) {
     // document.addEventListener('DOMContentLoaded', function() {

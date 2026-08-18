@@ -6,9 +6,6 @@
 \defined('_JEXEC');
 
 use Joomla\CMS\Language\Text;
-use Joomla\CMS\Router\Route;
-use Joomla\CMS\HTML\HTMLHelper;
-use NCB\Component\Gda\Site\Helper\CampagnesHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Layout\LayoutHelper;
 
@@ -35,6 +32,7 @@ $wa->useScript('com_gdadhesions.form_modal');
 $wa->useScript('com_gdadhesions.spinner');
 
 $wa->useScript('com_gdadhesions.campagne');
+$wa->useScript('com_gdadhesions.reservation');
 // tom-select
 $wa->useStyle('com_gdadhesions.tom-select');
 $wa->useScript('com_gdadhesions.tom-select');
@@ -122,13 +120,17 @@ $wa->useScript('com_gdadhesions.tom-select');
 
   </div> -->
 
-  <!-- Campagnes -->
+  <!-- Campagnes de formation -->
 
   <?php echo LayoutHelper::render(
-    'accueil.dash_campagnes',
-    ['campagne' => $this->campagnes, 'user' => $this->user]
+    'accueil.dash_formation',
+    ['formations' => $this->formations, 'user' => $this->user]
   );
   ?>
+
+  <!-- Campagnes (layout générique, en attente des layouts Sortie / Soirée / Boutique) -->
+
+
 
   <!-- PLANNING -->
 
@@ -172,59 +174,3 @@ $wa->useScript('com_gdadhesions.tom-select');
 
   </div> -->
 </div> <!-- class="dashboard" -->
-
-
-
-
-
-
-
-
-
-
-<?php
-//     foreach ($this->campagnes as $cle => $campagne) {
-//     if ($cle%2 == 0) // 1er carte de la ligne
-//     {
-//       echo '<div class="row">';
-//       echo LayoutHelper::render(
-//             'accueil.card',   ['campagne' => $campagne, 'user' => $this->user]
-//         );
-//     } else { // 2eme carte de la ligne
-//       echo LayoutHelper::render(
-//             'accueil.card',   ['campagne' => $campagne, 'user' => $this->user]
-//         );
-//       echo '</div>'; // class="row g-4"
-//     }
-//   }
-echo LayoutHelper::render(
-  'accueil.souscription_modale',
-  [
-    'form' => $this->form,
-    'task' => 'souscrit',
-  ]
-);
-
-// Code de la mb_encoding_aliases
-
-
-?>
-
-
-
-
-
-<!-- </div>  class="row" -->
-
-
-
-
-<script type="module">
-  // document.addEventListener('DOMContentLoaded', function() {
-  //   LstModal("modalSign", "souscription")
-  // queryAjax ("submitSignIn","form_souscrit",campagneCB,"closeSignIn");
-
-  // LstModal("modalSignOut","campagne")
-  // queryAjax ("submitSignOut","form_desouscrit",campagneCB,"closeSignOut");
-  // });
-</script>

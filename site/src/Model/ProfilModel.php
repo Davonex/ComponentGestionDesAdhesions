@@ -11,6 +11,7 @@ use Joomla\CMS\MVC\Model\ListModel;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
+use NCB\Component\Gda\Site\Service\BrevetService;
 
 
 
@@ -26,6 +27,8 @@ class ProfilModel extends ListModel
 
     protected $_item = null;
     protected $_itemsOB = null;
+
+    private ?BrevetService $brevetService = null;
 
     /**
      * Propriété privée pour stocker l'instance de l'application
@@ -115,6 +118,50 @@ class ProfilModel extends ListModel
         } catch (\RuntimeException $e) {
             throw new \Exception($e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Liste des brevets FFESSM d'un profil (lecture seule), affichée par le layout profil.card_brevet.
+     * Façade fine au-dessus de BrevetService, seul détenteur des accès à #__gda_brevets.
+     */
+    function getBrevets(int $idProfil): array
+    {
+        return $this->getBrevetService()->getBrevets($idProfil);
+    }
+
+    /**
+     * Enregistre les brevets saisis depuis la modale d'édition de la vue Profil (annule et remplace).
+     *
+     * @param array<int, array{nom?: mixed, obtention?: mixed, lieu?: mixed}> $brevets
+     */
+    function saveBrevets(int $idProfil, array $brevets): int
+    {
+        return $this->getBrevetService()->replaceBrevets($idProfil, $brevets);
+    }
+
+    /**
+     * Complète le token FFESSM du profil s'il n'est pas encore renseigné (scan du QR code).
+     */
+    function updateFfessmToken(int $idProfil, string $token): bool
+    {
+        return $this->getBrevetService()->updateFfessmToken($idProfil, $token);
+    }
+
+    /**
+     * Getter pour obtenir le service Brevet (lazy loading).
+     *
+     * Instanciation directe et non résolution via le conteneur : services/provider.php enregistre
+     * dans le conteneur du *composant*, alors que Factory::getContainer() renvoie le conteneur
+     * *global* de Joomla — la résolution y échouerait ("has not been registered with the
+     * container"). Même approche que ConfHelper et les autres services du composant.
+     */
+    private function getBrevetService(): BrevetService
+    {
+        if ($this->brevetService === null) {
+            $this->brevetService = new BrevetService($this->getDatabase());
+        }
+
+        return $this->brevetService;
     }
 
     /**

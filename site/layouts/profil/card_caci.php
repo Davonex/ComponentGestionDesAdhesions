@@ -26,7 +26,7 @@ $badgeClass = AdhesionStatusHelper::getStatusBadgeClass($statusEnum);
 $dateCaciAffiche = !empty($profil->date_caci) ? ToolsHelper::from_sqldate($profil->date_caci) : '-';
 ?>
 
-<div id="caci_<?php echo (int) $profil->id_profil; ?>" class="h-100 col-md-6 col-sm-12">
+<div id="caci_<?php echo (int) $profil->id_profil; ?>" class="h-100 <?php echo $displayData['taille'] ?? 'col-md-6 col-sm-12'; ?>">
   <div class="card text-bg-gda">
     <div class="card-header">
       <p class="pt-2 float-start"><?php echo $this->escape(Text::_('COM_GDA_PROFIL_CACI_CARD_TITLE')); ?></p>

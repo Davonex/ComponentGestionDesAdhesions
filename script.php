@@ -368,6 +368,8 @@ class com_gdadhesionsInstallerScript
     private function removeObsoleteFiles(): void
     {
         $adminPath = JPATH_ADMINISTRATOR . '/components/com_gdadhesions';
+        $sitePath  = JPATH_SITE . '/components/com_gdadhesions';
+        $mediaPath = JPATH_ROOT . '/media/com_gdadhesions';
 
         // Vue helloasso renommée en configuration (0.7.16)
         $obsoleteFiles = [
@@ -376,6 +378,27 @@ class com_gdadhesionsInstallerScript
             $adminPath . '/src/Controller/HelloassoController.php',
             $adminPath . '/src/View/Helloasso/HtmlView.php',
             $adminPath . '/tmpl/helloasso/default.php',
+
+            // Réservations aux campagnes (0.9.5) : la souscription générique du dashboard a été
+            // remplacée par un layout dédié à chaque nature de campagne (accueil/dash_formation),
+            // s'appuyant sur #__gda_reservation au lieu de #__gda_souscriptions. CampagnesHelper
+            // ne servait plus qu'à ce parcours et n'était plus appelé par personne.
+            $sitePath . '/layouts/accueil/dash_campagnes.php',
+            $sitePath . '/layouts/accueil/TODELETE_card.php',
+            $sitePath . '/layouts/accueil/TODELETE_souscription_modale.php',
+            $sitePath . '/layouts/secretariat/payement_sav.php',
+            $sitePath . '/src/Helper/CampagnesHelper.php',
+
+            // Vue Niveau (jamais reliée à un menu, ni appelée par Adhesion/Profil/Saisons/
+            // Secretariat : l'extraction des brevets FFESSM passe par AdhesionModel::saveInBrevets()
+            // / #__gda_brevets, pas par cette vue). Renommée en TODELETE_ pour vérification avant
+            // suppression définitive au prochain cycle de mise à jour.
+            $sitePath . '/src/Controller/TODELETE_NiveauController.php',
+            $sitePath . '/src/Model/TODELETE_NiveauModel.php',
+            $sitePath . '/src/View/Niveau/TODELETE_HtmlView.php',
+            $sitePath . '/tmpl/niveau/TODELETE_default.php',
+            $sitePath . '/tmpl/niveau/TODELETE_default.xml',
+            $mediaPath . '/js/TODELETE_niveau.js',
         ];
 
         foreach ($obsoleteFiles as $file) {
@@ -387,6 +410,8 @@ class com_gdadhesionsInstallerScript
         $obsoleteFolders = [
             $adminPath . '/src/View/Helloasso',
             $adminPath . '/tmpl/helloasso',
+            $sitePath . '/src/View/Niveau',
+            $sitePath . '/tmpl/niveau',
         ];
 
         foreach ($obsoleteFolders as $folder) {

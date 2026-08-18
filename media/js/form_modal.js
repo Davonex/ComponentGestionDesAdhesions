@@ -57,9 +57,22 @@ const openModal = function (srcElement,desElement,formName,previewSelector = '#i
             var name = el.attributes['name'].value
             var cible = desElement.querySelector('#' + formName + '_' + name)
             if (cible !== null) {
-                if (cible.tagName === 'INPUT') {
+                if (cible.tagName === 'FIELDSET') {
+                    // Groupe de radios (ex: switch Oui/Non type joomla.form.field.radio.switcher) :
+                    // cocher l'option dont la valeur correspond, sans toucher au reste du markup
+                    // (un cible.innerHTML = ... detruirait les <input>/<label> du switch).
+                    var radioToCheck = cible.querySelector('input[type="radio"][value="' + el.innerHTML.trim() + '"]')
+                    if (radioToCheck !== null) {
+                        radioToCheck.checked = true
+                    }
+                } else if (cible.tagName === 'INPUT' && cible.type === 'checkbox') {
+                    // Switch/checkbox (ex: type="switch" de ce composant) : l'état coché/décoché
+                    // se pilote via .checked, pas .value (qui reste "1", figé par l'attribut HTML).
+                    var raw = el.innerHTML.trim()
+                    cible.checked = raw === '1' || raw.toLowerCase() === 'true'
+                } else if (cible.tagName === 'INPUT') {
                     cible.value = el.innerHTML
-                } else if (cible.tagName === 'SELECT') { 
+                } else if (cible.tagName === 'SELECT') {
                     if (cible.attributes['multiple']) {
                         // Select Multi
                         //Set Value pour avec l'API tomselect
@@ -84,9 +97,18 @@ const openModalEmpty = function (desElement,formName) {
 
     // desElement.querySelectorAll('#' + formName + '_' + name)
     desElement.querySelectorAll('[name^="'+formName+'["]').forEach(function (el) {
-            switch (el.tagName) {   
+            switch (el.tagName) {
                 case 'INPUT':
-                    el.value = "";
+                    if (el.type === 'radio') {
+                        // Groupe de radios (switch Oui/Non, ...) : revient à l'option "0" par défaut
+                        // au lieu d'écraser l'attribut value (ce que ferait el.value = "").
+                        el.checked = (el.value === '0')
+                    } else if (el.type === 'checkbox') {
+                        // Switch/checkbox (ex: type="switch") : revient à l'état décoché par défaut.
+                        el.checked = false;
+                    } else {
+                        el.value = "";
+                    }
                     break
                 case 'SELECT':
                     // verifie dans le cas d'un select multiple (tomselect)
@@ -315,6 +337,36 @@ document.addEventListener('click', function (event) {
 
   const ajaxData = {
     task: 'profil.showCard',
+    id_profil: parseInt(trigger.dataset.idProfil || '0', 10),
+  };
+  const csrfTokenName = Joomla.getOptions('csrf.token');
+  if (csrfTokenName) { ajaxData[csrfTokenName] = 1; }
+
+  simpleCallAjax(ajaxData, function (response) {
+    modalContent.innerHTML = decodeURIComponent(escape(atob(response.data)));
+  }, false, function (response) {
+    modalContent.innerHTML = '<div class="alert alert-danger">' + ((response && response.message) || 'Erreur inconnue') + '</div>';
+  });
+});
+
+// Handler délégué global pour js-show-profil-brevets (lien "Liste des brevets" de
+// profil.card_profil, popup lecture seule) : remplace le contenu de #profilCardModal, déjà
+// ouverte, par la liste des brevets (profil.card_brevet).
+document.addEventListener('click', function (event) {
+  const trigger = event.target.closest('.js-show-profil-brevets');
+  if (!trigger) { return; }
+
+  event.preventDefault();
+
+  const modalEl = document.getElementById('profilCardModal');
+  const modalContent = document.getElementById('profilCardModalContent');
+  if (!modalEl || !modalContent) { return; }
+
+  modalContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-success" role="status"><span class="visually-hidden">Chargement...</span></div></div>';
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+  const ajaxData = {
+    task: 'profil.showBrevets',
     id_profil: parseInt(trigger.dataset.idProfil || '0', 10),
   };
   const csrfTokenName = Joomla.getOptions('csrf.token');

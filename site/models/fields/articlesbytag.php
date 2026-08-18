@@ -29,7 +29,7 @@ class JFormFieldArticlesByTag extends ListField
 
         // Récupération des attributs XML <field catid="..." tagid="...">
         $catid = (string) ConfHelper::getValue('IdCategorieCampagne');
-        // $tagid = (string) $this->element['tagid'];
+        $tagid = (string) $this->element['tagid'];
 
         if (!empty($catid))
         {

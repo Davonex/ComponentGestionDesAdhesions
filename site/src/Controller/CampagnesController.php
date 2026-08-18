@@ -7,15 +7,11 @@ defined('_JEXEC') or die('Restricted access');
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Response\JsonResponse;
 use Joomla\CMS\Factory;
-use Joomla\CMS\Router\Route;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Layout\LayoutHelper;
-use Joomla\Database\DatabaseInterface;
 // Gda
-use NCB\Component\Gda\Site\Helper\CampagnesHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
-use NCB\Component\Gda\Site\Service\SouscriptionService;
 
 
 class CampagnesController extends BaseController
@@ -236,125 +232,6 @@ class CampagnesController extends BaseController
     }
 
     /**
-     *   Ajax pour souscrire a une camapgne dans la View accueil
-     */
-
-    public function souscrit()
-    {
-
-        /**
-         *  Peut ajouter un control sur les droits ?
-         */
-        $Response = new JsonResponse();
-
-        try {
-            $this->checkToken();
-
-            /** @var \Joomla\CMS\Application\SiteApplication $app */
-            $app   = Factory::getApplication();
-            /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
-            $model = $this->getModel('campagnes', 'site');
-            // $form = $model->getForm(null, false);
-            // $input = $app->input;
-
-            $user =  $this->app->getIdentity();
-            // $levels = $user->getAuthorisedViewLevels();
-
-            // Get data
-            // $data = $this->input->getArray(array(
-            //     'Itemid' => 'INT'
-            // ));
-
-
-            $dataForm = $app->getInput()->get('jform_souscription', array(), 'ARRAY');
-
-
-
-            if (!empty($dataForm)) {
-                // Appel au service de souscription (découplé de la session)
-                $souscriptionService = new SouscriptionService(Factory::getContainer()->get(DatabaseInterface::class));
-                $souscriptionService->souscrire($dataForm);
-                $Response->success = true;
-                
-                $Response->message = Text::sprintf('COM_GDA_CAMPAGNE_SIGNIN', $dataForm['username']);
-                //** Creer le code HTML a remplacer */
-                /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $modelAccueil */
-                $modelAccueil = $this->getModel('accueil', 'site');
-                $Campagnes = $modelAccueil->getCampagnes($user);
-                $Layout = LayoutHelper::render('accueil.dashboard_campagnes',   ['campagne' => $Campagnes, 'user' => $user]);
-                $Response->data =  base64_encode($Layout);
-                //$Response->data['jform_Profil'] = $data['jform_Profil'];
-            } else {
-                $Response->success = false;
-            }
-
-
-            echo $Response;
-        } catch (\Exception $e) {
-            echo new JsonResponse($e);
-        }
-        $app->close();  // stoppe l’exécution pour que seule la réponse JSON parte
-    }
-
-    /**
-     *   Ajax pour desouscrire a une camapgne dans la View accueil
-     */
-
-    public function desouscrit()
-    {
-
-        /**
-         *  Peut ajouter un control sur les droits ?
-         */
-        $Response = new JsonResponse();
-
-        try {
-            $this->checkToken();
-
-
-
-            /** @var \Joomla\CMS\Application\SiteApplication $app */
-            $app   = Factory::getApplication();
-            /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
-            $model = $this->getModel('campagnes', 'site');
-            // $form = $model->getForm(null, false);
-            // $input = $app->input;
-
-            $user =  $this->app->getIdentity();
-            // $levels = $user->getAuthorisedViewLevels();
-
-           $dataForm = $app->getInput()->get('jform_souscription', array(), 'ARRAY');
-
-
-
-            if (!empty($dataForm)) {
-                // Appel au service de désouscription (découplé de la session)
-                $souscriptionService = new SouscriptionService(Factory::getContainer()->get(DatabaseInterface::class));
-                $souscriptionService->desouscrire($dataForm, $user->username);
-                $Response->success = true;
-                $Response->message = Text::sprintf('COM_GDA_CAMPAGNE_SIGNOUT', $dataForm['username']);
-                
-                //** Creer le code HTML a remplacer */
-                /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $modelAccueil */
-                $modelAccueil = $this->getModel('accueil', 'site');
-                $Campagnes = $modelAccueil->getCampagnes($user);
-                $Layout = LayoutHelper::render('accueil.dashboard_campagnes',   ['campagne' => $Campagnes, 'user' => $user]);
-                $Response->data =  base64_encode($Layout);
-                //$Response->data['jform_Profil'] = $data['jform_Profil'];
-            } else {
-                $Response->success = false;
-            }
-
-
-            echo $Response;
-        } catch (\Exception $e) {
-            echo new JsonResponse($e);
-        }
-        $app->close();  // stoppe l’exécution pour que seule la réponse JSON parte
-    }
-
-
-    /**
      *  Ajax pour generer le rapport d'une camapgne dans la View admin
      */
     public function rapport()
@@ -372,22 +249,24 @@ class CampagnesController extends BaseController
             $data = $app->input->getArray(array('jform_campagne' => 'ARRAY'));
             if (!empty($data['jform_campagne'])) {
                 $app->setUserState('campagne.rapport', $data['jform_campagne']);
-                if ($data['jform_campagne']['event_helloasso'] === "null") {
-                    $data_rapport = $model->getRapport();
-                    $Response->message = Text::sprintf('COM_GDA_CAMPAGNE_RAPPORT_MSG', count($data_rapport));
-                } 
-                else {
-                    $data_rapport = $model->getRapportHelloAsso();
-                    $Response->message = Text::sprintf('COM_GDA_CAMPAGNE_RAPPORT_MSG', count($data_rapport));
-                }
+                $hasHelloAsso = $data['jform_campagne']['event_helloasso'] !== "null";
 
-                $Layout = LayoutHelper::render ('campagnes.rapport',['items' => $data_rapport ,'form' => $data['jform_campagne']] );
+                // Le rapport HelloAsso (paiements en ligne) sera traité dans un second temps :
+                // on affiche un "à venir" pour ces campagnes plutôt que d'appeler getRapportHelloAsso().
+                $data_rapport = $hasHelloAsso ? [] : $model->getRapport();
+                $Response->message = $hasHelloAsso
+                    ? Text::_('COM_GDA_CAMPAGNE_RAPPORT_HELLOASSO_COMINGSOON')
+                    : Text::sprintf('COM_GDA_CAMPAGNE_RAPPORT_MSG', count($data_rapport));
+
+                $Layout = LayoutHelper::render('campagnes.rapport', [
+                    'items'        => $data_rapport,
+                    'form'         => $data['jform_campagne'],
+                    'hasHelloAsso' => $hasHelloAsso,
+                ]);
                 $Response->data =  base64_encode($Layout);
                 $Response->success = true;
-                // $Response->data =  base64_encode(json_encode($data_rapport));    
-                
 
-            } else { 
+            } else {
                 $Response->success = false;
             }
 
@@ -407,7 +286,49 @@ class CampagnesController extends BaseController
 
 
     /**
-     * 
+     *  Ajax pour le suivi des inscriptions d'une campagne (onglet "Suivi des inscriptions").
+     *  Affiche le layout de suivi propre à la nature de la campagne (Formation pour l'instant,
+     *  "à venir" pour les autres natures).
+     */
+    public function suivi()
+    {
+        $Response = new JsonResponse();
+        try {
+            $this->checkToken();
+
+            /** @var \Joomla\CMS\Application\SiteApplication $app */
+            $app = Factory::getApplication();
+            /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
+            $model = $this->getModel('campagnes', 'site');
+
+            $idCampagne = (int) $app->input->getInt('id_campagne');
+
+            if ($idCampagne > 0) {
+                $campagne = $model->getCampagne($idCampagne);
+                $idTypeFormation = (int) ConfHelper::getValue('IdTypeFormation');
+
+                if ((int) $campagne->id_type === $idTypeFormation) {
+                    $inscrits = $model->getInscritsCampagne($idCampagne, $campagne->titre);
+                    $Layout = LayoutHelper::render('campagnes.suivi_formation', ['inscrits' => $inscrits]);
+                } else {
+                    $Layout = LayoutHelper::render('campagnes.suivi_comingsoon', ['type_name' => $campagne->type_name]);
+                }
+
+                $Response->success = true;
+                $Response->data = base64_encode($Layout);
+            } else {
+                $Response->success = false;
+            }
+
+            echo $Response;
+        } catch (\Exception $e) {
+            echo new JsonResponse($e);
+        }
+        $app->close();  // stoppe l'exécution pour que seule la réponse JSON parte
+    }
+
+    /**
+     *
      */
     function getformDetailHelloAsso()
     {

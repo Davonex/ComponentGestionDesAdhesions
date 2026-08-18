@@ -27,7 +27,7 @@
          />
         <field
                 name="nbr_place"
-                type="integer" 
+                type="integer"
                 label="Nombre de place"
                 description="Nombre de place disponible. (Mettre 0 si pas de limite)"
                 first="0"
@@ -35,12 +35,36 @@
                 step="1"
         />
 
+        <field
+                name="reservation_multiple"
+                type="radio"
+                label="COM_GDA_CAMPAGNE_RESERVATION_MULTIPLE"
+                description="COM_GDA_CAMPAGNE_RESERVATION_MULTIPLE_DESC"
+                default="0"
+                layout="joomla.form.field.radio.switcher"
+                filter="integer">
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+        </field>
+
+        <field
+                name="role_actif"
+                type="radio"
+                label="COM_GDA_CAMPAGNE_ROLE_ACTIF"
+                description="COM_GDA_CAMPAGNE_ROLE_ACTIF_DESC"
+                default="0"
+                layout="joomla.form.field.radio.switcher"
+                filter="integer">
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+        </field>
+
 
     <field
                 name="date_debut"
                 type="calendar"
                 default="5"
-                label="Date de debut de la campagne"
+                label="COM_GDA_CAMPAGNE_DATE_OPENING_RESERVATION"
                 description=""
                 class="input-small"
                 required="true"
@@ -54,11 +78,27 @@
                 minyear="-2"
                 maxyear="2"
 	/>
+    <field
+                name="date_evenement"
+                type="calendar"
+                label="COM_GDA_CAMPAGNE_DATE_EVENEMENT"
+                description="COM_GDA_CAMPAGNE_DATE_EVENEMENT_DESC"
+                class="input-small"
+                showtime="true"
+                todaybutton="true"
+                filltable="false"
+                translateformat="false"
+                format="%d/%m/%Y %H:%M"
+                filterformat="d/m/Y H:i"
+                minyear="-2"
+                maxyear="2"
+	/>
+
 	<field
                 name="date_fin"
                 type="calendar"
                 default="5"
-                label="Date de fin de la campagne"
+                label="COM_GDA_CAMPAGNE_DATE_CLOSING_RESERVATION"
                 description=""
                 class="input-small"
                 required="true"

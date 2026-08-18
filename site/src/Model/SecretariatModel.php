@@ -263,18 +263,6 @@ class SecretariatModel extends ListModel
       $db->transactionStart();
 
       try {
-        $deleteNiveaux = $db->getQuery(true)
-          ->delete($db->quoteName('#__gda_niveaux'))
-          ->where($db->quoteName('id_profil') . ' = :id_profil')
-          ->bind(':id_profil', $idProfil);
-
-        $db->setQuery($deleteNiveaux);
-        $db->execute();
-      } catch (\Throwable $e) {
-        throw new \RuntimeException('Suppression impossible dans #__gda_niveaux: ' . $e->getMessage(), 500, $e);
-      }
-
-      try {
         $deleteSouscriptions = $db->getQuery(true)
           ->delete($db->quoteName('#__gda_souscriptions'))
           ->where($db->quoteName('id_profil') . ' = :id_profil')

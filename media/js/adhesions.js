@@ -8,11 +8,29 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnQrScanner = document.getElementById('openQrScanner');
     const btnValider = document.getElementById('btnValider');
 
+    // Navigation Précédent/Suivant du bas de page. Ces boutons réutilisent tels quels les
+    // boutons de la barre du haut (#wizardNav) : même mécanique Bootstrap data-bs-slide-to,
+    // même garde de validation (slide.bs.carousel plus bas), et pour #btnStepRecap le
+    // remplissage du récapitulatif reste déclenché puisque c'est le même élément qui reçoit
+    // le clic.
+    const btnFooterPrev = document.getElementById('btnFooterPrev');
+    const btnFooterNext = document.getElementById('btnFooterNext');
+    let currentWizardStep = 0;
+
+    btnFooterPrev?.addEventListener('click', function () {
+        navButtons[currentWizardStep - 1]?.click();
+    });
+
+    btnFooterNext?.addEventListener('click', function () {
+        navButtons[currentWizardStep + 1]?.click();
+    });
+
     // Récupérer les valeurs du formulaire
     const getValue = id => document.querySelector(`#${id}`)?.value || "";
 
     // gestion de l'affichage des boutons et du header à chaque changement d'étape du carousel
     wizard.addEventListener('slid.bs.carousel', function (e) {
+        currentWizardStep = e.to;
         // Mise à jour barre de navigation
         navButtons.forEach(function (btn) {
             btn.classList.remove('active');
@@ -48,6 +66,15 @@ document.addEventListener('DOMContentLoaded', function () {
             simpleCallAjax(data, CBCheckCotisation, false);
         } else {
             btnValider.classList.add('d-none');
+        }
+
+        // Navigation Précédent/Suivant du bas de page : Précédent masqué sur la 1ere étape,
+        // Suivant masqué sur la dernière (qui a son propre bouton Valider).
+        if (btnFooterPrev) {
+            btnFooterPrev.classList.toggle('invisible', e.to === 0);
+        }
+        if (btnFooterNext) {
+            btnFooterNext.classList.toggle('d-none', e.to === navButtons.length - 1);
         }
     });
     //   });getValue("jform_code_postal");
@@ -111,8 +138,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector("#recap_caci").innerHTML = Str1 + ' ' + Str2;
         // recap plongees
         document.querySelector("#recap_nbr_plongee").textContent = getValue("jform_nbr_plongee") || "0";
-        document.querySelector("#recap_nbr_plongee_35").textContent = getValue("jform_a_nbr_plongee_35") || "0";
-        document.querySelector("#recap_nbr_plongee_auto").textContent = getValue("jform_nbr_plongee_auto") || "0";;
+        document.querySelector("#recap_nbr_plongee_35").textContent = getValue("jform_nbr_plongee_35") || "0";
+        document.querySelector("#recap_nbr_plongee_auto").textContent = getValue("jform_nbr_plongee_auto") || "0";
 
         // Groupes
         // Afficher la liste de options dans un element P  et que chaque element soit dans un span avec la class "btn btn-pripary"
@@ -198,87 +225,50 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
-// Gestion du QR code  
+// Gestion du QR code : la mécanique du scanner vit dans QrScanner.create() (qr_scanner.js),
+// partagée avec la modale d'édition des brevets de la vue Profil.
 document.addEventListener("DOMContentLoaded", function () {
-    const qrModal = document.getElementById("qrModal");
-    const openBtn = document.getElementById("openQrScanner");
-    const closeBtn = document.getElementById("closeQrScanner");
-    let qrScanner;
-    let isScannerRunning = false; // Flag pour tracker l'état du scanner
+    QrScanner.create('adhesion', {
+        openBtnId: 'openQrScanner',
+        closeBtnId: 'closeQrScanner',
+        modalId: 'qrModal',
+        readerId: 'qrReader',
+        /**
+         * Le retour du scan passe par une popup et non par le bandeau de messages Joomla :
+         * sur mobile, le haut de page est rarement visible au moment du scan.
+         *
+         * @external {Function} scrap - see media\com_gdadhesions\js\scrap-ffessm.js
+         */
+        onScan: (decodedText) => scrap(
+            decodedText,
+            // Licence exploitable : on demande confirmation AVANT d'écraser la saisie en cours.
+            (response) => {
+                const porteur = response.data.porteur || '';
+                const nbBrevets = (response.data.brevets || []).length;
 
-    // Ouvrir la modale et démarrer la caméra
-    openBtn.addEventListener("click", function () {
-        qrModal.classList.add("active");
-
-        qrScanner = new Html5Qrcode("qrReader");
-        qrScanner.start({
-            facingMode: "environment"
-        }, // caméra arrière
-            {
-                fps: 2,
-                qrbox: (viewfinderWidth, viewfinderHeight) => {
-                    let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                    return {
-                        width: minEdge * 0.8,
-                        height: minEdge * 0.8
-                    }; // 80% de l’écran
-                }
+                GdaDialog.confirm(
+                    Joomla.Text._('COM_GDA_ADHESION_SCAN_TITLE'),
+                    // Remplacement par fonction : en argument littéral, "$&" ou "$'" présents
+                    // dans une valeur scrapée seraient interprétés par String.replace().
+                    Joomla.Text._('COM_GDA_ADHESION_SCAN_CONFIRM')
+                        .replace('%1$s', () => porteur)
+                        .replace('%2$s', () => nbBrevets),
+                    /**
+                     * @external {Function} AdhesionCB - see media\com_gdadhesions\js\scrap-ffessm.js
+                     */
+                    () => AdhesionCB(response.data),
+                    Joomla.Text._('COM_GDA_ADHESION_SCAN_CONFIRM_WARN')
+                );
             },
-            (decodedText, decodedResult) => {
-                // console.log("URL détectée :", decodedText);
-
-                // Fermer la modale automatiquement
-                stopScanner();
-                /**
-                * @external {Function} scrap - see media\com_gdadhesions\js\scrap-ffessm.js
-                */
-                scrap(decodedText, AdhesionCB);
-            },
-            (errorMessage) => {
-                // erreurs de scan, tu peux les ignorer
+            // Licence déjà connue de la base, ou introuvable : message bloquant.
+            (response) => {
+                GdaDialog.alert(
+                    Joomla.Text._('COM_GDA_ADHESION_SCAN_TITLE'),
+                    (response && response.message) || Joomla.Text._('COM_GDA_ADHESION_SCAN_NOT_FOUND')
+                );
             }
-        ).then(() => {
-            isScannerRunning = true;
-        }).catch(err => {
-            // Gestion des erreurs d'initialisation du scanner (ex: refus accès caméra)
-            console.error("Erreur initialisation scanner:", err);
-            isScannerRunning = false;
-            stopScanner();
-            Joomla.renderMessages({
-                "error": ["Impossible d'accéder à la caméra. Vérifiez les permissions."]
-            });
-        });
+        ),
     });
-
-    // Fermer la modale manuellement
-    closeBtn.addEventListener("click", stopScanner);
-
-    function stopScanner() {
-        if (qrScanner && isScannerRunning) {
-            try {
-                qrScanner.stop()
-                    .then(() => {
-                        qrScanner.clear();
-                    })
-                    .catch(err => {
-                        console.debug("Erreur arrêt scanner:", err);
-                    })
-                    .finally(() => {
-                        isScannerRunning = false;
-                        qrModal.classList.remove("active");
-                    });
-            } catch (err) {
-                console.debug("Erreur synchrone arrêt scanner:", err);
-                isScannerRunning = false;
-                qrModal.classList.remove("active");
-            }
-        } else {
-            // Fermer la modal en toutes circonstances
-            isScannerRunning = false;
-            qrModal.classList.remove("active");
-        }
-    }
-
 });
 
 

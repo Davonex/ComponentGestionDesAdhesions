@@ -1,6 +1,7 @@
 <?php
 
 use NCB\Component\Gda\Site\Helper\ConfHelper;
+use NCB\Component\Gda\Site\Helper\FileHelper;
 use Joomla\CMS\Language\Text;
 
 /**
@@ -45,7 +46,7 @@ $urlHelloAsso = $saison->url ?? '#';
     </div>
 
     <a href="<?php echo htmlspecialchars($urlHelloAsso); ?>" class="HaAuthorizeButton" target="_blank" rel="noopener">
-      <img src="https://api.helloasso.com/v5/img/logo-ha.svg" alt="HelloAsso" class="HaAuthorizeButtonLogo" />
+      <img src="<?= FileHelper::getHelloAssoLogoSrc() ?>" alt="HelloAsso" class="HaAuthorizeButtonLogo" />
       <span class="HaAuthorizeButtonTitle">Finaliser mon adhésion</span>
     </a>
 

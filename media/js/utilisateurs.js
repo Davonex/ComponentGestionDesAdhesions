@@ -251,6 +251,12 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   document.addEventListener('blur', function (event) {
+    // En capture, blur remonte aussi les pertes de focus de la fenêtre entière (ex: alt-tab) :
+    // event.target vaut alors window/document, sans .closest().
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
     const input = event.target.closest('.fonction-input:not(.d-none)');
 
     if (!input) {

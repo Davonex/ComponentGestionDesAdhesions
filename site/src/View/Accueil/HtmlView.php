@@ -26,9 +26,9 @@ class HtmlView extends BaseHtmlView
         //$user =  $app->getIdentity();
 
 
-        $this->campagnes = $accueilModel->getCampagnes($this->user);
-
-         $this->form = $accueilModel->getForm(); 
+        // Campagnes de type Formation, avec l'état de réservation de l'adhérent connecté.
+        // Les 3 autres natures (Sortie, Soirée, Boutique) auront leur propre jeu de données.
+        $this->formations = $accueilModel->getFormations($this->user);
 
         //$this->MenuItemId = $app->getMenu()->getActive()->id;
 

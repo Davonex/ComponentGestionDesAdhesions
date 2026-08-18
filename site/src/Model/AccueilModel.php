@@ -6,15 +6,9 @@ namespace NCB\Component\Gda\Site\Model;
 
 defined('_JEXEC') or die;
 
-use Joomla\CMS\Factory;
-use Joomla\CMS\User\UserFactoryInterface;
 use Joomla\CMS\MVC\Model\ListModel;
 use Joomla\CMS\Language\Text;
-use Joomla\CMS\Uri\Uri;
-use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
-use NCB\Component\Gda\Site\Helper\FileHelper;
-use NCB\Component\Gda\Site\Service\SaisonService;
 
 
 
@@ -23,169 +17,74 @@ class AccueilModel extends ListModel
 
     protected $_items = null;
 
-
     /**
-     * Récupère le formulaire de souscription.
-     * 
-     * @return \Joomla\CMS\Form\Form
-     * @throws \RuntimeException si le formulaire ne peut pas être chargé
+     * Campagnes de type Formation ouvertes, triées par date de fin croissante (les plus urgentes
+     * en premier), enrichies de l'état de réservation de l'adhérent connecté.
+     *
+     * Lit #__gda_reservation : #__gda_souscriptions est désormais réservée aux souscriptions de la
+     * saison (workflow CACI / cotisation / licence). Les natures Sortie, Soirée et Boutique auront
+     * chacune leur méthode et leur layout dédiés.
+     *
+     * Chaque ligne porte en plus :
+     *  - places_occupees    : places déjà accordées (hors réservations annulées)
+     *  - ma_reservation     : id_reservation de l'adhérent, ou NULL
+     *  - mon_statut         : confirmee | attente | annulee, ou NULL
+     *  - mes_places         : places demandées par l'adhérent
+     *  - mon_commentaire    : son commentaire
+     *
+     * @param  \Joomla\CMS\User\User $user
+     * @return object[]
      */
-    public function getForm()
-	{
-		$form = $this->loadForm(
-			'com_gdadhesions.souscription',  // just a unique name to identify the form
-			'souscription',				// the filename of the XML form definition
-										// Joomla will look in the site/forms folder for this file
-			array(
-				'control' => 'jform_souscription',	// the name of the array for the POST parameters
-				'load_data' => false        // if set to true, then there will be a callback to 
-                                                // loadFormData to supply the data
-			)
-		);
-
-		if (empty($form))
-		{
-             throw new \RuntimeException('Unable to load form: com_gdadhesions.souscription', 500);
-		}
-
-		return $form;
-	}
-
-
-    /**
-     *  Recupère la liste des campagnes souscrivables 
-     * 
-     * @return array  Liste d'objets campagne
-     * @throws \RuntimeException en cas d'erreur SQL
-     */
-    function getCampagnes($user = null,$reload = false)
+    public function getFormations($user): array
     {
-        /** les campagne souscribable sont 
-         * - celles qui sont actives
-         * - celles qui ont un dateDeDebut < Maintenant < dateDeFin
-         * - celles ou ou je (ou mes adh rattaché) n'ai pas encore souscrit 
-         */
-        /** @var \Joomla\CMS\Application\SiteApplication $app */
-         $app = Factory::getApplication();
-        // Get ID of camapgne in the session so that
-        $data = $app->getUserState('session');
-
-        $username = (string) $user->username ?: (string) $data['username'];
-        if (!$username) {
-            $this->_items = null;
-             throw new \Exception('User n\'existe pas  id', 404);
-        } else  {
-                $db = $this->getDatabase();
-                $query = $db->getQuery(true);
-
-            $active_value = 1; // Campagne active
-
-            // $query->select(
-            //     $db->quoteName(['profils.id_profil', 'profils.licence', 'profils.civilite', 'profils.nom'
-            // , 'profils.prenom', 'profils.date_de_naissance', 'profils.adresse', 'profils.ville', 'profils.code_postal', 'profils.telephone'
-            // , 'profils.a_prevenir', 'profils.a_prevenir_tel', 'profils.photo'])
-            //     );
-            $query->select('cp.*')
-                ->select('COALESCE(COUNT(sc.id_profil), 0) AS nbr_souscriptions')
-                ->select('case when inscit.id_profil = :id_profil_value then 1 else 0 end as deja_inscrit ')
-                ->select ('tc.*')
-                ->from($db->quoteName('#__gda_campagnes','cp'))
-                ->join('left', $db->quoteName('#__gda_type_de_campagne', 'tc'), $db->quoteName('cp.id_type') . ' = ' . $db->quoteName('tc.id_type'))
-                ->join('left', $db->quoteName('#__gda_souscriptions', 'sc'), $db->quoteName('cp.id_campagne') . ' = ' . $db->quoteName('sc.id_campagne'))
-                ->join('left', $db->quoteName('#__gda_souscriptions', 'inscit'), $db->quoteName('cp.id_campagne') . ' = ' . $db->quoteName('inscit.id_campagne') . " AND " . $db->quoteName('inscit.id_profil') . " = :id_profil_value"  )
-                ->where($db->quoteName('active') . ' = :active_value')
-                ->group($db->quoteName('cp.id_campagne'));
-              $query->bind(':active_value', $active_value);
-              $query->bind(':id_profil_value', $user->id);  
-            $db->setQuery($query);
-            try {
-                $this->_items = $db->loadObjectList();
-            } catch (\RuntimeException $e) {
-                throw new \Exception(Text::_('COM_GDA_ERROR_CAMPAGNES'), 404, $e);
-                // $query->__toString()
-                // Factory::getApplication()->enqueueMessage("Erreur de chargement des campagne, Contacter votre administrateur", 'error');
-            }
+        if ($user === null || (int) $user->id <= 0) {
+            return [];
         }
-        
-        // $query->__toString()
 
-        return $this->_items;
+        $idProfil      = (int) $user->id;
+        $idTypeFormation = (int) ConfHelper::getValue('IdTypeFormation');
+        $statutAnnulee = \NCB\Component\Gda\Site\Service\ReservationService::STATUT_ANNULEE;
 
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true);
+
+        $query->select('cp.*')
+            ->select('tc.type_name, tc.type_image, tc.type_class')
+            // Places occupées : somme sur toutes les réservations non annulées de la campagne.
+            ->select('COALESCE(SUM(CASE WHEN ' . $db->quoteName('r.statut') . ' != :statut_annulee'
+                . ' THEN ' . $db->quoteName('r.nbr_places_confirmees') . ' ELSE 0 END), 0) AS places_occupees')
+            // Ma réservation : jointure dédiée sur mon profil, pour ne pas dépendre du GROUP BY.
+            ->select($db->quoteName('moi.id_reservation', 'ma_reservation'))
+            ->select($db->quoteName('moi.statut', 'mon_statut'))
+            ->select($db->quoteName('moi.nbr_places', 'mes_places'))
+            ->select($db->quoteName('moi.commentaire', 'mon_commentaire'))
+            ->from($db->quoteName('#__gda_campagnes', 'cp'))
+            ->join('LEFT', $db->quoteName('#__gda_type_de_campagne', 'tc'),
+                $db->quoteName('cp.id_type') . ' = ' . $db->quoteName('tc.id_type'))
+            ->join('LEFT', $db->quoteName('#__gda_reservation', 'r'),
+                $db->quoteName('cp.id_campagne') . ' = ' . $db->quoteName('r.id_campagne'))
+            ->join('LEFT', $db->quoteName('#__gda_reservation', 'moi'),
+                $db->quoteName('cp.id_campagne') . ' = ' . $db->quoteName('moi.id_campagne')
+                . ' AND ' . $db->quoteName('moi.id_profil') . ' = :id_profil')
+            ->where($db->quoteName('cp.id_type') . ' = :id_type_formation')
+            ->where($db->quoteName('cp.active') . ' = 1')
+            ->where($db->quoteName('cp.effacer') . ' = 0')
+            ->where($db->quoteName('cp.date_debut') . ' <= CURDATE()')
+            ->where($db->quoteName('cp.date_fin') . ' >= CURDATE()')
+            ->group($db->quoteName('cp.id_campagne'))
+            ->order($db->quoteName('cp.date_fin') . ' ASC')
+            ->bind(':statut_annulee', $statutAnnulee)
+            ->bind(':id_profil', $idProfil, \Joomla\Database\ParameterType::INTEGER)
+            ->bind(':id_type_formation', $idTypeFormation, \Joomla\Database\ParameterType::INTEGER);
+
+        $db->setQuery($query);
+
+        try {
+            return $db->loadObjectList() ?: [];
+        } catch (\RuntimeException $e) {
+            throw new \Exception(Text::_('COM_GDA_ERROR_CAMPAGNES'), 404, $e);
+        }
     }
-
-    /**
-     * Recupère une campagne souscribable
-     * 
-     * @param int $id_campagne  Identifiant de la campagne
-     * @param string|null $username  Nom d'utilisateur pour vérifier la souscription
-     * @return object|null  Objet campagne ou null si non trouvée
-     * @throws \RuntimeException en cas d'erreur SQL ou de vérification
-     */
-    function getCampagne($id_campagne, $username = null)
-    {
-
-        /** @var \Joomla\CMS\Application\SiteApplication $app */
-         $app = Factory::getApplication();
-        // Get ID of camapgne in the session so that
-        $session = $app->getUserState('session') ;
-        // $user = $app->getIdentity();
-
-        if ($session['username'] !== $username) {
-           throw new \RuntimeException( "le Username ".$session['username']." et la licence  (" .$username. ")  sont différents /!\ " , 500); 
-        // if (!$username) {
-        //     $this->_items = null;
-        //      throw new \Exception('User n\'existe pas  id', 404);
-        } else  {
-            $db = $this->getDatabase();
-            $query = $db->getQuery(true);
-
-            $active_value = 1; // Campagne active
-
-            // $query->select(
-            //     $db->quoteName(['profils.id_profil', 'profils.licence', 'profils.civilite', 'profils.nom'
-            // , 'profils.prenom', 'profils.date_de_naissance', 'profils.adresse', 'profils.ville', 'profils.code_postal', 'profils.telephone'
-            // , 'profils.a_prevenir', 'profils.a_prevenir_tel', 'profils.photo'])
-            //     );
-            $query->select('cp.*');
-            $query->select('COALESCE(COUNT(sc.id_profil), 0) AS nbr_souscriptions');
-            $query->select('case when inscit.id_profil = :id_profil_value then 1 else 0 end as deja_inscrit ');
-            $query    ->select ('tc.*');
-                $query->from($db->quoteName('#__gda_campagnes','cp'));
-                $query->join('left', $db->quoteName('#__gda_type_de_campagne', 'tc'), $db->quoteName('cp.id_type') . ' = ' . $db->quoteName('tc.id_type'));
-
-                $query->join('left', $db->quoteName('#__gda_souscriptions', 'sc'), $db->quoteName('cp.id_campagne') . ' = ' . $db->quoteName('sc.id_campagne'));
-                $query->join('left', $db->quoteName('#__gda_souscriptions', 'inscit'), $db->quoteName('cp.id_campagne') . ' = ' . $db->quoteName('inscit.id_campagne') . " AND " . $db->quoteName('inscit.id_profil') . " = :id_profil_value"  );
-                $query->where($db->quoteName('active') . ' = :active_value');
-                $query->where($db->quoteName('cp.id_campagne') . ' = :id_campagne_value');
-                $query->group($db->quoteName('cp.id_campagne'));
-              $query->bind(':active_value', $active_value);
-              $query->bind(':id_profil_value', $session['id']);  
-              $query->bind(':id_campagne_value', $id_campagne);  
-            $db->setQuery($query);
-            try {
-                $this->_items = $db->loadObjectList();
-            } catch (\RuntimeException $e) {
-                throw new \Exception(Text::_('COM_GDA_ERROR_CAMPAGNES'), 404, $e);
-                // $query->__toString()
-                // Factory::getApplication()->enqueueMessage("Erreur de chargement des campagne, Contacter votre administrateur", 'error');
-            }
-        }
-
-        if (count($this->_items) !== 1) {
-            throw new \Exception("Bizard  il y a 0 ou plusieurs campagne avec l'ID:".$id_campagne, 500);
-        }
-        
-        // $query->__toString()
-
-        return $this->_items[0];
-
-    }
-
-
-
-
-
-
 
 
     /**

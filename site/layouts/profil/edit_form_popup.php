@@ -20,9 +20,12 @@ use Joomla\CMS\Layout\LayoutHelper;
 
 $title = $displayData['title'] ?? '';
 ?>
-<div class="modal-header">
-  <h5 class="modal-title"><?php echo Text::_('COM_GDA_PROFIL_EDIT'); ?> — <?php echo $this->escape($title); ?></h5>
-  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo $this->escape(Text::_('JCLOSE')); ?>"></button>
+<div class="modal-header bg-gda-header text-header">
+  <h5 class="modal-title mb-0">
+    <i class="fa-solid fa-user-pen me-2"></i>
+    <?php echo $this->escape($title); ?>
+  </h5>
+  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="<?php echo $this->escape(Text::_('JCLOSE')); ?>"></button>
 </div>
 <div class="modal-body" id="profilEditFormBody">
   <?php echo LayoutHelper::render('profil.edit_form', [

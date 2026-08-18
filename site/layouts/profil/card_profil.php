@@ -10,7 +10,9 @@
  *                                 code_postal, ville, telephone, email, a_prevenir, a_prevenir_tel, date_de_naissance)
  * - $displayData['principale'] : bool - style "profil principal" (text-bg-gda) vs "on behalf" (text-white bg-secondary)
  * - $displayData['editable']   : bool - affiche le bouton "Modifier" (ouvre #myModal), ou sinon une croix de
- *                                 fermeture (data-bs-dismiss="modal") pour l'usage popup lecture seule
+ *                                 fermeture (data-bs-dismiss="modal") et le lien "Liste des brevets" (ouvre la
+ *                                 popup profil.card_brevet via ProfilController::showBrevets()), pour l'usage
+ *                                 popup lecture seule
  * - $displayData['fields']     : array de clés parmi photo|coordonnees|telephone|email|urgence - blocs de contenu
  *                                 à afficher. Voir NCB\Component\Gda\Site\Model\ProfilModel::CARD_FIELDS_FULL/LIGHT
  *                                 pour la définition centrale de ces listes.
@@ -26,7 +28,7 @@ use NCB\Component\Gda\Site\Model\ProfilModel;
 $profil = $displayData['profil'] ?? null;
 
 if ($profil === null) {
-    return;
+  return;
 }
 
 $principale = $displayData['principale'] ?? true;
@@ -119,12 +121,23 @@ $showCoordonneesTitle = $showCoordonnees || $showTelephone || $showEmail;
             </dl>
           <?php endif; ?>
 
+
+
           <!-- Champs cachés utilisés par openModal() (form_modal.js) pour préremplir la modale d'édition -->
           <span class="position-absolute invisible" data-bs name="date_de_naissance"><?php echo $this->escape(ToolsHelper::from_sqldate($profil->date_de_naissance)); ?></span>
           <span class="position-absolute invisible" data-bs name="id_profil"><?php echo (int) $profil->id_profil; ?></span>
           <span class="position-absolute invisible" data-bs name="photo"><?php echo $this->escape($profil->photo ?? ''); ?></span>
         </div> <!-- class="card-body" -->
       </div>
+    </div> <!-- class="row g-0" -->
+    <div class="row g-0">
+      <?php if (!$editable) : ?>
+        <p class="card-text mb-0 text-center">
+          <a href="#" class="js-show-profil-brevets fw-bold" style="color: var(--blanc);" data-id-profil="<?php echo (int) $profil->id_profil; ?>">
+            <i class="fa-solid fa-award"></i> <?php echo $this->escape(Text::_('COM_GDA_PROFIL_CARD_BREVETS_LINK')); ?>
+          </a>
+        </p>
+      <?php endif; ?>
     </div> <!-- class="row g-0" -->
   </div> <!-- class="card" -->
 </div>

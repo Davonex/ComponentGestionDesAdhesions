@@ -87,6 +87,18 @@ $wa->useScript('com_gdadhesions.secretariat');
 
   </div>
 
+  <!-- Navigation Précédent/Suivant en bas de page : dans le flux normal du document (donc sous
+       le contenu de chaque étape), plutôt que les flèches natives du carousel Bootstrap
+       positionnées en absolu au milieu de la slide. -->
+  <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top gda-wizard-footer-nav">
+    <button type="button" id="btnFooterPrev" class="btn btn-outline-secondary invisible">
+      <i class="fa-solid fa-arrow-left me-2" aria-hidden="true"></i><?= Text::_('COM_GDA_WIZARD_PRECEDENT') ?>
+    </button>
+    <button type="button" id="btnFooterNext" class="btn btn-primary">
+      <?= Text::_('COM_GDA_WIZARD_SUIVANT') ?><i class="fa-solid fa-arrow-right ms-2" aria-hidden="true"></i>
+    </button>
+  </div>
+
   <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
       <div class="modal-content">

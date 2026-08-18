@@ -3,6 +3,7 @@
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Layout\LayoutHelper;
+use NCB\Component\Gda\Site\Helper\FileHelper;
 
 /**
  * @var array $displayData
@@ -55,7 +56,7 @@ $groupes = $displayData['groupes'];
                 <?= $form->renderField('id_article') ?>
 
                 <div class="d-flex align-items-center gap-2">
-                    <?= HTMLHelper::_('image', 'https://api.helloasso.com/v5/img/logo-ha.svg', 'HelloAsso', ['width' => '24', 'height' => '24']) ?>
+                    <?= HTMLHelper::_('image', FileHelper::getHelloAssoLogoSrc(), 'HelloAsso', ['width' => '24', 'height' => '24']) ?>
                     <div class="flex-grow-1"><?= $form->renderField('event_helloasso') ?></div>
                 </div>
             </div>

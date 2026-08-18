@@ -53,6 +53,38 @@ class ToolsHelper
   }
 
   /**
+   * Convertit une date/heure saisie dans un champ calendar (showtime="true", soit "d/m/Y H:i")
+   * vers le format SQL DATETIME "Y-m-d H:i:s".
+   *
+   * Distinct de to_sqldate() qui ne gère qu'une date seule : utilisé pour la date d'un événement
+   * (campagnes.date_evenement), où l'heure fait partie de l'information.
+   *
+   * @param  string|null $dateTime Date saisie, ou chaîne vide
+   * @return string|null           Datetime SQL, ou null si la saisie est vide/invalide
+   */
+  public static function to_sqldatetime(?string $dateTime): ?string
+  {
+    $dateTime = trim((string) $dateTime);
+
+    if ($dateTime === '') {
+      return null;
+    }
+
+    // Formats testés du plus complet au plus court : une date seule reste acceptée (heure à
+    // minuit). Le '!' remet à zéro les champs absents du format, sinon l'heure courante
+    // s'infiltrerait dans le résultat.
+    foreach (['d/m/Y H:i:s', 'd/m/Y H:i', 'd/m/Y', 'Y-m-d H:i:s', 'Y-m-d'] as $format) {
+      $date = \DateTimeImmutable::createFromFormat('!' . $format, $dateTime);
+
+      if ($date !== false) {
+        return $date->format('Y-m-d H:i:s');
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Convertit un numéro de téléphone en supprimant les espaces (ex: "06 12 34 56 78" devient "0612345678").
    * Retourne une chaîne vide si le numéro est nul ou vide.
    * @param string|null $tel Numéro de téléphone à convertir

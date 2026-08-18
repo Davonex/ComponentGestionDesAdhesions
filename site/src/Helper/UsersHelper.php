@@ -148,6 +148,14 @@ class UsersHelper
     }
 
     /**
+     * Vrai si l'utilisateur connecté est Responsable de Groupe (niveau d'accès "NA Responsable de Groupe").
+     */
+    public static function isResponsableGroupe(): bool
+    {
+        return self::userHasViewLevel('NA Responsable de Groupe');
+    }
+
+    /**
      * Vrai si l'utilisateur connecté peut consulter la fiche d'un adhérent (Moniteur, Responsable de
      * Groupe ou membre du Bureau) — utilisé pour protéger la popup "fiche adhérent" (Groupe/Secretariat),
      * les tâches ajax n'étant pas protégées par le niveau d'accès du menu contrairement aux vues.
@@ -155,7 +163,7 @@ class UsersHelper
     public static function canViewMemberDetails(): bool
     {
         return self::isBureauMember()
-            || self::userHasViewLevel('NA Responsable de Groupe')
+            || self::isResponsableGroupe()
             || self::userHasViewLevel('NA Moniteur');
     }
 
@@ -172,7 +180,7 @@ class UsersHelper
             return ['label' => 'COM_GDA_ROLE_BUREAU', 'icon' => 'fa-solid fa-user-tie'];
         }
 
-        if (self::userHasViewLevel('NA Responsable de Groupe')) {
+        if (self::isResponsableGroupe()) {
             return ['label' => 'COM_GDA_ROLE_RESPONSABLE_GROUPE', 'icon' => 'fa-solid fa-people-group'];
         }
 

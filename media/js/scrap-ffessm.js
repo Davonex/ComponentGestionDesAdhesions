@@ -1,34 +1,46 @@
-const scrap = function (Url,cbPostRequest = null)  {
+/**
+ * Interroge la FFESSM à partir de l'URL du QR code de la carte licence.
+ *
+ * Transport uniquement : la présentation (popup, bandeau, ...) est laissée à l'appelant via les
+ * deux callbacks, car elle diffère d'une vue à l'autre.
+ *
+ * @param {string}   Url        URL encodée dans le QR code
+ * @param {Function} cbSuccess  Reçoit la réponse complète (data.informations, data.brevets, data.porteur)
+ * @param {Function} cbError    Reçoit la réponse en échec logique, ou null sur erreur réseau
+ */
+const scrap = function (Url, cbSuccess = null, cbError = null)  {
+
+    // La clé de réédition permet au serveur d'identifier le dossier en cours quand l'adhérent
+    // n'est pas connecté (reprise via le lien reçu par mail). Elle est revalidée côté serveur
+    // contre la session, sa présence ici ne contourne donc aucun contrôle.
+    const payload = { url: Url };
+    const key = document.querySelector('#jform_key')?.value;
+    if (key) { payload.key = key; }
 
     Joomla.request({
       method: 'POST',
       url: 'index.php?option=com_gdadhesions&task=adhesion.extract&format=json',
-      data: new URLSearchParams({ url: Url }).toString(),
+      data: new URLSearchParams(payload).toString(),
       promise: false,
-      onBefore(xhr) {
-          xhr.upload.addEventListener('progress', (event) => {
-              console.log('Progres', event.loaded, event.total);
-          });
-      },
       onSuccess: (data) => {
             const response = JSON.parse(data);
             if (response.success) {
-                // console.log("Données récupérées :", response);
-
-                if (cbPostRequest !== null) {
-                    cbPostRequest (response.data);
+                if (cbSuccess !== null) {
+                    cbSuccess (response);
                 }
-                Joomla.renderMessages( {"succes": [response.message]} );
-
-
             } else {
                 console.error("Erreur dans la réponse :", response.message);
-                Joomla.renderMessages( {"error": [response.message]} );
+                if (cbError !== null) {
+                    cbError (response);
+                } else {
+                    Joomla.renderMessages( {"error": [response.message]} );
+                }
             }
-        
+
       },
       onError(xhr) {
         console.error("Erreur fetch data :", xhr.responseText);
+        if (cbError !== null) { cbError (null); }
       }
     })
 }

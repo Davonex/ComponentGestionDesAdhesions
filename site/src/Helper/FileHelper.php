@@ -192,6 +192,17 @@ class FileHelper
 		return Uri::root() . $imageSource . "?id=" . ToolsHelper::getUniqStr(4);
 	}
 
+	/**
+	 * URL du logo HelloAsso hébergé localement (media/com_gdadhesions/images/), pour ne plus
+	 * dépendre de la disponibilité de https://api.helloasso.com/v5/img/logo-ha.svg à l'affichage.
+	 *
+	 * @return string
+	 */
+	public static function getHelloAssoLogoSrc(): string
+	{
+		return Uri::root() . 'media/com_gdadhesions/images/logo-helloasso.svg';
+	}
+
 
 
 /**

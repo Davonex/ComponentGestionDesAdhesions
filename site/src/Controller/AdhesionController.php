@@ -32,7 +32,6 @@ class AdhesionController extends BaseController
 
         /** @var SiteApplication $app */
         $app = Factory::getApplication();
-        $session = $app->getUserState('session');
 
         $Response = new JsonResponse();
         try {
@@ -46,31 +45,42 @@ class AdhesionController extends BaseController
             $data = AdhesionHelper::scrap($url);
 
             if (preg_match('/id=([0-9]+)_([A-Za-z0-9]+)/', $url, $m)) {
-                $lic = $m[1];    // 062553
                 $token = $m[2];  // D5EC46
             }
 
-
-            if (! $data) {
+            if (! $data || empty($data["informations"]["licence"])) {
                 // aucune licence n'a été trouvée
                 $Response->success = false;
-                $Response->message = "Aucune licence n'a été trouvée ...";
-            } else if ($session['username'] &&  $data["informations"]["licence"] !== $session['username']) {
-                // la licence trouvé ne correspond pas à la licence de l'utilisateur connecté
-                $Response->success = false;
-                $Response->message = "La licence trouve : " . $data["informations"]["licence"] . ", ne correspond pas à votre numéro de licence : " . $session['username'] . ". Rien n'a été mise à jour.";
-            } else if (UsersHelper::userExists($data["informations"]["licence"])) {
-                // la licence trouvé existe deja dans la base UsersHelper::userExists($data['username'])
-                $Response->success = false;
-                $Response->message = "Cette licence : " . $data["informations"]["licence"] . ", Existe deja dans la base.<br> Conecter vous avec votre compte pour proceder a votre adhesions.";
-            } else {
-                // la licence trouvé est valide et peut etre utilisée pour l'adhésion
-                $Response->success = true;
-                $data["informations"]["token"] = $token ?? "";
-                $Response->data = $data;
-                $Response->message = "A été trouve : " . $data["informations"]["licence"] . " " . $data["informations"]["nom"] . " " . $data["informations"]["prenom"];
+                $Response->message = Text::_('COM_GDA_ADHESION_SCAN_NOT_FOUND');
+
+                echo $Response;
+                $app->close();
             }
 
+            $licence = $data["informations"]["licence"];
+            $porteur = AdhesionHelper::formatPorteurLicence($data["informations"]);
+
+            /* Licence en cours d'édition : membre connecté, ou dossier repris via la clé de
+            ** réédition (getProfil() résout les deux, et renvoie un username vide pour une
+            ** première adhésion). Scanner sa propre carte doit rester autorisé — c'est le cas
+            ** nominal du renouvellement — donc seule une licence connue ET différente est
+            ** refusée. */
+            /** @var AdhesionModel $model */
+            $model = $this->getModel('Adhesion', 'site');
+            $licenceCourante = (string) ($model->getProfil()->username ?? '');
+
+            if ($licence !== $licenceCourante && UsersHelper::userExists($licence)) {
+                // la licence scannée appartient à un compte existant qui n'est pas celui édité
+                $Response->success = false;
+                $Response->message = Text::sprintf('COM_GDA_ADHESION_SCAN_EXISTS', $porteur);
+            } else {
+                // la licence trouvée est valide et peut être utilisée pour l'adhésion
+                $Response->success = true;
+                $data["informations"]["token"] = $token ?? "";
+                $data["porteur"] = $porteur;
+                $Response->data = $data;
+                $Response->message = Text::sprintf('COM_GDA_ADHESION_SCAN_FOUND', $porteur);
+            }
 
             echo $Response;
 

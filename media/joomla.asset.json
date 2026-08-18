@@ -28,11 +28,6 @@
       "uri": "com_gdadhesions/file_upload.js"
     },
     {
-      "name": "com_gdadhesions.niveau",
-      "type": "script",
-      "uri": "com_gdadhesions/niveau.js"
-    },
-    {
       "name": "com_gdadhesions.spinner",
       "type": "script",
       "uri": "com_gdadhesions/spinner.js"
@@ -78,8 +73,27 @@
     }, {
       "name": "com_gdadhesions.brevets",
       "type": "script",
-      "uri": "com_gdadhesions/brevets.js"
-    },   
+      "uri": "com_gdadhesions/brevets.js",
+      "version": "nocache"
+    },
+    {
+      "name": "com_gdadhesions.qr_scanner",
+      "type": "script",
+      "uri": "com_gdadhesions/qr_scanner.js",
+      "version": "nocache"
+    },
+    {
+      "name": "com_gdadhesions.dialog",
+      "type": "script",
+      "uri": "com_gdadhesions/dialog.js",
+      "version": "nocache"
+    },
+    {
+      "name": "com_gdadhesions.profil_brevets",
+      "type": "script",
+      "uri": "com_gdadhesions/profil_brevets.js",
+      "version": "nocache"
+    },
     {
       "name": "com_gdadhesions.adhesions",
       "type": "style",
@@ -104,7 +118,8 @@
       "name": "com_gdadhesions.campagne",
       "type": "script",
       "uri": "com_gdadhesions/campagne.js",
-      "dependencies": ["simple-datatables"]
+      "dependencies": ["simple-datatables"],
+      "version": "nocache"
     },
     {
       "name": "com_gdadhesions.secretariat",
@@ -135,6 +150,12 @@
       "name": "com_gdadhesions.saisons",
       "type": "script",
       "uri": "com_gdadhesions/saisons.js",
+      "version": "nocache"
+    },
+    {
+      "name": "com_gdadhesions.reservation",
+      "type": "script",
+      "uri": "com_gdadhesions/reservation.js",
       "version": "nocache"
     }
   ]

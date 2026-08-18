@@ -25,6 +25,14 @@ $wa->useScript('com_gdadhesions.file_upload');
 $wa->useScript('com_gdadhesions.form_modal');
 $wa->useScript('com_gdadhesions.spinner');
 
+// Édition des brevets : scanner QR (html5-qrcode + scrap-ffessm), lignes de saisie (brevets)
+// et pilotage de la modale (profil_brevets).
+$wa->useScript('com_gdadhesions.html5-qrcode');
+$wa->useStyle('com_gdadhesions.html5-qrcode');
+$wa->useScript('com_gdadhesions.qr_scanner');
+$wa->useScript('com_gdadhesions.brevets');
+$wa->useScript('com_gdadhesions.profil_brevets');
+
 $wa->useStyle('com_gdadhesions.gda');
 $wa->useStyle('com_gdadhesions.file_upload');
 $wa->useStyle('com_gdadhesions.spinner');
@@ -40,7 +48,7 @@ $model = $this->getModel();
 $profil = $this->item;
 
 /** @var array $profilsOB */
-$profilsOB = $this->itemsOB;
+// $profilsOB = $this->itemsOB;
 
 //   $ProfilPhotoPath = ConfHelper::GetKey("ProfilPhotoPath");
 //   if ($ProfilPhotoPath === false) {
@@ -68,13 +76,15 @@ if ($this->item !== null):
       echo '<p>' . Text::_('COM_GDA_NO_PROFILE') . '</p>';
     } else {
       echo LayoutHelper::render('profil.card_profil', ['profil' => $profil, 'principale' => true, 'editable' => true, 'taille' => 'col-md-6 col-sm-12']);
-      echo LayoutHelper::render('profil.card_caci', ['profil' => $profil]);
+      echo LayoutHelper::render('profil.card_caci', ['profil' => $profil, 'taille' => 'col-md-6 col-sm-12']);
+      echo LayoutHelper::render('profil.card_brevet', ['profil' => $profil, 'taille' => 'col-md-6 col-sm-12', 'editable' => true, 'brevets' => $model->getBrevets((int) $profil->id_profil)]);
     }
     //les profil OB
-    foreach ($profilsOB as $profilOB) {
-      echo LayoutHelper::render('profil.card_profil', ['profil' => $profilOB, 'principale' => false, 'editable' => true, 'taille' => 'col-md-6 col-sm-12']);
-      echo LayoutHelper::render('profil.card_caci', ['profil' => $profilOB]);
-    }
+    // foreach ($profilsOB as $profilOB) {
+    //   echo LayoutHelper::render('profil.card_profil', ['profil' => $profilOB, 'principale' => false, 'editable' => true, 'taille' => 'col-md-4 col-sm-12']);
+    //   echo LayoutHelper::render('profil.card_caci', ['profil' => $profilOB, 'taille' => 'col-md-4 col-sm-12']);
+    //   echo LayoutHelper::render('profil.card_brevet', ['profil' => $profilOB, 'taille' => 'col-md-4 col-sm-12', 'brevets' => $model->getBrevets((int) $profilOB->id_profil)]);
+    // }
     ?>
 
 
@@ -137,6 +147,30 @@ Fenêtre modale Bootstrap : mise à jour du CACI
       </div> <!--  class="modal-content" -->
     </div><!--  class="modal-dialog" -->
   </div> <!--  class="modal fade" -->
+
+
+  <!--
+Fenêtre modale Bootstrap : édition des brevets
+-->
+  <div class="modal fade" id="brevetsModal" tabindex="-1" aria-labelledby="brevetsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="brevetsModalLabel"><?php echo Text::_('COM_GDA_BREVETS_MODAL_TITLE'); ?></h5>
+          <button type="button" id="btnCloseBrevets" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div> <!--  class="modal-header" -->
+        <div class="modal-body" id="brevetsModalBody">
+          <?php echo LayoutHelper::render('profil.mgn_brevets'); ?>
+        </div> <!--  class="modal-body" -->
+        <div class="modal-footer">
+          <button id="SaveBrevetsModalForm" type="button" class="btn btn-secondary float-end">
+            <i class="fa-solid fa-floppy-disk"></i> <?php echo Text::_('COM_GDA_SAVE'); ?>
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('COM_GDA_CANCEL'); ?></button>
+        </div> <!--  class="modal-footer" -->
+      </div> <!--  class="modal-content" -->
+    </div><!--  class="modal-dialog" -->
+  </div> <!--  class="modal fade" -->
 <?php
 else:
   echo "UserName inconnue";
@@ -147,6 +181,12 @@ endif; ?>
 
 
 Joomla\CMS\Language\Text::script('COM_GDA_DROP_PHOTO');
+
+// Textes utilisés par profil_brevets.js et qr_scanner.js
+Text::script('COM_GDA_QRCODE_CAMERA_ERROR');
+Text::script('COM_GDA_BREVETS_CONFIRM_REPLACE');
+Text::script('COM_GDA_BREVETS_CONFIRM_REPLACE_SUITE');
+Text::script('COM_GDA_BREVETS_SCAN_EMPTY');
 
 ?>
 

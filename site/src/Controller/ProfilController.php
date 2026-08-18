@@ -10,6 +10,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Layout\LayoutHelper;
+use NCB\Component\Gda\Site\Helper\AdhesionHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
@@ -172,6 +173,127 @@ class ProfilController extends BaseController
     }
 
     /**
+     * Ajax : extraction des brevets FFESSM depuis l'URL du QR code de la carte licence, pour la
+     * modale d'édition des brevets de la vue Profil.
+     *
+     * Tâche distincte de adhesion.extract : cette dernière refuse toute licence déjà connue de la
+     * base (garde pertinente pour une *nouvelle* adhésion), ce qui rejetterait systématiquement un
+     * adhérent existant. Ici la règle est inverse : la licence scannée doit être exactement celle
+     * du profil ciblé, sans quoi on importerait les brevets de quelqu'un d'autre.
+     */
+    public function extractBrevets()
+    {
+        $Response = new JsonResponse();
+        try {
+            $this->checkToken();
+
+            /** @var \Joomla\CMS\Application\SiteApplication $app */
+            $app = Factory::getApplication();
+            /** @var \NCB\Component\Gda\Site\Model\ProfilModel $model */
+            $model = $this->getModel('Profil', 'site');
+
+            $idProfil = $app->input->getInt('id_profil', 0);
+            $url = $app->input->getString('url', '');
+
+            if ($idProfil <= 0) {
+                throw new \Exception('id_profil invalide');
+            }
+
+            if ($url === '') {
+                throw new \Exception(Text::_('COM_GDADHESIONS_ERROR_NO_URL'));
+            }
+
+            $this->assertCanEditProfil($idProfil, $model);
+
+            $profil = $model->getProfilById($idProfil);
+
+            if ($profil === null) {
+                throw new \Exception(Text::_('COM_GDA_PROFIL_NOT_FOUND'), 404);
+            }
+
+            $data = AdhesionHelper::scrap($url);
+
+            if (!$data || empty($data['informations']['licence'])) {
+                throw new \Exception(Text::_('COM_GDA_BREVETS_SCAN_NOT_FOUND'));
+            }
+
+            $licenceScannee = $data['informations']['licence'];
+            $porteur = AdhesionHelper::formatPorteurLicence($data['informations']);
+
+            if ($licenceScannee !== (string) $profil->username) {
+                throw new \Exception(Text::sprintf('COM_GDA_BREVETS_LICENCE_MISMATCH', $porteur));
+            }
+
+            // Le token FFESSM est encodé dans l'URL du QR code sous la forme id=<licence>_<token>.
+            // On le complète immédiatement s'il manque : c'est un identifiant technique, pas une
+            // donnée saisie par l'adhérent, et le service n'écrase jamais un token déjà présent.
+            if (preg_match('/id=([0-9]+)_([A-Za-z0-9]+)/', $url, $m)) {
+                $model->updateFfessmToken($idProfil, $m[2]);
+            }
+
+            $Response->success = true;
+            // Le porteur accompagne les brevets : le JS le réinjecte dans la demande de
+            // confirmation avant de remplacer les brevets déjà saisis.
+            $Response->data = [
+                'brevets' => $data['brevets'] ?? [],
+                'porteur' => $porteur,
+            ];
+            $Response->message = Text::sprintf('COM_GDA_BREVETS_SCAN_SUCCESS', count($data['brevets'] ?? []));
+
+            echo $Response;
+        } catch (\Exception $e) {
+            echo new JsonResponse($e);
+        }
+    }
+
+    /**
+     * Ajax : enregistrement des brevets saisis dans la modale d'édition (annule et remplace).
+     * Renvoie la carte profil.card_brevet ré-rendue, comme saveCaci() pour la carte CACI.
+     */
+    public function saveBrevets()
+    {
+        $Response = new JsonResponse();
+        try {
+            $this->checkToken();
+
+            /** @var \Joomla\CMS\Application\SiteApplication $app */
+            $app = Factory::getApplication();
+            /** @var \NCB\Component\Gda\Site\Model\ProfilModel $model */
+            $model = $this->getModel('Profil', 'site');
+
+            $idProfil = $app->input->getInt('id_profil', 0);
+            $brevets = $app->getInput()->get('brevets', [], 'ARRAY');
+
+            if ($idProfil <= 0) {
+                throw new \Exception('id_profil invalide');
+            }
+
+            $this->assertCanEditProfil($idProfil, $model);
+
+            $profil = $model->getProfilById($idProfil);
+
+            if ($profil === null) {
+                throw new \Exception(Text::_('COM_GDA_PROFIL_NOT_FOUND'), 404);
+            }
+
+            $nombre = $model->saveBrevets($idProfil, $brevets);
+
+            $Response->success = true;
+            $Response->message = Text::sprintf('COM_GDA_BREVETS_SAVED', $nombre);
+            $Response->data = base64_encode(LayoutHelper::render('profil.card_brevet', [
+                'profil' => $profil,
+                'editable' => true,
+                'taille' => $app->input->getString('taille', ''),
+                'brevets' => $model->getBrevets($idProfil),
+            ]));
+
+            echo $Response;
+        } catch (\Exception $e) {
+            echo new JsonResponse($e);
+        }
+    }
+
+    /**
      * Vérifie que l'utilisateur connecté peut modifier le profil ciblé : le sien, un profil "on
      * behalf" dont il a la charge, ou n'importe quel profil s'il est membre du Bureau. Lève une
      * exception sinon. À appeler avant toute écriture dans save()/saveCaci() : ces tâches ajax
@@ -246,6 +368,49 @@ class ProfilController extends BaseController
     }
 
     /**
+     * Ajax : liste des brevets en lecture seule, affichée en popup depuis la fiche adhérent
+     * (lien "Liste des brevets" de profil.card_profil). Même restriction d'accès que showCard().
+     */
+    public function showBrevets()
+    {
+        $Response = new JsonResponse();
+        try {
+            $this->checkToken();
+
+            if (!UsersHelper::canViewMemberDetails()) {
+                throw new \Exception(Text::_('COM_GDA_ERROR_UNAUTHORIZED'), 403);
+            }
+
+            /** @var \Joomla\CMS\Application\SiteApplication $app */
+            $app = Factory::getApplication();
+            $idProfil = $app->input->getInt('id_profil', 0);
+
+            if ($idProfil <= 0) {
+                throw new \Exception('id_profil invalide');
+            }
+
+            /** @var \NCB\Component\Gda\Site\Model\ProfilModel $model */
+            $model = $this->getModel('Profil', 'site');
+            $profil = $model->getProfilById($idProfil);
+
+            if ($profil === null) {
+                throw new \Exception(Text::_('COM_GDA_PROFIL_NOT_FOUND'), 404);
+            }
+
+            $Response->success = true;
+            $Response->data = base64_encode(LayoutHelper::render('profil.card_brevet', [
+                'profil' => $profil,
+                'closable' => true,
+                'brevets' => $model->getBrevets($idProfil),
+            ]));
+
+            echo $Response;
+        } catch (\Exception $e) {
+            echo new JsonResponse($e);
+        }
+    }
+
+    /**
      * Ajax : formulaire d'édition complet du profil (champs + photo) d'un adhérent, affiché en
      * popup depuis la vue Utilisateurs (clic sur le Nom Prénom). Réservé au Bureau — contrairement
      * à showCard() (lecture seule, ouverte aux Moniteurs/Responsables de Groupe), cette action
@@ -281,7 +446,8 @@ class ProfilController extends BaseController
             $model->getItem($targetProfil->username);
             $form = $model->getForm();
 
-            $title = trim((string) (($targetProfil->civilite ?? '') . ' ' . ($targetProfil->nom ?? '') . ' ' . ($targetProfil->prenom ?? '')));
+            $title = trim((string) (($targetProfil->civilite ?? '') . ' ' . ($targetProfil->nom ?? '') . ' ' . ($targetProfil->prenom ?? '')))
+                . ' [' . $targetProfil->username . ']';
             $activeMenuItem = $app->getMenu()->getActive();
 
             $Response->success = true;

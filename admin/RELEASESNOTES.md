@@ -1,5 +1,27 @@
 # Component com_gadhesions
 
+## Version 0.9.5
+
+ - 📰 Nouveautés
+    - Campagnes - Gerer campagne [Formation]
+    - Accueil - Reservation une campagne  [Formation]
+
+  - 🔧 Améliorations
+    - Accueil - Menage ancien dashboard
+    - Profil - Liste des brevets "CARD_FIELDS_LIGHT"
+    - profil - edition brevets (Création  BrevetsService)
+    - Adhesion - Message plus specifique apres scan QR Code
+    - Adhesion/Secretariat - Btn suivant et precedent 
+    - 
+
+  - 🪲 Bugs
+    - Les champs editables, se sauvegarde correctement 
+    - Adhesion - Fautes d'orthographe
+    - Adhesion - Placeholder du champ date des brevets
+    - Adhesion - Le recap des plongées sous 35m
+    - Adhesion - Gestion echec HelloAsso 
+    - Icon HelloAsso disponible offline
+
 ## Version 0.9.0
 
   - 📰 Nouveautés
