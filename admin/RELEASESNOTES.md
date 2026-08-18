@@ -1,5 +1,13 @@
 # Component com_gadhesions
 
+## Version 0.9.6
+
+  - 🔧 Améliorations
+    - Installation - Nettoyage des fichiers obsolètes hérités des versions antérieures
+
+  - 🪲 Bugs
+    - Les CSS et JS versionnés ce qui force le rechargement à chaque livraison.
+
 ## Version 0.9.5
 
  - 📰 Nouveautés

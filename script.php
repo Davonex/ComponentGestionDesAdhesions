@@ -384,21 +384,36 @@ class com_gdadhesionsInstallerScript
             // s'appuyant sur #__gda_reservation au lieu de #__gda_souscriptions. CampagnesHelper
             // ne servait plus qu'à ce parcours et n'était plus appelé par personne.
             $sitePath . '/layouts/accueil/dash_campagnes.php',
+            $sitePath . '/layouts/accueil/dashboard_campagnes.php',
             $sitePath . '/layouts/accueil/TODELETE_card.php',
             $sitePath . '/layouts/accueil/TODELETE_souscription_modale.php',
             $sitePath . '/layouts/secretariat/payement_sav.php',
             $sitePath . '/src/Helper/CampagnesHelper.php',
 
+            // Layouts de mail du cycle de vie du profil, remplacés par mail/adhesion_*
+            // (NotificationMailService::sendProfileLifecycleEmail()).
+            $sitePath . '/layouts/mail/profile_lifecycle_html.php',
+            $sitePath . '/layouts/mail/profile_lifecycle_text.php',
+
             // Vue Niveau (jamais reliée à un menu, ni appelée par Adhesion/Profil/Saisons/
             // Secretariat : l'extraction des brevets FFESSM passe par AdhesionModel::saveInBrevets()
             // / #__gda_brevets, pas par cette vue). Renommée en TODELETE_ pour vérification avant
             // suppression définitive au prochain cycle de mise à jour.
+            // Les deux jeux de noms sont listés : le renommage TODELETE_ n'a eu lieu que dans le
+            // dépôt, les sites installés avant ce renommage portent encore les noms d'origine et
+            // ne voyaient donc jamais leurs fichiers supprimés.
             $sitePath . '/src/Controller/TODELETE_NiveauController.php',
+            $sitePath . '/src/Controller/NiveauController.php',
             $sitePath . '/src/Model/TODELETE_NiveauModel.php',
+            $sitePath . '/src/Model/NiveauModel.php',
             $sitePath . '/src/View/Niveau/TODELETE_HtmlView.php',
+            $sitePath . '/src/View/Niveau/HtmlView.php',
             $sitePath . '/tmpl/niveau/TODELETE_default.php',
             $sitePath . '/tmpl/niveau/TODELETE_default.xml',
+            $sitePath . '/tmpl/niveau/default.php',
+            $sitePath . '/tmpl/niveau/default.xml',
             $mediaPath . '/js/TODELETE_niveau.js',
+            $mediaPath . '/js/niveau.js',
         ];
 
         foreach ($obsoleteFiles as $file) {

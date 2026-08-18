@@ -10,154 +10,181 @@
       "name": "com_gdadhesions.gda",
       "type": "style",
       "uri": "com_gdadhesions/gda.css",
-      "version": "nocache"
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.gda",
       "type": "script",
-      "uri": "com_gdadhesions/gda.js"
+      "uri": "com_gdadhesions/gda.js",
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.file_upload",
       "type": "style",
-      "uri": "com_gdadhesions/file_upload.css"
-    }, 
+      "uri": "com_gdadhesions/file_upload.css",
+      "version": "0.9.6"
+    },
     {
       "name": "com_gdadhesions.file_upload",
       "type": "script",
-      "uri": "com_gdadhesions/file_upload.js"
+      "uri": "com_gdadhesions/file_upload.js",
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.spinner",
       "type": "script",
-      "uri": "com_gdadhesions/spinner.js"
+      "uri": "com_gdadhesions/spinner.js",
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.spinner",
       "type": "style",
-      "uri": "com_gdadhesions/spinner.css"
+      "uri": "com_gdadhesions/spinner.css",
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.form_modal",
       "type": "script",
-      "uri": "com_gdadhesions/form_modal.js"
+      "uri": "com_gdadhesions/form_modal.js",
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.tom-select",
       "type": "script",
-      "uri": "com_gdadhesions/tom-select.complete.min.js"
+      "uri": "com_gdadhesions/tom-select.complete.min.js",
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.tom-select",
       "type": "style",
-      "uri": "com_gdadhesions/tom-select.css"
-    },   
+      "uri": "com_gdadhesions/tom-select.css",
+      "version": "0.9.6"
+    },
     {
       "name": "com_gdadhesions.html5-qrcode",
       "type": "script",
-      "uri": "com_gdadhesions/html5-qrcode.min.js"
-    },   
+      "uri": "com_gdadhesions/html5-qrcode.min.js",
+      "version": "0.9.6"
+    },
     {
       "name": "com_gdadhesions.html5-qrcode",
       "type": "style",
-      "uri": "com_gdadhesions/html5-qrcode.css"
+      "uri": "com_gdadhesions/html5-qrcode.css",
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.scrap-ffessm",
       "type": "script",
-      "uri": "com_gdadhesions/scrap-ffessm.js"
-    }, {
+      "uri": "com_gdadhesions/scrap-ffessm.js",
+      "version": "0.9.6"
+    },
+    {
       "name": "com_gdadhesions.form-validator",
       "type": "script",
-      "uri": "com_gdadhesions/form-validator.js"
-    }, {
+      "uri": "com_gdadhesions/form-validator.js",
+      "version": "0.9.6"
+    },
+    {
       "name": "com_gdadhesions.brevets",
       "type": "script",
       "uri": "com_gdadhesions/brevets.js",
-      "version": "nocache"
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.qr_scanner",
       "type": "script",
       "uri": "com_gdadhesions/qr_scanner.js",
-      "version": "nocache"
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.dialog",
       "type": "script",
       "uri": "com_gdadhesions/dialog.js",
-      "version": "nocache"
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.profil_brevets",
       "type": "script",
       "uri": "com_gdadhesions/profil_brevets.js",
-      "version": "nocache"
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.adhesions",
       "type": "style",
-      "uri": "com_gdadhesions/adhesions-override.css"
-    },{
+      "uri": "com_gdadhesions/adhesions-override.css",
+      "version": "0.9.6"
+    },
+    {
       "name": "com_gdadhesions.adhesions",
       "type": "script",
-      "uri": "com_gdadhesions/adhesions.js"
+      "uri": "com_gdadhesions/adhesions.js",
+      "version": "0.9.6"
     },
     {
       "name": "simple-datatables",
       "type": "style",
-      "uri": "com_gdadhesions/simple-datatables.css"
+      "uri": "com_gdadhesions/simple-datatables.css",
+      "version": "0.9.6"
     },
     {
       "name": "simple-datatables",
       "type": "script",
       "uri": "com_gdadhesions/simple-datatables.min.js",
-      "attributes": { "defer": true }
+      "version": "0.9.6",
+      "attributes": {
+        "defer": true
+      }
     },
     {
       "name": "com_gdadhesions.campagne",
       "type": "script",
       "uri": "com_gdadhesions/campagne.js",
-      "dependencies": ["simple-datatables"],
-      "version": "nocache"
+      "version": "0.9.6",
+      "dependencies": [
+        "simple-datatables"
+      ]
     },
     {
       "name": "com_gdadhesions.secretariat",
       "type": "script",
       "uri": "com_gdadhesions/secretariat.js",
-      "version": "nocache"
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.groupes",
       "type": "script",
       "uri": "com_gdadhesions/groupes.js",
-      "dependencies": ["simple-datatables"],
-      "version": "nocache"
+      "version": "0.9.6",
+      "dependencies": [
+        "simple-datatables"
+      ]
     },
     {
       "name": "com_gdadhesions.utilisateurs",
       "type": "script",
       "uri": "com_gdadhesions/utilisateurs.js",
-      "dependencies": ["simple-datatables"],
-      "version": "nocache"
+      "version": "0.9.6",
+      "dependencies": [
+        "simple-datatables"
+      ]
     },
     {
       "name": "com_gdadhesions.saisons",
       "type": "style",
-      "uri": "com_gdadhesions/saisons-override.css"
+      "uri": "com_gdadhesions/saisons-override.css",
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.saisons",
       "type": "script",
       "uri": "com_gdadhesions/saisons.js",
-      "version": "nocache"
+      "version": "0.9.6"
     },
     {
       "name": "com_gdadhesions.reservation",
       "type": "script",
       "uri": "com_gdadhesions/reservation.js",
-      "version": "nocache"
+      "version": "0.9.6"
     }
   ]
 }
-
