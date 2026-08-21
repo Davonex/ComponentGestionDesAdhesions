@@ -93,6 +93,102 @@ class NotificationMailService
   }
 
   /**
+   * Envoie le mail de reinitialisation de mot de passe (mot de passe temporaire + changement
+   * obligatoire a la prochaine connexion).
+   *
+   * A la difference des autres methodes de ce service, les donnees du destinataire sont recues
+   * en parametres plutot que rechargees par une requete interne : UtilisateursModel::resetUserPassword()
+   * les possede deja (issues de l'objet User Joomla), et une requete sur #__gda_profils echouerait
+   * pour un compte sans ligne profil associee (cf. le meme constat fait sur la suppression
+   * definitive d'un adherent).
+   *
+   * @param string $email        Destinataire.
+   * @param string $displayName  Nom affiche (User::$name).
+   * @param string $username     Identifiant / numero de licence.
+   * @param string $tempPassword Mot de passe temporaire en clair (jamais journalise).
+   *
+   * @return bool
+   */
+  public function sendPasswordResetEmail(string $email, string $displayName, string $username, string $tempPassword): bool
+  {
+    if (trim($email) === '') {
+      throw new \InvalidArgumentException('Destinataire introuvable pour le mail de reinitialisation.');
+    }
+
+    $displayData = (object) [
+      'display_name' => $displayName,
+      'username' => $username,
+      'temp_password' => $tempPassword,
+      'email' => $email,
+    ];
+
+    $htmlBody = $this->renderTemplateOrFallback('mail.password_reset_html', $displayData, true, [$this, 'buildPasswordResetFallbackHtml']);
+    $textBody = $this->renderTemplateOrFallback('mail.password_reset_text', $displayData, false, [$this, 'buildPasswordResetFallbackText']);
+
+    try {
+      $app = Factory::getApplication();
+      /** @var Mail $mailer */
+      $mailer = $this->mailerFactory->createMailer();
+
+      $senderMail = (string) $app->get('mailfrom');
+      $senderName = (string) $app->get('fromname');
+      $recipientMail = $this->resolveRecipientEmail($email);
+
+      $mailer->setSender([$senderMail, $senderName]);
+      $mailer->addRecipient($recipientMail);
+      $mailer->setSubject(Text::_('COM_GDA_EMAIL_PASSWORD_RESET_SUBJECT'));
+      $mailer->isHtml(true);
+      $mailer->setBody($htmlBody);
+      $mailer->AltBody = $textBody;
+      $mailer->send();
+
+      GdaLogger::info('Envoi mail reinitialisation mot de passe (username=' . $username . ')');
+
+      return true;
+    } catch (\Throwable $e) {
+      GdaLogger::error('Echec envoi mail reinitialisation mot de passe (username=' . $username . '): ' . $e->getMessage());
+
+      return false;
+    }
+  }
+
+  /**
+   * Fallback HTML minimal si le template mail.password_reset_html est introuvable.
+   */
+  private function buildPasswordResetFallbackHtml(object $displayData): string
+  {
+    $displayName = (string) ($displayData->display_name ?? '');
+    $username = (string) ($displayData->username ?? '');
+    $tempPassword = (string) ($displayData->temp_password ?? '');
+
+    return '<html><body>'
+      . '<h2>' . Text::_('COM_GDA_EMAIL_PASSWORD_RESET_TITLE') . '</h2>'
+      . '<p>' . Text::sprintf('COM_GDA_EMAIL_PASSWORD_RESET_INTRO', $displayName) . '</p>'
+      . '<p>' . Text::sprintf('COM_GDA_EMAIL_PASSWORD_RESET_USERNAME_LINE', $username) . '</p>'
+      . '<p>' . Text::sprintf('COM_GDA_EMAIL_PASSWORD_RESET_PASSWORD_LINE', $tempPassword) . '</p>'
+      . '<p>' . Text::_('COM_GDA_EMAIL_PASSWORD_RESET_BODY') . '</p>'
+      . '</body></html>';
+  }
+
+  /**
+   * Fallback texte minimal si le template mail.password_reset_text est introuvable.
+   */
+  private function buildPasswordResetFallbackText(object $displayData): string
+  {
+    $displayName = (string) ($displayData->display_name ?? '');
+    $username = (string) ($displayData->username ?? '');
+    $tempPassword = (string) ($displayData->temp_password ?? '');
+
+    return Text::sprintf('COM_GDA_EMAIL_PASSWORD_RESET_INTRO', $displayName)
+      . "\n\n"
+      . Text::sprintf('COM_GDA_EMAIL_PASSWORD_RESET_USERNAME_LINE', $username)
+      . "\n"
+      . Text::sprintf('COM_GDA_EMAIL_PASSWORD_RESET_PASSWORD_LINE', $tempPassword)
+      . "\n\n"
+      . Text::_('COM_GDA_EMAIL_PASSWORD_RESET_BODY');
+  }
+
+  /**
    * Envoie le mail de mise a jour du profil adherent.
    *
    * @param int $idProfil
@@ -303,7 +399,13 @@ class NotificationMailService
    * @return string
    */
 
-  private function renderTemplateOrFallback(string $layoutName, object $displayData, bool $isHtml): string
+  /**
+   * @param callable|null $fallbackBuilder Fonction(object $displayData): string a utiliser en
+   *   secours si le layout est introuvable, au lieu du fallback de finalisation d'adhesion par
+   *   defaut (buildFallbackHtml/buildFallbackText) - indispensable pour les autres types de mail,
+   *   sous peine d'envoyer par erreur le contenu du mail de finalisation en cas de layout manquant.
+   */
+  private function renderTemplateOrFallback(string $layoutName, object $displayData, bool $isHtml, ?callable $fallbackBuilder = null): string
   {
     try {
       $layout = new FileLayout($layoutName, JPATH_SITE . '/components/com_gdadhesions/layouts');
@@ -320,6 +422,10 @@ class NotificationMailService
         Log::WARNING,
         'com_gdadhesions'
       );
+
+      if ($fallbackBuilder !== null) {
+        return $fallbackBuilder($displayData);
+      }
 
       return $isHtml ? $this->buildFallbackHtml($displayData) : $this->buildFallbackText($displayData);
     }

@@ -487,6 +487,9 @@ select.tomselected {
     background-color: #f7f9fc;
 }
 
+/* Trombinoscope : styles deplaces dans media/com_gdadhesions/css/trombinoscope.css
+   (asset com_gdadhesions.trombinoscope), charge uniquement par la vue Trombinoscope. */
+
 /*
  * Toutes vues du composant : les boutons btn-outline-* utilisent le bleu/gris par defaut de
  * Bootstrap, qui ne suit pas la charte NCB (--logo-gauche / --logo-droit definis dans
@@ -859,7 +862,8 @@ select.tomselected {
 /* Cellules éditables (double-clic) - surbrillance au hover */
 .js-editable-date-caci,
 .js-editable-categorie,
-.js-editable-fonction {
+.js-editable-fonction,
+.js-editable-ordre {
     position: relative;
     transition: background-color 0.15s ease-in-out;
 }
@@ -867,7 +871,8 @@ select.tomselected {
 /* Petit triangle en haut a gauche pour signaler un champ editable. */
 .js-editable-date-caci::before,
 .js-editable-categorie::before,
-.js-editable-fonction::before {
+.js-editable-fonction::before,
+.js-editable-ordre::before {
     content: "";
     position: absolute;
     top: 0;
@@ -882,8 +887,15 @@ select.tomselected {
 
 .js-editable-date-caci:hover,
 .js-editable-categorie:hover,
-.js-editable-fonction:hover {
+.js-editable-fonction:hover,
+.js-editable-ordre:hover {
     background-color: #fef8e7 !important;
+}
+
+/* Champ de saisie de l'ordre d'affichage (trombinoscope Bureau) : étroit et centré. */
+.ordre-input {
+    width: 5rem;
+    margin: 0 auto;
 }
     
 
@@ -913,60 +925,160 @@ select.tomselected {
     font-size: .85rem;
 }
 
+/* Centrage horizontal + vertical des badges/boutons à icône dans les cellules des tableaux de la
+   vue Utilisateurs (statut d'adhésion, CACI, suppression, réinitialisation mot de passe) : en
+   inline-block par défaut (Bootstrap), l'icône FontAwesome n'est pas toujours parfaitement centrée
+   par rapport à la cellule (line-height/padding). display:inline-flex reste sans effet sur le
+   <td> lui-même (donc sans risque pour table-layout: fixed), seulement sur le badge/bouton. */
+.gda-table-compact td .badge,
+.gda-table-compact td .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Icônes agrandies (badge Adhésion, boutons Effacer / Réinitialiser le mot de passe) dans les
+   tableaux de la vue Utilisateurs : la taille par défaut paraît petite à côté des vignettes photo
+   (48x48). Appliqué au badge/bouton entier (pas seulement à l'icône <i>) pour que le padding
+   suive proportionnellement. */
+.gda-table-compact .gda-icon-lg {
+    font-size: 1rem; /* 16px à la taille de police racine par défaut (16px) */
+}
+
+.bg-encadrant {
+    background-color: var(--logo-gauche-500);
+}
+
+.bg-pratiquant {
+    background-color: var(--logo-droit-500);
+}
+
 /*
- * Largeur des colonnes de #tableUtilisateurs (Adhésion / Photo / Nom / Identifiant /
- * Email / Groupes / Fonction / Statut). table-layout: fixed force le respect strict des
- * pourcentages ; ajustable ici sans toucher au JS (simple-datatables n'expose pas d'option
- * de largeur de colonne).
+ * Largeur des colonnes des 3 tableaux de la vue Utilisateurs (un par onglet : Profils / Niveau
+ * d'accès / Trombinoscope). table-layout: fixed force le respect strict des pourcentages (qui
+ * doivent couvrir toutes les colonnes du tableau et sommer à 100%, sous peine de voir les
+ * dernières colonnes s'effondrer/se chevaucher) ; ajustable ici sans toucher au JS
+ * (simple-datatables n'expose pas d'option de largeur de colonne).
  */
-#tableUtilisateurs {
+#tableUtilisateursProfils,
+#tableUtilisateursAcces,
+#tableUtilisateursTrombinoscope {
     table-layout: fixed;
 }
 
-#tableUtilisateurs th:nth-child(1),
-#tableUtilisateurs td:nth-child(1) {
+/* Onglet Profils : Adhésion / Photo / Nom / Licence / CACI / Brevets / Email / Actions */
+#tableUtilisateursProfils th:nth-child(1),
+#tableUtilisateursProfils td:nth-child(1) {
     width: 6%;
 }
 
-#tableUtilisateurs th:nth-child(2),
-#tableUtilisateurs td:nth-child(2) {
+#tableUtilisateursProfils th:nth-child(2),
+#tableUtilisateursProfils td:nth-child(2) {
     width: 7%;
 }
 
-#tableUtilisateurs th:nth-child(3),
-#tableUtilisateurs td:nth-child(3) {
+#tableUtilisateursProfils th:nth-child(3),
+#tableUtilisateursProfils td:nth-child(3) {
     width: 16%;
 }
 
-#tableUtilisateurs th:nth-child(4),
-#tableUtilisateurs td:nth-child(4) {
-    width: 12%;
-}
-
-#tableUtilisateurs th:nth-child(5),
-#tableUtilisateurs td:nth-child(5) {
-    width: 18%;
-}
-
-#tableUtilisateurs th:nth-child(6),
-#tableUtilisateurs td:nth-child(6) {
-    width: 18%;
-}
-
-#tableUtilisateurs th:nth-child(7),
-#tableUtilisateurs td:nth-child(7) {
-    width: 13%;
-}
-
-#tableUtilisateurs th:nth-child(8),
-#tableUtilisateurs td:nth-child(8) {
+#tableUtilisateursProfils th:nth-child(4),
+#tableUtilisateursProfils td:nth-child(4) {
     width: 10%;
 }
 
-#tableUtilisateurs td:nth-child(3),
-#tableUtilisateurs td:nth-child(4),
-#tableUtilisateurs td:nth-child(5) {
+#tableUtilisateursProfils th:nth-child(5),
+#tableUtilisateursProfils td:nth-child(5) {
+    width: 12%;
+}
+
+#tableUtilisateursProfils th:nth-child(6),
+#tableUtilisateursProfils td:nth-child(6) {
+    width: 18%;
+}
+
+#tableUtilisateursProfils th:nth-child(7),
+#tableUtilisateursProfils td:nth-child(7) {
+    width: 18%;
+}
+
+#tableUtilisateursProfils th:nth-child(8),
+#tableUtilisateursProfils td:nth-child(8) {
+    width: 8%;
+}
+
+#tableUtilisateursProfils td:nth-child(3),
+#tableUtilisateursProfils td:nth-child(7) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* Onglet Niveau d'accès : Photo / Nom / Groupes / Statut / Actions */
+#tableUtilisateursAcces th:nth-child(1),
+#tableUtilisateursAcces td:nth-child(1) {
+    width: 8%;
+}
+
+#tableUtilisateursAcces th:nth-child(2),
+#tableUtilisateursAcces td:nth-child(2) {
+    width: 22%;
+}
+
+#tableUtilisateursAcces th:nth-child(3),
+#tableUtilisateursAcces td:nth-child(3) {
+    width: 42%;
+}
+
+#tableUtilisateursAcces th:nth-child(4),
+#tableUtilisateursAcces td:nth-child(4) {
+    width: 18%;
+}
+
+#tableUtilisateursAcces th:nth-child(5),
+#tableUtilisateursAcces td:nth-child(5) {
+    width: 10%;
+}
+
+#tableUtilisateursAcces td:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Onglet Trombinoscope : Photo / Nom / Fonction / Ordre */
+#tableUtilisateursTrombinoscope th:nth-child(1),
+#tableUtilisateursTrombinoscope td:nth-child(1) {
+    width: 10%;
+}
+
+#tableUtilisateursTrombinoscope th:nth-child(2),
+#tableUtilisateursTrombinoscope td:nth-child(2) {
+    width: 35%;
+}
+
+#tableUtilisateursTrombinoscope th:nth-child(3),
+#tableUtilisateursTrombinoscope td:nth-child(3) {
+    width: 40%;
+}
+
+#tableUtilisateursTrombinoscope th:nth-child(4),
+#tableUtilisateursTrombinoscope td:nth-child(4) {
+    width: 15%;
+}
+
+#tableUtilisateursTrombinoscope td:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/*
+ * Ligne de saisie d'un brevet dont le libellé est reconnu par le référentiel FFESSM
+ * (#__gda_mapping_brevets) : le libellé officiel fait foi, le champ est verrouillé par
+ * Brevets.addBrevet(). Le fond neutre signale « donnée validée » plutôt que « champ désactivé ».
+ */
+.brevet-item input.is-brevet-officiel {
+    background-color: var(--bs-tertiary-bg, #f8f9fa);
+    font-weight: 500;
+    cursor: default;
 }

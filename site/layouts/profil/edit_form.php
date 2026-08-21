@@ -13,9 +13,10 @@
  * @var array $displayData
  * - $displayData['form']      : Joomla\CMS\Form\Form - formulaire jform_Profil déjà prérempli
  * - $displayData['photoFlag'] : bool - une photo existe déjà pour ce profil
- * - $displayData['photoSrc']  : string - URL initiale de #image-preview. Laissé vide dans le contexte
- *   de la modale statique #myModal (tmpl/profil/default.php) : c'est openModal() (form_modal.js) qui
- *   la renseigne dynamiquement à l'ouverture, en copiant l'<img data-bs> de la carte cliquée.
+ * - $displayData['photoSrc']  : string - URL initiale de #image-preview. Peut être laissée vide (contexte
+ *   de la modale statique #myModal de tmpl/profil/default.php, où c'est openModal() (form_modal.js) qui
+ *   la renseigne à l'ouverture en copiant l'<img data-bs> de la carte cliquée, ou profil sans photo) :
+ *   on retombe alors sur la photo par défaut, pour ne jamais rendre un src vide.
  * - $displayData['itemid']    : int - Itemid utilisé pour construire l'URL d'action du formulaire
  */
 
@@ -24,11 +25,18 @@ defined('_JEXEC') or die;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use NCB\Component\Gda\Site\Helper\FileHelper;
 
 /** @var \Joomla\CMS\Form\Form $form */
 $form = $displayData['form'];
 $photoFlag = $displayData['photoFlag'] ?? false;
-$photoSrc = $displayData['photoSrc'] ?? '';
+$photoSrc = (string) ($displayData['photoSrc'] ?? '');
+
+// Aucune URL fournie (modale statique, ou profil dont la colonne `photo` est vide/obsolète) :
+// FileHelper::getImageSrc() résout lui-même la photo par défaut (DefaultProfilPhoto).
+if ($photoSrc === '') {
+    $photoSrc = (string) FileHelper::getImageSrc(null, 'ProfilPhotoPath', 'DefaultProfilPhoto');
+}
 $itemid = (int) ($displayData['itemid'] ?? 0);
 ?>
 <!-- Zone de capture du drag and drop -->
@@ -76,7 +84,7 @@ $itemid = (int) ($displayData['itemid'] ?? 0);
     <div class="row">
       <div class="col-sm-12 col-md-6">
         <!-- champ qui premet de gerer le click sur l'image -->
-        <img src="<?php echo $this->escape($photoSrc); ?>" id="image-preview" class="img-thumbnail rounded mx-auto d-block click-image" alt="photo">
+        <img<?php echo $photoSrc !== '' ? ' src="' . $this->escape($photoSrc) . '"' : ''; ?> id="image-preview" class="img-thumbnail rounded mx-auto d-block click-image" alt="photo">
         <label for="image-upload" class="click-image form-text"><?php echo Text::_('COM_GDA_PROFIL_DROP_PHOTO'); ?></label>
         <?php
         $options = ["class" => "position-absolute invisible"];

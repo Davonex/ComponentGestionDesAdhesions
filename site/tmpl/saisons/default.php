@@ -49,9 +49,10 @@ Text::script('COM_GDA_SAISONS_COURANTE_CONFIRM_RETIRER');
         <div class="tab-pane fade show active" id="saisons-pane-courante" role="tabpanel"
             aria-labelledby="saisons-tab-courante">
             <?= LayoutHelper::render('saisons.courante', [
-                'saison'  => $this->saisonCourante,
-                'form'    => $this->formCourante,
-                'groupes' => $this->groupes,
+                'saison'    => $this->saisonCourante,
+                'form'      => $this->formCourante,
+                'groupes'   => $this->groupes,
+                'activites' => $this->activites,
             ]) ?>
         </div>
         <div class="tab-pane fade" id="saisons-pane-historique" role="tabpanel"

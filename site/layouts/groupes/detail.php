@@ -20,11 +20,11 @@ $adherents = $groupe->adherents;
     <table class="table table-bordered table-striped simple-database gda-groupes-table" data-simple-database-search="true" data-simple-database-sort="true">
         <thead>
             <tr>
-                <th><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_PHOTO') ?></th>
-                <th><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_NAME') ?></th>
-                <th><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI') ?></th>
-                <th><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_DATE_CACI') ?></th>
-                <th><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_STATUS') ?></th>
+                <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_PHOTO') ?></th>
+                <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_NAME') ?></th>
+                <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_BREVETS') ?></th>
+                <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_LICENCE') ?></th>
+                <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI') ?></th>
             </tr>
         </thead>
         <tbody>
@@ -37,6 +37,9 @@ $adherents = $groupe->adherents;
                 $dateCaci = ToolsHelper::from_sqldate($adherent->date_caci);
                 $statusLabel = AdhesionStatusHelper::getStatusLabel($adherent->caci_status);
                 $statusClass = AdhesionStatusHelper::getStatusBadgeClass($adherent->caci_status);
+                $dateLicence = ToolsHelper::from_sqldate($adherent->date_licence);
+                $licenceStatusLabel = AdhesionStatusHelper::getStatusLabel($adherent->licence_status);
+                $licenceStatusClass = AdhesionStatusHelper::getStatusBadgeClass($adherent->licence_status);
                 ?>
                 <tr>
                     <td class="text-center">
@@ -64,31 +67,38 @@ $adherents = $groupe->adherents;
                     <td>
                         <a href="#" class="js-show-profil-card" data-id-profil="<?= (int) $adherent->id_profil ?>"><?= $this->escape($fullName) ?></a>
                     </td>
+                    <td>
+                        <?php $shortlist = $adherent->brevets_shortlist ?? []; ?>
+                        <?php if (empty($shortlist)) : ?>
+                            <span class="text-muted"><?= Text::_('COM_GDA_GROUPES_TABLE_BREVETS_NONE') ?></span>
+                        <?php else : ?>
+                            <?php foreach ($shortlist as $brevet) : ?>
+                                <span class="badge me-1 bg-<?= $this->escape($brevet->role ?? 'pratiquant') ?>" title="<?= $this->escape($brevet->label_ffessm ?? '') ?>"><?= $this->escape($brevet->code ?? '') ?></span>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        <br>
+                        <a href="#" class="js-show-profil-brevets small" data-id-profil="<?= (int) $adherent->id_profil ?>">
+                            <i class="fa-solid fa-award"></i> <?= Text::_('COM_GDA_GROUPES_TABLE_BREVETS_LINK') ?>
+                        </a>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-<?= $this->escape($licenceStatusClass) ?>" title="<?= $this->escape($licenceStatusLabel) ?>"><?= $dateLicence !== '' ? $this->escape($dateLicence) : '&mdash;' ?></span>
+                    </td>
                     <td class="text-center">
                         <?php if (!empty($pathCaci)) : ?>
                             <a
                                 href="#"
-                                class="js-caci-thumb"
+                                class="badge bg-<?= $this->escape($statusClass) ?> js-caci-thumb"
                                 data-image-src="<?= $this->escape($pathCaci) ?>"
                                 data-image-alt="<?= $this->escape(Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI')) ?>"
                                 data-bs-toggle="modal"
                                 data-bs-target="#imagePreviewModal"
-                                aria-label="<?= $this->escape(Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI')) ?>">
-                                <img
-                                    src="<?= $this->escape($pathCaci) ?>"
-                                    alt="<?= $this->escape(Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI')) ?>"
-                                    width="32"
-                                    height="32"
-                                    loading="lazy"
-                                    style="object-fit: cover; cursor: zoom-in;">
+                                title="<?= $this->escape($statusLabel) ?>">
+                                <?= $dateCaci !== '' ? $this->escape($dateCaci) : '&mdash;' ?>
                             </a>
                         <?php else : ?>
-                            &#10060;
+                            <span class="badge bg-<?= $this->escape($statusClass) ?>" title="<?= $this->escape($statusLabel) ?>"><?= $dateCaci !== '' ? $this->escape($dateCaci) : '&mdash;' ?></span>
                         <?php endif; ?>
-                    </td>
-                    <td class="text-center"><?= $this->escape($dateCaci) ?></td>
-                    <td class="text-center">
-                        <span class="badge bg-<?= $this->escape($statusClass) ?>"><?= $this->escape($statusLabel) ?></span>
                     </td>
                 </tr>
             <?php endforeach; ?>

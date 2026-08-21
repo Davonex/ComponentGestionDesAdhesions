@@ -21,7 +21,7 @@
 
 	<field name="date_de_naissance" type="Calendar" label="COM_GDA_DATE_NAISSANCE_LABEL" description="COM_GDA_DATE_NAISSANCE_DESC" size="20" maxlength="20" class=""  required="true" hint="dd/mm/yyyy" format="%d/%m/%Y" filterformat="d/m/Y" pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d" translateformat="false" />
 
-	<field name="date_licence" type="Calendar" label="COM_GDA_DATE_VALIDITE_LABEL" description="COM_GDA_DATE_VALIDITE_DESC" size="20" maxlength="20" class=""  required="false" hint="dd/mm/yyyy" format="%d/%m/%Y" filterformat="d/m/Y" pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d" translateformat="false" disabled="true" />
+	<field name="date_licence" type="Calendar" label="COM_GDA_DATE_VALIDITE_LABEL" description="COM_GDA_DATE_VALIDITE_DESC" size="20" maxlength="20" class=""  required="false" hint="dd/mm/yyyy" format="%d/%m/%Y" filterformat="d/m/Y" pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d" translateformat="false" readonly="true" />
 
 	<field name="adresse" type="text" label="COM_GDA_ADRESSE_LABEL" description="COM_GDA_ADRESSE_DESC" required="true" hint="25 avenue Ampère" size="25" class="" />
 

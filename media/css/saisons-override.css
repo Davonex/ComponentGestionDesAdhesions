@@ -1,4 +1,25 @@
 
+/*
+ * Panneau "Groupes du club" (layouts/saisons/groupes.php).
+ *
+ * table-layout: fixed — indispensable ici : en layout auto (défaut Bootstrap), les width posées
+ * sur les <th> ne sont que des suggestions, écrasées par la largeur minimale de contenu. Un
+ * <input type="number"> impose sa taille native (~20 caractères) et fait déborder la colonne
+ * "Ordre", tandis qu'un <select> en width:100% s'effondre et laisse "Activité" trop étroite.
+ * En layout fixed, seules les largeurs des <th> comptent, la colonne "Nom" prenant le reste.
+ */
+#table-groupes-club {
+    table-layout: fixed;
+    width: 100%;
+}
+
+/* Les libellés d'activité les plus longs ("Plongée sportive en piscine (PSP)") dépassent la
+   colonne : ellipse plutôt que rognage brut, le libellé complet restant lisible une fois la
+   liste déroulée. */
+#table-groupes-club .js-groupe-activite {
+    text-overflow: ellipsis;
+}
+
 .table-inactive {
     --table-color: #ababab;
     --table-bg: #ffffff;

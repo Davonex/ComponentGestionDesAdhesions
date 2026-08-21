@@ -42,6 +42,16 @@ class AdhesionStatusHelper
     // const STATUS_CACI_EXPIRED = 'CACI_EXPIRED'; // Supprimé car déjà défini à la ligne 31
     const STATUS_CACI_EXPIRING_SOON = 'CACI_EXPIRING_SOON';
     const STATUS_CACI_MISSING = 'CACI_MISSING';
+    const STATUS_LICENCE_VALID = 'LICENCE_VALID';
+    const STATUS_LICENCE_EXPIRED = 'LICENCE_EXPIRED';
+    const STATUS_LICENCE_EXPIRING_SOON = 'LICENCE_EXPIRING_SOON';
+    const STATUS_LICENCE_MISSING = 'LICENCE_MISSING';
+
+    /**
+     * Premier mois de la saison fédérale FFESSM : à partir de septembre, la licence délivrée
+     * couvre la saison suivante (fin de validité au 31/12 de l'année N+1).
+     */
+    const MOIS_DEBUT_SAISON_LICENCE = 9;
 
     /**
      * Détermine le statut d'adhésion en fonction de la souscription.
@@ -167,6 +177,61 @@ class AdhesionStatusHelper
     }
 
     /**
+     * Détermine le statut de validité de la licence FFESSM d'un profil, à partir de sa seule date
+     * de fin de validité (colonne #__gda_profils.date_licence) : pas de fichier associé à la
+     * licence, contrairement au CACI. Mêmes seuils et mêmes codes couleur (getStatusBadgeClass())
+     * que getCaciFileStatus(), pour un rendu visuel cohérent entre les deux colonnes.
+     *
+     * @param string|null $dateLicence Date de fin de validité au format SQL (colonne #__gda_profils.date_licence)
+     * @return string Un des STATUS_LICENCE_*
+     */
+    public static function getLicenceValidityStatus(?string $dateLicence): string
+    {
+        if (empty($dateLicence)) {
+            return self::STATUS_LICENCE_MISSING;
+        }
+
+        $daysBeforeExpiry = self::getDaysBeforeExpiry($dateLicence);
+
+        if ($daysBeforeExpiry < 0) {
+            return self::STATUS_LICENCE_EXPIRED;
+        }
+
+        if ($daysBeforeExpiry < 90) {
+            // Expire dans moins de 3 mois
+            return self::STATUS_LICENCE_EXPIRING_SOON;
+        }
+
+        return self::STATUS_LICENCE_VALID;
+    }
+
+    /**
+     * Calcule la date de fin de validité de la licence FFESSM à partir de la date d'enregistrement
+     * de la licence (finalisation par le secrétariat).
+     *
+     * Règle fédérale : la saison démarre en septembre et se termine le 31/12 de l'année suivante.
+     *  - enregistrement en septembre-décembre N  → fin de validité au 31/12 de l'année N+1
+     *  - enregistrement en janvier-août N        → fin de validité au 31/12 de l'année N
+     *    (la saison ouverte en septembre N-1 est toujours en cours)
+     *
+     * @param string|null $dateEnregistrement Date d'enregistrement (format SQL) ; date du jour si null
+     * @return string Date SQL de fin de validité au format 'Y-12-31'
+     */
+    public static function computeDateFinValiditeLicence(?string $dateEnregistrement = null): string
+    {
+        $reference = Factory::getDate($dateEnregistrement ?: 'now');
+
+        $annee = (int) $reference->format('Y', true);
+        $mois  = (int) $reference->format('n', true);
+
+        if ($mois >= self::MOIS_DEBUT_SAISON_LICENCE) {
+            $annee++;
+        }
+
+        return $annee . '-12-31';
+    }
+
+    /**
      * Construit un lien d'action en fonction du statut d'adhésion.
      *
      * @param string $statusEnum Code du statut
@@ -251,6 +316,11 @@ class AdhesionStatusHelper
             self::STATUS_CACI_EXPIRED        => 'COM_GDA_PROFIL_CACI_STATUS_EXPIRED',
             self::STATUS_CACI_EXPIRING_SOON  => 'COM_GDA_PROFIL_CACI_STATUS_EXPIRING_SOON',
             self::STATUS_CACI_MISSING        => 'COM_GDA_PROFIL_CACI_STATUS_MISSING',
+            // Libellés génériques (pas spécifiques au CACI) réutilisés tels quels pour la licence.
+            self::STATUS_LICENCE_VALID          => 'COM_GDA_PROFIL_CACI_STATUS_VALID',
+            self::STATUS_LICENCE_EXPIRED        => 'COM_GDA_PROFIL_CACI_STATUS_EXPIRED',
+            self::STATUS_LICENCE_EXPIRING_SOON  => 'COM_GDA_PROFIL_CACI_STATUS_EXPIRING_SOON',
+            self::STATUS_LICENCE_MISSING        => 'COM_GDA_PROFIL_CACI_STATUS_MISSING',
         ];
 
         $key = $labels[$statusEnum] ?? 'COM_GDA_STATUS_UNKNOWN';
@@ -332,13 +402,13 @@ class AdhesionStatusHelper
     {
         switch ($simplifiedStatus) {
             case self::SIMPLIFIED_STATUS_NOT_SUBSCRIBED:
-                return 'fa-solid fa-user-plus';
+                return 'fa-solid fa-xmark';
             case self::SIMPLIFIED_STATUS_IN_PROGRESS:
-                return 'fa-solid fa-hourglass-half';
+                return 'fa-regular fa-hourglass-half';
             case self::SIMPLIFIED_STATUS_COMPLETED:
-                return 'fa-solid fa-check-circle';
+                return 'fa-solid fa-check';
             default:
-                return 'fa-solid fa-circle-info';
+                return 'fa-regular fa-circle-info';
         }
     }
 
@@ -456,6 +526,7 @@ class AdhesionStatusHelper
         switch ($statusEnum) {
             case self::STATUS_NOT_SUBSCRIBED:
             case self::STATUS_CACI_MISSING:
+            case self::STATUS_LICENCE_MISSING:
                 return 'danger'; // rouge
             case self::STATUS_CACI_VALIDATING:
             case self::STATUS_PAYMENT_VALIDATING:
@@ -464,9 +535,12 @@ class AdhesionStatusHelper
             case self::STATUS_PAYMENT_REQUIRED:
             case self::STATUS_CACI_EXPIRED:
             case self::STATUS_CACI_EXPIRING_SOON:
+            case self::STATUS_LICENCE_EXPIRED:
+            case self::STATUS_LICENCE_EXPIRING_SOON:
                 return 'warning'; // orange
             case self::STATUS_COMPLETED:
             case self::STATUS_CACI_VALID:
+            case self::STATUS_LICENCE_VALID:
                 return 'success'; // vert
             default:
                 return 'secondary';

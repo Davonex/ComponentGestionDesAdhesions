@@ -11,6 +11,7 @@ use Joomla\CMS\Language\Text;
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
+use NCB\Component\Gda\Site\Service\BrevetService;
 use NCB\Component\Gda\Site\Service\SouscriptionService;
 
 
@@ -18,6 +19,8 @@ class CampagnesModel extends ListModel
 {
 
     protected $_item = null;
+
+    private ?BrevetService $brevetService = null;
 
     /**
      * Expression SELECT des places occupées d'une campagne, à utiliser avec une jointure sur
@@ -180,6 +183,7 @@ class CampagnesModel extends ListModel
                 $db->quoteName('p.photo'),
                 $db->quoteName('p.caci'),
                 $db->quoteName('p.date_caci'),
+                $db->quoteName('p.date_licence'),
             ])
             ->from($db->quoteName('#__gda_reservation', 'r'))
             ->innerJoin($db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('r.id_profil'))
@@ -213,11 +217,39 @@ class CampagnesModel extends ListModel
             $adherent->caci = $row->caci;
             $adherent->date_caci = $row->date_caci;
             $adherent->caci_status = AdhesionStatusHelper::getCaciFileStatus($row->caci, $row->date_caci);
+            $adherent->date_licence = $row->date_licence;
+            $adherent->licence_status = AdhesionStatusHelper::getLicenceValidityStatus($row->date_licence);
 
             $groupe->adherents[] = $adherent;
         }
 
+        // Aperçu des brevets (badges) attendu par le layout groupes.detail réutilisé ici : sans
+        // cette propriété, brevets_shortlist reste absente et le layout affiche silencieusement
+        // "aucun brevet" pour tout le monde. Même motif que GroupesModel::enrichirBrevetsShortList()
+        // (une seule requête groupée pour tous les inscrits, pas de N+1).
+        if (!empty($groupe->adherents)) {
+            $idProfils = array_map(static fn($adherent) => $adherent->id_profil, $groupe->adherents);
+            $shortLists = $this->getBrevetService()->getBrevetsShortListProfils($idProfils);
+
+            foreach ($groupe->adherents as $adherent) {
+                $adherent->brevets_shortlist = $shortLists[$adherent->id_profil] ?? [];
+            }
+        }
+
         return $groupe;
+    }
+
+    /**
+     * Getter pour obtenir le service Brevet (lazy loading, pas dans le conteneur DI du composant).
+     * Même motif que GroupesModel::getBrevetService() / ProfilModel::getBrevetService().
+     */
+    private function getBrevetService(): BrevetService
+    {
+        if ($this->brevetService === null) {
+            $this->brevetService = new BrevetService($this->getDatabase());
+        }
+
+        return $this->brevetService;
     }
 
    /**

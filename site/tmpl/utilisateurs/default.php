@@ -7,10 +7,11 @@
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\HTML\Helpers\Bootstrap;
+use Joomla\CMS\Layout\LayoutHelper;
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
-use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 
+Bootstrap::tab();
 Bootstrap::modal();
 
 /** @var Joomla\CMS\Application\SiteApplication $app */
@@ -44,11 +45,12 @@ $clubGroups = [
 ?>
 
 <div class="gda-utilisateurs card shadow-lg p-4">
-    <h3 class="mb-3"><?= Text::_('COM_GDA_VIEW_UTILISATEURS_MENU_LABEL') ?></h3>
+    <!-- <h3 class="mb-3"><?= Text::_('COM_GDA_VIEW_UTILISATEURS_MENU_LABEL') ?></h3> -->
 
     <?php if (empty($utilisateurs)) : ?>
         <p class="text-muted"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_EMPTY') ?></p>
     <?php else : ?>
+        <!-- Filtres communs aux 3 onglets (appliqués simultanément aux 3 tableaux, voir utilisateurs.js) -->
         <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
             <div class="d-flex align-items-center gap-2">
                 <label for="filterAdhesionStatus" class="form-label mb-0"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_ADHESION') ?></label>
@@ -77,127 +79,116 @@ $clubGroups = [
                 </select>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-striped align-middle gda-table-compact" id="tableUtilisateurs">
-                <thead>
-                    <tr>
-                        <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_ADHESION') ?></th>
-                        <th><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_PHOTO') ?></th>
-                        <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_NAME') ?></th>
-                        <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_USERNAME') ?></th>
-                        <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_EMAIL') ?></th>
-                        <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_GROUPES') ?></th>
-                        <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_FONCTION') ?></th>
-                        <th><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_STATUT') ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($utilisateurs as $utilisateur) : ?>
-                        <?php
-                        $assignedGroupIds = array_column($utilisateur->groupes_club, 'id_groupe');
-                        $displayName = trim((string) (($utilisateur->civilite ?? '') . ' ' . ($utilisateur->nom ?? $utilisateur->name) . ' ' . ($utilisateur->prenom ?? '')));
-                        $pathPhoto = FileHelper::getImageSrc($utilisateur->photo ?? null, 'ProfilPhotoPath', 'DefaultProfilPhoto', false);
-                        $simplifiedStatus = AdhesionStatusHelper::getSimplifiedStatus($utilisateur->adhesion_status);
-                        ?>
-                        <tr data-id-user="<?= (int) $utilisateur->id ?>">
-                            <td class="text-center">
-                                <span
-                                    class="badge bg-<?= $this->escape(AdhesionStatusHelper::getSimplifiedStatusBadgeClass($simplifiedStatus)) ?>"
-                                    title="<?= $this->escape(AdhesionStatusHelper::getSimplifiedStatusLabel($simplifiedStatus)) ?>">
-                                    <i class="<?= $this->escape(AdhesionStatusHelper::getSimplifiedStatusIcon($simplifiedStatus)) ?>" aria-hidden="true"></i>
-                                    <span class="visually-hidden"><?= $this->escape(AdhesionStatusHelper::getSimplifiedStatusLabel($simplifiedStatus)) ?></span>
-                                </span>
-                            </td>
-                            <td>
-                                <?php if (!empty($pathPhoto)) : ?>
-                                    <a
-                                        href="#"
-                                        class="js-image-preview-thumb js-utilisateur-photo-link"
-                                        data-image-src="<?= $this->escape($pathPhoto) ?>"
-                                        data-image-alt="<?= $this->escape($displayName) ?>"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#imagePreviewModal"
-                                        aria-label="<?= $this->escape(Text::_('COM_GDA_GROUPES_TABLE_HEADER_PHOTO')) ?>">
-                                        <img
-                                            src="<?= $this->escape($pathPhoto) ?>"
-                                            alt="<?= $this->escape($displayName) ?>"
-                                            width="48"
-                                            height="48"
-                                            loading="lazy"
-                                            class="gda-preview-thumb js-utilisateur-photo-img">
-                                    </a>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <a href="#"
-                                    class="js-edit-profil-card"
-                                    data-id-profil="<?= (int) $utilisateur->id ?>"
-                                    title="<?= $this->escape(Text::_('COM_GDA_UTILISATEURS_EDIT_PROFIL_TOOLTIP')) ?>">
-                                    <span class="js-utilisateur-name"><?= $this->escape($displayName) ?></span>
-                                </a>
-                            </td>
-                            <td><?= $this->escape($utilisateur->username) ?></td>
-                            <td><?= $this->escape($utilisateur->email) ?></td>
-                            <td>
-                                <?php foreach ($clubGroups as $clubGroup) : ?>
-                                    <?php if ($clubGroup['id'] !== null) : ?>
-                                        <div class="form-check form-check-inline">
-                                            <input
-                                                class="form-check-input js-utilisateur-group"
-                                                type="checkbox"
-                                                id="group-<?= (int) $utilisateur->id ?>-<?= (int) $clubGroup['id'] ?>"
-                                                data-id-user="<?= (int) $utilisateur->id ?>"
-                                                data-id-groupe="<?= (int) $clubGroup['id'] ?>"
-                                                <?= in_array((int) $clubGroup['id'], $assignedGroupIds, true) ? 'checked' : '' ?>
-                                            >
-                                            <label class="form-check-label" for="group-<?= (int) $utilisateur->id ?>-<?= (int) $clubGroup['id'] ?>">
-                                                <?= $this->escape($clubGroup['label']) ?>
-                                            </label>
-                                        </div>
-                                    <?php endif; ?>
-                                <?php endforeach; ?>
-                                <span class="visually-hidden">
-                                    <?php foreach ($clubGroups as $clubGroup) : ?>
-                                        <?php if ($clubGroup['id'] !== null && in_array((int) $clubGroup['id'], $assignedGroupIds, true)) : ?>
-                                            grp:<?= $this->escape($clubGroup['label']) ?>
-                                        <?php endif; ?>
-                                    <?php endforeach; ?>
-                                </span>
-                            </td>
-                            <td class="js-editable-fonction" data-id-user="<?= (int) $utilisateur->id ?>">
-                                <span class="fonction-display"><?= $this->escape($utilisateur->fonction ?? '') ?></span>
-                                <input
-                                    type="text"
-                                    class="form-control form-control-sm fonction-input d-none"
-                                    maxlength="100"
-                                    value="<?= $this->escape($utilisateur->fonction ?? '') ?>"
-                                    data-current-fonction="<?= $this->escape($utilisateur->fonction ?? '') ?>">
-                            </td>
-                            <td>
-                                <div class="form-check form-switch mb-0">
-                                    <input
-                                        class="form-check-input js-utilisateur-block"
-                                        type="checkbox"
-                                        role="switch"
-                                        id="block-<?= (int) $utilisateur->id ?>"
-                                        data-id-user="<?= (int) $utilisateur->id ?>"
-                                        <?= (int) $utilisateur->block === 0 ? 'checked' : '' ?>
-                                    >
-                                    <label class="form-check-label" for="block-<?= (int) $utilisateur->id ?>">
-                                        <?= (int) $utilisateur->block === 0
-                                            ? Text::_('COM_GDA_UTILISATEURS_STATUT_ACTIF')
-                                            : Text::_('COM_GDA_UTILISATEURS_STATUT_BLOQUE') ?>
-                                    </label>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+
+        <ul class="nav nav-tabs" id="utilisateursTabNav" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="utilisateurs-tab-profils" data-bs-toggle="tab"
+                    data-bs-target="#utilisateurs-pane-profils" type="button" role="tab"
+                    aria-controls="utilisateurs-pane-profils" aria-selected="true">
+                    <?= Text::_('COM_GDA_UTILISATEURS_TAB_PROFILS') ?>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="utilisateurs-tab-acces" data-bs-toggle="tab"
+                    data-bs-target="#utilisateurs-pane-acces" type="button" role="tab"
+                    aria-controls="utilisateurs-pane-acces" aria-selected="false">
+                    <?= Text::_('COM_GDA_UTILISATEURS_TAB_ACCES') ?>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="utilisateurs-tab-trombinoscope" data-bs-toggle="tab"
+                    data-bs-target="#utilisateurs-pane-trombinoscope" type="button" role="tab"
+                    aria-controls="utilisateurs-pane-trombinoscope" aria-selected="false">
+                    <?= Text::_('COM_GDA_UTILISATEURS_TAB_TROMBINOSCOPE') ?>
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content border border-top-0 p-3" id="utilisateursTabContent">
+
+            <!-- Onglet Profils -->
+            <div class="tab-pane fade show active" id="utilisateurs-pane-profils" role="tabpanel"
+                aria-labelledby="utilisateurs-tab-profils">
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle gda-table-compact" id="tableUtilisateursProfils">
+                        <thead>
+                            <tr>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_ADHESION') ?></th>
+                                <th><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_PHOTO') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_NAME') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_LICENCE') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_BREVETS') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_EMAIL') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_SUPP') ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($utilisateurs as $utilisateur) : ?>
+                                <?= LayoutHelper::render('utilisateurs.row_profils', [
+                                    'utilisateur' => $utilisateur,
+                                    'clubGroups' => $clubGroups,
+                                ]) ?>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Onglet Niveau d'accès -->
+            <div class="tab-pane fade" id="utilisateurs-pane-acces" role="tabpanel"
+                aria-labelledby="utilisateurs-tab-acces">
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle gda-table-compact" id="tableUtilisateursAcces">
+                        <thead>
+                            <tr>
+                                <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_PHOTO') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_NAME') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_GROUPES') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_STATUT') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_PASSWORD') ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($utilisateurs as $utilisateur) : ?>
+                                <?= LayoutHelper::render('utilisateurs.row_acces', [
+                                    'utilisateur' => $utilisateur,
+                                    'clubGroups' => $clubGroups,
+                                ]) ?>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Onglet Trombinoscope -->
+            <div class="tab-pane fade" id="utilisateurs-pane-trombinoscope" role="tabpanel"
+                aria-labelledby="utilisateurs-tab-trombinoscope">
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle gda-table-compact" id="tableUtilisateursTrombinoscope">
+                        <thead>
+                            <tr>
+                                <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_PHOTO') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_NAME') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_FONCTION') ?></th>
+                                <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_ORDRE') ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($utilisateurs as $utilisateur) : ?>
+                                <?= LayoutHelper::render('utilisateurs.row_trombi', [
+                                    'utilisateur' => $utilisateur,
+                                    'clubGroups' => $clubGroups,
+                                ]) ?>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     <?php endif; ?>
 
-    <!-- Modal de prévisualisation de la photo -->
+    <!-- Modal de prévisualisation de la photo / du CACI -->
     <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
             <div class="modal-content">
@@ -208,11 +199,84 @@ $clubGroups = [
         </div>
     </div>
 
-    <!-- Modal d'édition du profil (formulaire complet, chargé en ajax au clic sur le Nom Prénom) -->
+    <!-- Modal d'édition du profil (formulaire complet, chargé en ajax au clic sur le Nom Prénom) /
+         fiche brevets (chargée en ajax au clic sur "Liste des brevets") -->
     <div class="modal fade" id="profilCardModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" id="profilCardModalContent">
                 <!-- Le contenu de la modal est chargé dynamiquement via ajax -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmation de suppression définitive d'un adhérent -->
+    <div class="modal fade" id="deleteUtilisateurModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger border-3">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                        <?= Text::_('COM_GDA_UTILISATEURS_DELETE_MODAL_TITLE') ?>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="<?= $this->escape(Text::_('JCLOSE')) ?>"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fw-semibold text-danger">
+                        <i class="fa-solid fa-circle-exclamation me-1"></i>
+                        <?= Text::_('COM_GDA_UTILISATEURS_DELETE_MODAL_WARNING') ?>
+                    </p>
+                    <div class="d-flex align-items-center gap-3 p-2 border rounded bg-light">
+                        <img id="deleteUtilisateurPhoto" src="" alt="" width="64" height="64" class="rounded d-none">
+                        <div>
+                            <div class="fw-semibold" id="deleteUtilisateurName"></div>
+                            <div class="text-muted small" id="deleteUtilisateurUsername"></div>
+                            <div class="text-muted small" id="deleteUtilisateurEmail"></div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="deleteUtilisateurId" value="0">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= Text::_('COM_GDA_CANCEL') ?></button>
+                    <button type="button" class="btn btn-danger" id="deleteUtilisateurSubmit">
+                        <i class="fa-solid fa-trash-can me-1"></i> <?= Text::_('COM_GDA_UTILISATEURS_DELETE_CONFIRM') ?>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmation de réinitialisation du mot de passe -->
+    <div class="modal fade" id="resetPasswordUtilisateurModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-warning border-3">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="fa-solid fa-key me-2"></i>
+                        <?= Text::_('COM_GDA_UTILISATEURS_RESET_PASSWORD_MODAL_TITLE') ?>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= $this->escape(Text::_('JCLOSE')) ?>"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fw-semibold">
+                        <i class="fa-solid fa-circle-info me-1"></i>
+                        <?= Text::_('COM_GDA_UTILISATEURS_RESET_PASSWORD_MODAL_WARNING') ?>
+                    </p>
+                    <div class="d-flex align-items-center gap-3 p-2 border rounded bg-light">
+                        <img id="resetPasswordUtilisateurPhoto" src="" alt="" width="64" height="64" class="rounded d-none">
+                        <div>
+                            <div class="fw-semibold" id="resetPasswordUtilisateurName"></div>
+                            <div class="text-muted small" id="resetPasswordUtilisateurUsername"></div>
+                            <div class="text-muted small" id="resetPasswordUtilisateurEmail"></div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="resetPasswordUtilisateurId" value="0">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= Text::_('COM_GDA_CANCEL') ?></button>
+                    <button type="button" class="btn btn-warning" id="resetPasswordUtilisateurSubmit">
+                        <i class="fa-solid fa-key me-1"></i> <?= Text::_('COM_GDA_UTILISATEURS_RESET_PASSWORD_CONFIRM') ?>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

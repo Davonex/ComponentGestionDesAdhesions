@@ -12,12 +12,17 @@ namespace NCB\Component\Gda\Site\Model;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\MVC\Model\ListModel;
 use Joomla\CMS\User\UserFactoryInterface;
+use Joomla\CMS\User\UserHelper;
+use Joomla\Database\ParameterType;
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
+use NCB\Component\Gda\Site\Service\BrevetService;
+use NCB\Component\Gda\Site\Service\NotificationMailService;
 
 /**
  * Modèle de la vue "Utilisateurs" (réservée au Bureau) : liste des comptes déclarés et
@@ -34,6 +39,10 @@ class UtilisateursModel extends ListModel
      * @since  1.0.0
      */
     protected $context = 'com_gdadhesions.utilisateurs';
+
+    private ?BrevetService $brevetService = null;
+
+    private ?NotificationMailService $notificationMailService = null;
 
     /**
      * Liste des comptes déclarés (hors comptes d'administration Joomla, i.e. groupe "Super Users"),
@@ -61,6 +70,10 @@ class UtilisateursModel extends ListModel
                 $db->quoteName('p.prenom'),
                 $db->quoteName('p.photo'),
                 $db->quoteName('p.fonction'),
+                $db->quoteName('p.ordre_bureau'),
+                $db->quoteName('p.caci'),
+                $db->quoteName('p.date_caci'),
+                $db->quoteName('p.date_licence'),
             ])
             ->from($db->quoteName('#__users', 'u'))
             ->join('LEFT', $db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('u.id'))
@@ -123,7 +136,47 @@ class UtilisateursModel extends ListModel
             );
         }
 
+        // Brevets "importants" (plus fort poids par activité/rôle) en une seule requête groupée,
+        // pour l'aperçu de l'onglet Profils. Réutilise BrevetService::getBrevetsShortListProfils(),
+        // même motif que GroupesModel::enrichirBrevetsShortList() (nom de propriété brevets_shortlist
+        // repris à l'identique, cf. layouts/groupes/detail.php).
+        $shortLists = $this->getBrevetService()->getBrevetsShortListProfils($userIds);
+
+        foreach ($utilisateurs as $utilisateur) {
+            $utilisateur->brevets_shortlist = $shortLists[(int) $utilisateur->id] ?? [];
+        }
+
         return $utilisateurs;
+    }
+
+    /**
+     * Getter pour obtenir le service Brevet (lazy loading, pas dans le conteneur DI du composant).
+     * Même motif que ProfilModel::getBrevetService().
+     */
+    private function getBrevetService(): BrevetService
+    {
+        if ($this->brevetService === null) {
+            $this->brevetService = new BrevetService($this->getDatabase());
+        }
+
+        return $this->brevetService;
+    }
+
+    /**
+     * Getter pour obtenir le service de notification mail (lazy loading). Même motif que
+     * AdhesionModel::getNotificationMailService() / SecretariatModel::getNotificationMailService().
+     */
+    private function getNotificationMailService(): NotificationMailService
+    {
+        if ($this->notificationMailService === null) {
+            $this->notificationMailService = new NotificationMailService(
+                $this->getDatabase(),
+                Factory::getContainer()->get(MailerFactoryInterface::class),
+                ConfHelper::getConfigService()
+            );
+        }
+
+        return $this->notificationMailService;
     }
 
     /**
@@ -273,6 +326,75 @@ class UtilisateursModel extends ListModel
     }
 
     /**
+     * Génère un mot de passe temporaire pour un compte, force son changement à la prochaine
+     * connexion, et retourne les informations nécessaires à l'envoi du mail (le mot de passe en
+     * clair n'est jamais journalisé ni renvoyé au navigateur, seulement transmis à l'appelant pour
+     * l'envoi immédiat de l'email).
+     *
+     * Attention : Joomla\CMS\User\User::bind() remet automatiquement `requireReset` à 0 dès qu'un
+     * mot de passe est modifié sur un compte existant (il part du principe qu'un changement de mot
+     * de passe satisfait l'exigence en cours). Il faut donc forcer `requireReset = 1` par une
+     * requête directe *après* la sauvegarde - exactement le motif utilisé par le cœur Joomla
+     * (administrator/components/com_users/src/Model/UserModel.php, action "Forcer la
+     * réinitialisation").
+     *
+     * @param int $userId Identifiant de l'utilisateur Joomla.
+     *
+     * @return array{username: string, display_name: string, email: string, temp_password: string}
+     *
+     * @since  1.0.0
+     */
+    public function resetUserPassword(int $userId): array
+    {
+        if ($userId <= 0) {
+            throw new \InvalidArgumentException('Identifiant utilisateur invalide.');
+        }
+
+        $userFactory = Factory::getContainer()->get(UserFactoryInterface::class);
+        $user = $userFactory->loadUserById($userId);
+
+        if (!$user || (int) $user->id !== $userId) {
+            throw new \RuntimeException('Utilisateur Joomla introuvable.');
+        }
+
+        $tempPassword = UserHelper::genRandomPassword(12);
+        $userData = ['password' => $tempPassword, 'password2' => $tempPassword];
+        $user->bind($userData);
+
+        if (!$user->save()) {
+            throw new \RuntimeException('Erreur lors de la réinitialisation du mot de passe: ' . $user->getError());
+        }
+
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__users'))
+            ->set($db->quoteName('requireReset') . ' = 1')
+            ->where($db->quoteName('id') . ' = :id')
+            ->bind(':id', $userId, ParameterType::INTEGER);
+
+        $db->setQuery($query);
+        $db->execute();
+
+        GdaLogger::info(
+            '[' . $this->getActingUserName() . '] Mot de passe réinitialisé pour ' . $user->username
+                . ' (id=' . $userId . '), changement forcé à la prochaine connexion'
+        );
+
+        $this->getNotificationMailService()->sendPasswordResetEmail(
+            (string) $user->email,
+            (string) $user->name,
+            (string) $user->username,
+            $tempPassword
+        );
+
+        return [
+            'username' => (string) $user->username,
+            'display_name' => (string) $user->name,
+            'email' => (string) $user->email,
+        ];
+    }
+
+    /**
      * Met à jour la fonction (rôle libre, ex: Trésorier, Responsable Communication) d'un membre.
      *
      * @param int    $userId   Identifiant de l'utilisateur (id_profil).
@@ -316,6 +438,54 @@ class UtilisateursModel extends ListModel
 
         GdaLogger::info(
             '[' . $this->getActingUserName() . '] Fonction mise à jour (id=' . $userId . '): "' . $fonction . '"'
+        );
+
+        return true;
+    }
+
+    /**
+     * Met à jour l'ordre d'affichage d'un membre dans le trombinoscope du Bureau.
+     *
+     * @param int      $userId Identifiant de l'utilisateur (id_profil).
+     * @param int|null $ordre  Rang d'affichage (0-999). Null efface la valeur : le membre
+     *                         retombe alors sur le tri alphabétique (nom, prenom) en repli.
+     *
+     * @return bool
+     *
+     * @since  1.0.0
+     */
+    public function updateOrdreBureau(int $userId, ?int $ordre): bool
+    {
+        if ($userId <= 0) {
+            throw new \InvalidArgumentException('Identifiant utilisateur invalide.');
+        }
+
+        if ($ordre !== null && ($ordre < 0 || $ordre > 999)) {
+            throw new \InvalidArgumentException('L\'ordre doit être compris entre 0 et 999.');
+        }
+
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__gda_profils'))
+            ->where($db->quoteName('id_profil') . ' = :id_profil')
+            ->bind(':id_profil', $userId);
+
+        if ($ordre === null) {
+            $query->set($db->quoteName('ordre_bureau') . ' = NULL');
+        } else {
+            $query->set($db->quoteName('ordre_bureau') . ' = :ordre_bureau')
+                ->bind(':ordre_bureau', $ordre, \Joomla\Database\ParameterType::INTEGER);
+        }
+
+        $db->setQuery($query);
+        $db->execute();
+
+        if ((int) $db->getAffectedRows() === 0) {
+            throw new \RuntimeException('Aucun profil trouvé pour cet utilisateur.');
+        }
+
+        GdaLogger::info(
+            '[' . $this->getActingUserName() . '] Ordre bureau mis à jour (id=' . $userId . '): ' . ($ordre ?? 'NULL')
         );
 
         return true;

@@ -34,11 +34,16 @@ $editable = $displayData['editable'] ?? false;
 // Brevets sérialisés pour peupler la modale d'édition sans aller-retour serveur supplémentaire :
 // la carte est re-rendue après chaque sauvegarde, la donnée reste donc toujours à jour.
 // Les dates sont exposées au format ISO attendu par <input type="date">.
+//
+// id_mapping indique que le libellé a été reconnu par le référentiel FFESSM : il devient alors
+// non modifiable dans la modale (Brevets.addBrevet), le libellé officiel faisant foi. Les lignes
+// non reconnues, elles, restent en saisie libre pour que l'adhérent puisse les corriger.
 $brevetsData = $editable ? array_map(
     static fn($brevet) => [
         'nom' => $brevet->nom ?? '',
         'obtention' => $brevet->obtention ?? '',
         'lieu' => $brevet->lieu ?? '',
+        'id_mapping' => $brevet->id_mapping ?? null,
     ],
     $brevets
 ) : [];

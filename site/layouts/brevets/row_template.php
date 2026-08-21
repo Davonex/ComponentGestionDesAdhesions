@@ -20,8 +20,17 @@ use Joomla\CMS\Language\Text;
 <template id="brevet-template">
   <div class="row g-2 brevet-item mb-2 align-items-end">
     <div class="col-md-5">
+      <?php
+      /*
+       * data-officiel-title : message affiché en infobulle quand la ligne est verrouillée parce
+       * que son libellé est reconnu par le référentiel FFESSM (voir Brevets.addBrevet). Porté par
+       * le markup plutôt que par Text::script() pour que les deux vues qui partagent ce template
+       * n'aient pas à déclarer la clé chacune de leur côté.
+       */
+      ?>
       <input type="text" name="brevets[][nom]" class="form-control" required
-        placeholder="<?php echo $this->escape(Text::_('COM_GDA_BREVET_NOM')); ?>">
+        placeholder="<?php echo $this->escape(Text::_('COM_GDA_BREVET_NOM')); ?>"
+        data-officiel-title="<?php echo $this->escape(Text::_('COM_GDA_BREVET_NOM_OFFICIEL_LOCK')); ?>">
     </div>
     <div class="col-md-3">
       <input type="date" name="brevets[][obtention]" class="form-control"

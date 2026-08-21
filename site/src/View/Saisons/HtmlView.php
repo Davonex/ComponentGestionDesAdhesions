@@ -18,6 +18,7 @@ class HtmlView extends BaseHtmlView
     public ?object $saisonCourante = null;
     public array $listeSaisons = [];
     public array $groupes = [];
+    public array $activites = [];
     public ?\Joomla\CMS\Form\Form $formCourante = null;
     public ?\Joomla\CMS\Form\Form $formAjout = null;
 
@@ -41,6 +42,7 @@ class HtmlView extends BaseHtmlView
         $this->saisonCourante = $model->getSaisonCourante();
         $this->listeSaisons   = $model->getListeSaisons();
         $this->groupes        = $groupesService->getAllGroupes();
+        $this->activites      = $groupesService->getActivitesDisponibles();
         $this->formCourante   = $model->getFormCourante($this->buildDataCourante($this->saisonCourante));
         $this->formAjout      = $model->getFormAjout();
 

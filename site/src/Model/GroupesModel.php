@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\MVC\Model\ListModel;
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
+use NCB\Component\Gda\Site\Service\BrevetService;
 
 /**
  * Groupes Model
@@ -28,6 +29,8 @@ class GroupesModel extends ListModel
      * @since  1.0.0
      */
     protected $context = 'com_gdadhesions.groupes';
+
+    private ?BrevetService $brevetService = null;
 
     /**
      * Récupère les groupes publiés avec la liste des adhérents inscrits pour la campagne donnée.
@@ -56,6 +59,7 @@ class GroupesModel extends ListModel
                 $db->quoteName('p.photo'),
                 $db->quoteName('p.caci'),
                 $db->quoteName('p.date_caci'),
+                $db->quoteName('p.date_licence'),
             ])
             ->from($db->quoteName('#__gda_groupes', 'g'))
             ->join(
@@ -100,17 +104,70 @@ class GroupesModel extends ListModel
             $adherent->caci = $row->caci;
             $adherent->date_caci = $row->date_caci;
             $adherent->caci_status = AdhesionStatusHelper::getCaciFileStatus($row->caci, $row->date_caci);
+            $adherent->date_licence = $row->date_licence;
+            $adherent->licence_status = AdhesionStatusHelper::getLicenceValidityStatus($row->date_licence);
 
             $groupes[$idGroupe]->adherents[] = $adherent;
         }
 
         $groupesList = array_values($groupes);
 
+        $this->enrichirBrevetsShortList($groupesList);
+
         if (!empty($groupesList)) {
             array_unshift($groupesList, $this->buildGroupeTous($groupesList));
         }
 
         return $groupesList;
+    }
+
+    /**
+     * Enrichit chaque adhérent de sa shortlist de brevets (getBrevetsShortListProfils), en un
+     * seul appel pour tous les profils de tous les groupes — évite le N+1 requêtes.
+     *
+     * Un adhérent présent dans plusieurs groupes existe comme autant d'objets distincts (voir la
+     * boucle de construction ci-dessus, chaque ligne de #__gda_composition_groupes crée un nouvel
+     * stdClass) : les propriétés sont donc bien affectées à chaque instance individuellement, pas
+     * une seule fois via une référence partagée.
+     *
+     * @param array<int, object> $groupes Liste des groupes (avec leurs adhérents) ; les objets
+     *                                     adhérent sont modifiés en place (ajout de brevets_shortlist).
+     */
+    private function enrichirBrevetsShortList(array $groupes): void
+    {
+        $idProfils = [];
+
+        foreach ($groupes as $groupe) {
+            foreach ($groupe->adherents as $adherent) {
+                $idProfils[] = $adherent->id_profil;
+            }
+        }
+
+        $idProfils = array_values(array_unique($idProfils));
+
+        if ($idProfils === []) {
+            return;
+        }
+
+        $shortLists = $this->getBrevetService()->getBrevetsShortListProfils($idProfils);
+
+        foreach ($groupes as $groupe) {
+            foreach ($groupe->adherents as $adherent) {
+                $adherent->brevets_shortlist = $shortLists[$adherent->id_profil] ?? [];
+            }
+        }
+    }
+
+    /**
+     * Getter pour obtenir le service Brevet (lazy loading). Même pattern que ProfilModel::getBrevetService().
+     */
+    private function getBrevetService(): BrevetService
+    {
+        if ($this->brevetService === null) {
+            $this->brevetService = new BrevetService($this->getDatabase());
+        }
+
+        return $this->brevetService;
     }
 
     /**

@@ -1,0 +1,189 @@
+/*
+ * Vue Trombinoscope (com_gdadhesions) — habillage "portrait officiel" sur fond profond.
+ *
+ * Toutes les regles sont scopees sous .gda-trombinoscope (conteneur du carousel dans
+ * tmpl/trombinoscope/default.php) : le theme sombre ne deborde jamais sur le reste du site
+ * ni sur les autres vues du composant.
+ *
+ * Palette derivee de la charte du club (--logo-gauche / --logo-droit, definies dans gda.css)
+ * plutot que de bleus arbitraires, pour rester coherent avec les autres vues.
+ */
+
+.gda-trombinoscope {
+    /* Tokens locaux : un seul endroit a retoucher pour ajuster l'ambiance. */
+    --gda-trombi-deep: color-mix(in srgb, var(--logo-gauche, #3d6e79) 45%, #01131c);
+    --gda-trombi-mid: color-mix(in srgb, var(--logo-gauche, #3d6e79) 92%, #000);
+    --gda-trombi-glow: color-mix(in srgb, var(--logo-droit, #94cec8) 70%, transparent);
+    --gda-trombi-surface: rgba(255, 255, 255, .13);
+    --gda-trombi-surface-hover: rgba(255, 255, 255, .19);
+    --gda-trombi-border: rgba(255, 255, 255, .30);
+    --gda-trombi-text-soft: rgba(255, 255, 255, .78);
+
+    color: var(--noir);
+    border: 1px solid var(--gda-trombi-border);
+    border-radius: 1rem;
+    background-color: var(--gda-trombi-deep);
+    background-image:
+        radial-gradient(circle at 15% 8%, rgba(255, 255, 255, .14), transparent 30%),
+        radial-gradient(circle at 88% 30%, var(--gda-trombi-glow), transparent 32%),
+        linear-gradient(180deg, var(--gda-trombi-deep) 0%, var(--gda-trombi-mid) 48%, var(--gda-trombi-deep) 100%);
+}
+
+/* ---------------------------------------------------------------- Navigation par onglets */
+
+/* .wizard-nav (gda.css) est concu pour un fond clair : on ne le duplique pas, on ne
+   surcharge que les couleurs qui deviennent illisibles sur fond profond. */
+.gda-trombinoscope .wizard-nav {
+    border-bottom-color: rgba(255, 255, 255, .25);
+}
+
+.gda-trombinoscope .wizard-nav .nav-link {
+    color: var(--gda-trombi-text-soft);
+}
+
+.gda-trombinoscope .wizard-nav .nav-link:hover {
+    color: var(--blanc);
+    background-color: rgba(255, 255, 255, .10);
+    border-bottom-color: var(--logo-droit, #94cec8);
+}
+
+.gda-trombinoscope .wizard-nav .nav-link.active {
+    color: var(--blanc);
+    background-color: rgba(255, 255, 255, .12);
+    border-bottom-color: var(--logo-droit, #94cec8);
+}
+
+.gda-trombinoscope .wizard-nav .nav-link:focus-visible {
+    outline: 2px solid var(--logo-droit, #94cec8);
+    outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------------------ En-tete de vue */
+
+.gda-trombi-header {
+    text-shadow: 0 .15rem .35rem rgba(0, 0, 0, .30);
+}
+
+.gda-trombi-subtitle {
+    color: var(--gda-trombi-text-soft);
+}
+
+.gda-trombi-badge {
+    color: var(--blanc);
+    background-color: rgba(255, 255, 255, .15);
+    border: 1px solid rgba(255, 255, 255, .22);
+}
+
+/* ----------------------------------------------------------------------- Carte adherent */
+
+.gda-trombi-card {
+    overflow: hidden;
+    color: var(--blanc);
+    border: 1px solid var(--gda-trombi-border);
+    border-radius: 1.25rem;
+    background-color: var(--gda-trombi-surface);
+    box-shadow:
+        0 .75rem 1.75rem rgba(0, 0, 0, .18),
+        inset 0 1px 0 rgba(255, 255, 255, .18);
+    backdrop-filter: blur(8px);
+    transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+.gda-trombi-card:hover {
+    transform: translateY(-6px);
+    background-color: var(--gda-trombi-surface-hover);
+    box-shadow:
+        0 1.25rem 2.5rem rgba(0, 0, 0, .28),
+        inset 0 1px 0 rgba(255, 255, 255, .25);
+}
+
+.gda-trombi-photo-wrap {
+    position: relative;
+    padding: .9rem .9rem 0;
+}
+
+/* Degrade bas de photo : rattrape les portraits clairs qui se fondaient dans la carte. */
+.gda-trombi-photo-wrap::after {
+    content: "";
+    position: absolute;
+    right: 1.35rem;
+    bottom: .25rem;
+    left: 1.35rem;
+    height: 28%;
+    border-radius: 0 0 .8rem .8rem;
+    background: linear-gradient(transparent, rgba(0, 0, 0, .35));
+    pointer-events: none;
+}
+
+.gda-trombi-photo {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border: 3px solid rgba(255, 255, 255, .78);
+    border-radius: 1rem;
+    background-color: rgba(255, 255, 255, .15);
+    box-shadow: 0 .45rem 1rem rgba(0, 0, 0, .22);
+}
+
+/* Repli "photo absente" : initiales de l'adherent plutot qu'une icone generique. */
+.gda-trombi-photo--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    border: 3px solid rgba(255, 255, 255, .55);
+    border-radius: 1rem;
+    background-image:
+        radial-gradient(circle at 50% 35%, rgba(255, 255, 255, .25) 0 16%, transparent 17%),
+        linear-gradient(145deg, rgba(255, 255, 255, .18), rgba(0, 0, 0, .12));
+}
+
+.gda-trombi-card .card-body {
+    min-height: 88px;
+    border-top: none;
+    background-color: transparent;
+}
+
+.gda-trombi-name {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: .02em;
+}
+
+.gda-trombi-role {
+    font-size: 1rem;
+    color: var(--logo-gauche-900);
+}
+
+.gda-trombi-card:hover .gda-trombi-role {
+    color: var(--logo-gauche-100);
+}
+
+/* ------------------------------------------------------------- Etats vides / a venir */
+
+.gda-trombi-empty,
+.gda-trombi-comingsoon {
+    color: var(--gda-trombi-text-soft);
+}
+
+@media (max-width: 575.98px) {
+    .gda-trombi-photo--empty {
+        font-size: 2rem;
+    }
+}
+
+/* Respect de la preference systeme : pas de translation au survol. */
+@media (prefers-reduced-motion: reduce) {
+    .gda-trombi-card {
+        transition: none;
+    }
+
+    .gda-trombi-card:hover {
+        transform: none;
+    }
+}

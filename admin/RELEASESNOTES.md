@@ -1,5 +1,35 @@
 # Component com_gadhesions
 
+## Version 0.9.8
+
+  - 📰 Nouveautés
+    - Saisons - Activité rattachée à chaque groupe du club (référentiel FFESSM ou « Toutes »)
+    - Gestiondes des Brevets - Nouvelle vue (MDB) : administration du référentiel FFESSM et rattachement des brevets adhérents
+    - Brevets - Rattacher un brevet le renomme avec le libellé officiel FFESSM, qui devient non modifiable par l'adhérent
+
+  - 🔧 Améliorations
+    - Base - Colonne `niveau` du référentiel renommée en `poids` (le « niveau » restant celui du plongeur)
+    - Saisons - Largeur des colonnes du panneau « Groupes du club »
+    - Secretariat - Fixe la date de validité de licence pendant l'etape de Finalization 
+    - Groupes - Amélioration de la vue Détail et Vignette
+    - Utilisateurs - Amelioration des col Lic et Caci
+
+
+## Version 0.9.7
+
+  - 📰 Nouveautés
+    - Base - Table de mapping des brevets FFESSM (78 libellés officiels / code / activité)
+    - Trombinoscope - Membre du bureau 
+
+  - 🔧 Améliorations
+    - Utilisateurs - Separer la vue en 3 onglets
+    - Utilisateurs - bouton supprimer un adhérent 
+    - Utilisateurs - Possibilité de regenerer le mot de passe et de l'envoyer.
+
+  - 🪲 Bugs
+    - La photo de profil par défaut ne s'affichait pas 
+    - Sauvegarde validité de la licence.
+
 ## Version 0.9.6
 
   - 🔧 Améliorations

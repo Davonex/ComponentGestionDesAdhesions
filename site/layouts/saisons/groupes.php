@@ -1,27 +1,43 @@
 <?php
 
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
+use NCB\Component\Gda\Site\Service\GroupesService;
 
 /**
  * @var array $displayData
- * - $displayData['groupes'] : liste des groupes du club (id_groupe, groupe_name, groupe_tri, icon, published)
+ * - $displayData['groupes']   : liste des groupes du club (id_groupe, groupe_name, activite,
+ *                               groupe_tri, icon, published)
+ * - $displayData['activites'] : liste fermée des activités proposées, « Toutes » en tête
+ *                               (GroupesService::getActivitesDisponibles())
  *
  * Panneau de gestion des groupes du club (table globale #__gda_groupes, indépendante de la
  * saison). Réutilisé au chargement initial de la page ET pour rafraîchir le panneau après une
  * sauvegarde ajax réussie (voir SaisonsController::sauvegarderCourante()).
  */
 
-$groupes = $displayData['groupes'];
+$groupes   = $displayData['groupes'];
+$activites = $displayData['activites'];
+
+// Options du <select> d'activité : la liste est la même pour toutes les lignes, on ne la
+// reconstruit donc qu'une fois (seul l'attribut `selected` varie, posé par genericlist).
+$optionsActivite = array_map(
+    static fn(string $activite) => HTMLHelper::_('select.option', $activite, $activite),
+    $activites
+);
 
 ?>
 <div id="saisons-groupes-panel">
     <table class="table table-sm align-middle" id="table-groupes-club">
         <thead>
             <tr>
-                <th><?= Text::_('COM_GDA_SAISONS_GROUPES_NAME') ?></th>
-                <th class="text-center" style="width:6rem"><?= Text::_('COM_GDA_SAISONS_GROUPES_TRI') ?></th>
-                <th class="text-center"><?= Text::_('COM_GDA_SAISONS_GROUPES_ICON') ?></th>
-                <th class="text-center" style="width:6rem"><?= Text::_('COM_GDA_SAISONS_GROUPES_PUBLISHED') ?></th>
+                <?php // Largeurs effectives grâce au table-layout: fixed posé sur #table-groupes-club
+                      // (saisons-override.css) ; la colonne "Nom", sans width, prend le reste. ?>
+                <th style="width:28%"><?= Text::_('COM_GDA_SAISONS_GROUPES_NAME') ?></th>
+                <th style="width:28%"><?= Text::_('COM_GDA_SAISONS_GROUPES_ACTIVITE') ?></th>
+                <th class="text-center" style="width:10%"><?= Text::_('COM_GDA_SAISONS_GROUPES_TRI') ?></th>
+                <th class="text-center" style="width:21%"><?= Text::_('COM_GDA_SAISONS_GROUPES_ICON') ?></th>
+                <th class="text-center" style="width:13%"><?= Text::_('COM_GDA_SAISONS_GROUPES_PUBLISHED') ?></th>
             </tr>
         </thead>
         <tbody id="tbody-groupes-club">
@@ -32,6 +48,17 @@ $groupes = $displayData['groupes'];
                         <input type="text" class="form-control form-control-sm"
                             name="groupes[<?= $index ?>][groupe_name]"
                             value="<?= $this->escape($groupe->groupe_name) ?>">
+                    </td>
+                    <td>
+                        <?= HTMLHelper::_(
+                            'select.genericlist',
+                            $optionsActivite,
+                            'groupes[' . $index . '][activite]',
+                            ['class' => 'form-select form-select-sm js-groupe-activite'],
+                            'value',
+                            'text',
+                            $groupe->activite
+                        ) ?>
                     </td>
                     <td>
                         <input type="number" class="form-control form-control-sm text-center"
@@ -70,6 +97,17 @@ $groupes = $displayData['groupes'];
             <td>
                 <input type="hidden" name="groupes[__INDEX__][id_groupe]" value="0">
                 <input type="text" class="form-control form-control-sm" name="groupes[__INDEX__][groupe_name]" value="">
+            </td>
+            <td>
+                <?= HTMLHelper::_(
+                    'select.genericlist',
+                    $optionsActivite,
+                    'groupes[__INDEX__][activite]',
+                    ['class' => 'form-select form-select-sm js-groupe-activite'],
+                    'value',
+                    'text',
+                    GroupesService::ACTIVITE_TOUTES
+                ) ?>
             </td>
             <td>
                 <input type="number" class="form-control form-control-sm text-center" name="groupes[__INDEX__][groupe_tri]" value="0">

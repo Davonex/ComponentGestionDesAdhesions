@@ -101,7 +101,7 @@ class ProfilController extends BaseController
                     // URL déjà résolue (dossier ProfilPhotoPath/défaut) : évite de reconstruire ce chemin
                     // côté JS à partir du src d'une image existante, fragile si la ligne affichait
                     // jusque là la photo par défaut (dossier différent) ou n'avait pas encore d'<img>.
-                    'photoSrc'  => !empty($photo) ? FileHelper::getImageSrc($photo, 'ProfilPhotoPath', 'DefaultProfilPhoto', false) : '',
+                    'photoSrc'  => FileHelper::getImageSrc($photo, 'ProfilPhotoPath', 'DefaultProfilPhoto', false),
                 ];
                 $Response->message = Text::sprintf('COM_GDA_PROFIL_SAVED', trim(($savedData['nom'] ?? '') . ' ' . ($savedData['prenom'] ?? '')));
             } else {
@@ -454,7 +454,9 @@ class ProfilController extends BaseController
             $Response->data = base64_encode(LayoutHelper::render('profil.edit_form_popup', [
                 'form' => $form,
                 'photoFlag' => !empty($targetProfil->photo),
-                'photoSrc' => !empty($targetProfil->photo) ? FileHelper::getImageSrc($targetProfil->photo, 'ProfilPhotoPath', 'DefaultProfilPhoto', false) : '',
+                // Pas de ternaire sur la photo : getImageSrc() retombe déjà sur DefaultProfilPhoto
+                // quand la colonne est vide ou que le fichier n'existe plus (sinon src="" dans la modale).
+                'photoSrc' => FileHelper::getImageSrc($targetProfil->photo, 'ProfilPhotoPath', 'DefaultProfilPhoto', false),
                 'itemid' => $activeMenuItem->id ?? 0,
                 'title' => $title,
             ]));

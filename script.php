@@ -35,6 +35,7 @@ class com_gdadhesionsInstallerScript
     private $data_groupes = [];
     private $data_utilisateurs = [];
     private $data_saisons = [];
+    private $data_brevets = [];
 
     private $templateStyleId = NULL;
 
@@ -169,6 +170,9 @@ class com_gdadhesionsInstallerScript
         //== creation menu pour la gestion des saisons (visible uniquement par les membres du bureau) ===
         $this->createSaisonsMenuItem($idMenuAdherent);
 
+        //== creation menu pour la gestion des brevets (visible uniquement par les membres du bureau) ===
+        $this->createBrevetsMenuItem($idMenuAdherent);
+
 
         $data_dma = [
             'name' => 'MATHIEU Didier',
@@ -194,6 +198,9 @@ class com_gdadhesionsInstallerScript
 
         // creation du menu "Saisons" pour les sites déjà installés (< 0.8.1)
         $this->addSaisonsMenuItemOnUpdate();
+
+        // creation du menu "Brevets" pour les sites déjà installés (< 0.9.8)
+        $this->addBrevetsMenuItemOnUpdate();
 
         return true;
     }
@@ -358,6 +365,60 @@ class com_gdadhesionsInstallerScript
         ];
 
         $this->createFrontendMenuItem($this->data_saisons);
+    }
+
+    /**
+     * Ajoute le menu "Brevets" pour les sites déjà installés (mise à jour depuis une version
+     * antérieure à 0.9.8). Même mécanique que addSaisonsMenuItemOnUpdate() : les données de
+     * contexte ne sont pas initialisées dans update() comme elles le sont dans install(), et
+     * createUserGroup() / createAccessLevel() / createFrontendMenuItem() sont idempotents.
+     */
+    private function addBrevetsMenuItemOnUpdate(): void
+    {
+        $this->componentId = $this->componentId ?: $this->getComponentId();
+        $this->templateStyleId = $this->templateStyleId ?: $this->getDefaultSiteTemplateStyleId();
+
+        $this->groupIdBureau = $this->groupIdBureau ?: $this->createUserGroup('Membre du Bureau', 2);
+        $this->accessLevelIdBureau = $this->accessLevelIdBureau
+            ?: $this->createAccessLevel('NA Bureau', [$this->groupIdBureau]);
+
+        $idMenuAdherent = $this->getMenuIdByAlias('adherents');
+
+        if ($idMenuAdherent === null) {
+            Factory::getApplication()->enqueueMessage(
+                'Menu parent "adherents" introuvable, impossible de créer le menu "Brevets"',
+                'warning'
+            );
+            return;
+        }
+
+        $this->createBrevetsMenuItem($idMenuAdherent);
+    }
+
+    /**
+     * Créé le menu frontend "Brevets" (accès réservé au Bureau) sous le menu parent donné.
+     * Donne accès au référentiel FFESSM (#__gda_mapping_brevets) et au rattachement des brevets
+     * saisis par les adhérents qu'il n'a pas su reconnaître automatiquement.
+     *
+     * @param int $parentMenuId Identifiant du menu parent (ex: "Adhérents").
+     */
+    private function createBrevetsMenuItem(int $parentMenuId): void
+    {
+        $this->data_brevets = [
+            'title'        => 'Brevets',
+            'alias'        => 'brevets_mgt',
+            'menutype'     => 'mainmenu',
+            'link'         => 'index.php?option=com_gdadhesions&view=brevets',
+            'path'         => 'adherents/brevets',
+            'type'         => 'component',
+            'parent_id'    => $parentMenuId,
+            'level'        => 2,
+            'component_id' => $this->componentId,
+            'access'       => $this->accessLevelIdBureau, // Accès réservé au Bureau
+            'params'       => [],
+        ];
+
+        $this->createFrontendMenuItem($this->data_brevets);
     }
 
     /**

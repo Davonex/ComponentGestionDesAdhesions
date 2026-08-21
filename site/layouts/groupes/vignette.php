@@ -27,6 +27,9 @@ $adherents = $groupe->adherents;
             $dateCaci = ToolsHelper::from_sqldate($adherent->date_caci);
             $statusLabel = AdhesionStatusHelper::getStatusLabel($adherent->caci_status);
             $statusClass = AdhesionStatusHelper::getStatusBadgeClass($adherent->caci_status);
+            $dateLicence = ToolsHelper::from_sqldate($adherent->date_licence);
+            $licenceStatusLabel = AdhesionStatusHelper::getStatusLabel($adherent->licence_status);
+            $licenceStatusClass = AdhesionStatusHelper::getStatusBadgeClass($adherent->licence_status);
             ?>
             <div class="col">
                 <div class="card h-100 text-center">
@@ -50,18 +53,18 @@ $adherents = $groupe->adherents;
                         <?php if (!empty($pathCaci)) : ?>
                             <a
                                 href="#"
-                                class="js-caci-thumb badge bg-<?= $this->escape($statusClass) ?> text-decoration-none"
+                                class="badge bg-<?= $this->escape($statusClass) ?> js-caci-thumb"
                                 data-image-src="<?= $this->escape($pathCaci) ?>"
                                 data-image-alt="<?= $this->escape(Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI')) ?>"
                                 data-bs-toggle="modal"
                                 data-bs-target="#imagePreviewModal"
-                                aria-label="<?= $this->escape(Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI')) ?>">
-                                <?= $this->escape($statusLabel) ?>
+                                title="<?= $this->escape($statusLabel) ?>">
+                                <?= $dateCaci !== '' ? $this->escape($dateCaci) : '&mdash;' ?>
                             </a>
                         <?php else : ?>
-                            <span class="badge bg-<?= $this->escape($statusClass) ?>"><?= $this->escape($statusLabel) ?></span>
+                            <span class="badge bg-<?= $this->escape($statusClass) ?>" title="<?= $this->escape($statusLabel) ?>"><?= $dateCaci !== '' ? $this->escape($dateCaci) : '&mdash;' ?></span>
                         <?php endif; ?>
-                        <small class="text-muted"><?= $this->escape($dateCaci) ?></small>
+                        <span class="badge bg-<?= $this->escape($licenceStatusClass) ?>" title="<?= $this->escape($licenceStatusLabel) ?>"><?= $dateLicence !== '' ? $this->escape($dateLicence) : '&mdash;' ?></span>
                     </div>
                 </div>
             </div>

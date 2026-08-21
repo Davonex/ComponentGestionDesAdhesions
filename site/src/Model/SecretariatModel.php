@@ -15,6 +15,7 @@ use Joomla\CMS\MVC\Model\ListModel;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\User\UserFactoryInterface;
+use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
@@ -300,6 +301,10 @@ class SecretariatModel extends ListModel
       }
 
       try {
+        // Pas d'erreur si 0 ligne affectee : le profil #__gda_profils peut legitimement etre
+        // absent pour ce user.id (compte cree/importe sans profil metier, ou profil deja
+        // supprime lors d'une manipulation precedente). L'objectif ici reste la suppression
+        // complete du compte Joomla, qui se fait plus bas quel que soit ce cas.
         $deleteProfil = $db->getQuery(true)
           ->delete($db->quoteName('#__gda_profils'))
           ->where($db->quoteName('id_profil') . ' = :id_profil')
@@ -307,10 +312,6 @@ class SecretariatModel extends ListModel
 
         $db->setQuery($deleteProfil);
         $db->execute();
-
-        if ((int) $db->getAffectedRows() === 0) {
-          throw new \RuntimeException('Aucune ligne supprimée dans #__gda_profils.');
-        }
       } catch (\Throwable $e) {
         throw new \RuntimeException('Suppression impossible dans #__gda_profils: ' . $e->getMessage(), 500, $e);
       }
@@ -708,16 +709,26 @@ class SecretariatModel extends ListModel
         throw new \RuntimeException('Aucune souscription mise a jour.');
       }
 
-      if ($currentPrefix === 'N') {
-        $clearProfileKeyQuery = $db->getQuery(true)
-          ->update($db->quoteName('#__gda_profils'))
-          ->set($db->quoteName('key') . ' = NULL')
-          ->where($db->quoteName('id_profil') . ' = :id_profil')
-          ->bind(':id_profil', $idProfil);
+      /**
+       * Fin de validite de la licence : 31/12 de l'annee suivante si l'enregistrement a lieu
+       * a partir de septembre, sinon 31/12 de l'annee en cours (saison federale en cours).
+       * La cle de re-edition du dossier n'a plus lieu d'etre pour un nouvel adherent finalise.
+       */
+      $dateFinLicence = AdhesionStatusHelper::computeDateFinValiditeLicence($now);
 
-        $db->setQuery($clearProfileKeyQuery);
-        $db->execute();
+      $profilQuery = $db->getQuery(true)
+        ->update($db->quoteName('#__gda_profils'))
+        ->set($db->quoteName('date_licence') . ' = :date_licence')
+        ->where($db->quoteName('id_profil') . ' = :id_profil')
+        ->bind(':date_licence', $dateFinLicence)
+        ->bind(':id_profil', $idProfil);
+
+      if ($currentPrefix === 'N') {
+        $profilQuery->set($db->quoteName('key') . ' = NULL');
       }
+
+      $db->setQuery($profilQuery);
+      $db->execute();
 
       $db->transactionCommit();
 

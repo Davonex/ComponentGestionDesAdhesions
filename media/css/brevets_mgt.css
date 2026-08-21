@@ -1,0 +1,34 @@
+/*
+ * Vue « Brevets » (Bureau) — référentiel FFESSM et rattachement des brevets adhérents.
+ */
+
+/* Les cellules éditables au double-clic doivent le signaler : sans indice visuel, rien ne
+   distingue une cellule modifiable d'une cellule en lecture seule. */
+.gda-brevets .js-editable-code,
+.gda-brevets .js-editable-poids,
+.gda-brevets .js-editable-nom-brevet,
+.gda-brevets .js-editable-mapping {
+    cursor: pointer;
+}
+
+.gda-brevets .js-editable-code:hover,
+.gda-brevets .js-editable-poids:hover,
+.gda-brevets .js-editable-nom-brevet:hover,
+.gda-brevets .js-editable-mapping:hover {
+    outline: 1px dashed var(--bs-secondary, #6c757d);
+    outline-offset: -1px;
+}
+
+/* L'onglet « Brevets des adhérents » affiche plus d'un millier de lignes : une hauteur de
+   vignette figée évite que le navigateur ne repositionne le tableau au fil du chargement
+   différé des photos (loading="lazy"). */
+.gda-brevets .gda-preview-thumb--32 {
+    flex: 0 0 auto;
+}
+
+/* La colonne du référentiel ne sert qu'au filtrage par activité : elle n'a pas besoin de
+   s'étaler autant que le libellé officiel. */
+#tableMappingBrevets td:nth-child(2),
+#tableMappingBrevets th:nth-child(2) {
+    white-space: nowrap;
+}

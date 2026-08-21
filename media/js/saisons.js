@@ -257,6 +257,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fragment.querySelectorAll('[name]').forEach(function (el) {
             el.name = el.name.replace('__INDEX__', String(index));
+
+            // Le <select> d'activité porte un id dérivé de son name : le réindexer aussi, sinon
+            // deux lignes ajoutées à la suite partageraient le même id.
+            if (el.id) {
+                el.id = el.id.replace('__INDEX__', String(index));
+            }
         });
 
         tbody.appendChild(fragment);

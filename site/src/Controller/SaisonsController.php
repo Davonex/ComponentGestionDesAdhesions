@@ -72,7 +72,10 @@ class SaisonsController extends BaseController
             $Response->success = true;
             $Response->message = Text::sprintf('COM_GDA_SAISONS_SAVED', $data['titre']);
             $Response->data = base64_encode(
-                LayoutHelper::render('saisons.groupes', ['groupes' => $groupesService->getAllGroupes()])
+                LayoutHelper::render('saisons.groupes', [
+                    'groupes'   => $groupesService->getAllGroupes(),
+                    'activites' => $groupesService->getActivitesDisponibles(),
+                ])
             );
         } catch (\Throwable $e) {
             $Response->success = false;

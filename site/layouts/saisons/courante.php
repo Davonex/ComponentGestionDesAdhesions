@@ -9,12 +9,15 @@ use NCB\Component\Gda\Site\Helper\FileHelper;
  * @var array $displayData
  * - $displayData['saison']  : objet campagne (saison courante), ou null si aucune n'est déclarée
  * - $displayData['form']    : Form de la saison courante
- * - $displayData['groupes'] : liste des groupes du club (id_groupe, groupe_name, groupe_tri, icon, published)
+ * - $displayData['groupes']   : liste des groupes du club (id_groupe, groupe_name, activite,
+ *                               groupe_tri, icon, published)
+ * - $displayData['activites'] : liste fermée des activités proposées pour un groupe
  */
 
-$saison  = $displayData['saison'];
-$form    = $displayData['form'];
-$groupes = $displayData['groupes'];
+$saison    = $displayData['saison'];
+$form      = $displayData['form'];
+$groupes   = $displayData['groupes'];
+$activites = $displayData['activites'];
 
 ?>
 
@@ -63,7 +66,7 @@ $groupes = $displayData['groupes'];
 
             <div class="col-12 col-lg-6">
                 <h3 class="h6"><?= Text::_('COM_GDA_SAISONS_GROUPES_TITLE') ?></h3>
-                <?= LayoutHelper::render('saisons.groupes', ['groupes' => $groupes]) ?>
+                <?= LayoutHelper::render('saisons.groupes', ['groupes' => $groupes, 'activites' => $activites]) ?>
             </div>
         </div>
 
