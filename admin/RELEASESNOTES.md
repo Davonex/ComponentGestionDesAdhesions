@@ -1,5 +1,23 @@
 # Component com_gadhesions
 
+## Version 0.9.9
+  - 📰 Nouveautés
+
+  - 📈 Améliorations
+    - Adhesion : contraint bloquante enfant de moin de 8an au 1 sept.
+    - Adhesion: contrainte non bloquante choisir reduction famille pour un mineur.
+    - Adhesion: message popup et mail pour aider l"enregistrement dans HelloAsso 
+    - Campagnes: Ajout du rôle
+    
+    
+
+  - 🪲 Bugs
+    - Secretariat/Utilisateurs - Erreur JS possible lors de la perte de focus de la fenêtre (édition en ligne Date CACI / Catégorie / Fonction)
+    - les Label et description dans la creation des menus.
+    - Secretariat: Correction  du retours de l'API d'HelloAsso
+      - Plusieurs commande avec 1 piement 
+      - Prendre en compte les reductions
+
 ## Version 0.9.8
 
   - 📰 Nouveautés

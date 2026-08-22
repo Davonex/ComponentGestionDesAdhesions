@@ -16,7 +16,9 @@ use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
 // use NCB\Component\Gda\Site\Model\AdhesionModel;
 use Joomla\CMS\Layout\LayoutHelper;
+use Joomla\Database\DatabaseInterface;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
+use NCB\Component\Gda\Site\Service\CotisationService;
 
 
 
@@ -52,6 +54,9 @@ class AdhesionController extends BaseController
                 // aucune licence n'a été trouvée
                 $Response->success = false;
                 $Response->message = Text::_('COM_GDA_ADHESION_SCAN_NOT_FOUND');
+                $Response->data = base64_encode(LayoutHelper::render('adhesion.alert', ['alerts' => [
+                    ['title' => Text::_('COM_GDA_ADHESION_SCAN_TITLE'), 'message' => $Response->message],
+                ]]));
 
                 echo $Response;
                 $app->close();
@@ -73,6 +78,9 @@ class AdhesionController extends BaseController
                 // la licence scannée appartient à un compte existant qui n'est pas celui édité
                 $Response->success = false;
                 $Response->message = Text::sprintf('COM_GDA_ADHESION_SCAN_EXISTS', $porteur);
+                $Response->data = base64_encode(LayoutHelper::render('adhesion.alert', ['alerts' => [
+                    ['title' => Text::_('COM_GDA_ADHESION_SCAN_TITLE'), 'message' => $Response->message],
+                ]]));
             } else {
                 // la licence trouvée est valide et peut être utilisée pour l'adhésion
                 $Response->success = true;
@@ -130,6 +138,19 @@ class AdhesionController extends BaseController
             ** Ajoute aussi la date de la dernière mise à jour pour le profil
              */
             $data = $model->fixdata($data);
+
+            // Âge minimum du club : contrôle bloquant, à revérifier ici même si le bouton Valider
+            // est déjà désactivé côté client (media/com_gdadhesions/js/adhesions.js) - une requête
+            // ajax directe ne passerait pas par ce garde-fou JS.
+            $cotisationCheck = new CotisationService(
+                Factory::getContainer()->get(DatabaseInterface::class),
+                ['dateDeNaissance' => $data['date_de_naissance'] ?? '', 'reduction' => $data['reduction'] ?? 0]
+            );
+
+            if (!$cotisationCheck->isAgeMinimumRespecte()) {
+                throw new \Exception(Text::_('COM_GDA_ADHESION_AGE_MINIMUM_MESSAGE'));
+            }
+
             $app->setUserState('adhesion.save', $data);
 
             $app->setUserState('adhesion.brevets', $arr_brevets);

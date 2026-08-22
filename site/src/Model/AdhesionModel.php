@@ -988,7 +988,11 @@ class AdhesionModel extends FormModel
         }
 
         try {
-            return $this->getNotificationMailService()->sendProfileWelcomeEmail((int) $data['id']);
+            return $this->getNotificationMailService()->sendProfileWelcomeEmail(
+                (int) $data['id'],
+                (string) ($data['helloasso'] ?? '0'),
+                (string) ($data['cotisation_code'] ?? '')
+            );
         } catch (\Exception $e) {
             throw new \Exception('Erreur lors de l\'envoi du mail: ' . $e->getMessage(), 500);
         }
@@ -1019,7 +1023,11 @@ class AdhesionModel extends FormModel
         }
 
         try {
-            return $this->getNotificationMailService()->sendProfileUpdateEmail((int) $data['id']);
+            return $this->getNotificationMailService()->sendProfileUpdateEmail(
+                (int) $data['id'],
+                (string) ($data['helloasso'] ?? '0'),
+                (string) ($data['cotisation_code'] ?? '')
+            );
         } catch (\Exception $e) {
             return false;
         }

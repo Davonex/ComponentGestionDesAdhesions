@@ -9,6 +9,7 @@ use Joomla\CMS\Response\JsonResponse;
 use Joomla\CMS\Application\CMSApplication;
 use NCB\Component\Gda\Site\Service\CotisationService;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Layout\LayoutHelper;
 
 class FormController extends BaseController
 {
@@ -62,7 +63,10 @@ class FormController extends BaseController
                     $Response->success = true;
                 } else {
                     $Response->success = false;
-                    $Response->message = "Cette Adresse mail existe déjà !";
+                    $Response->message = Text::_('COM_GDA_ADHESION_EMAIL_EXISTS_MESSAGE');
+                    $Response->data = base64_encode(LayoutHelper::render('adhesion.alert', ['alerts' => [
+                        ['title' => Text::_('COM_GDA_ADHESION_EMAIL_EXISTS_TITLE'), 'message' => $Response->message],
+                    ]]));
                 }
             }
         } catch (\Exception $e) {
@@ -106,7 +110,10 @@ class FormController extends BaseController
                 $db->setQuery($query);
                 $Response->success = (int) $db->loadResult() == 0;
                 if (! $Response->success) {
-                    $Response->message = "Cette Licence existe déjà !";
+                    $Response->message = Text::_('COM_GDA_ADHESION_LICENCE_EXISTS_MESSAGE');
+                    $Response->data = base64_encode(LayoutHelper::render('adhesion.alert', ['alerts' => [
+                        ['title' => Text::_('COM_GDA_ADHESION_LICENCE_EXISTS_TITLE'), 'message' => $Response->message],
+                    ]]));
                 }
             }
         } catch (\Exception $e) {
@@ -137,6 +144,20 @@ class FormController extends BaseController
             $result['montant'] =  CotisationService::getMontant($result['code'], Factory::getContainer()->get('DatabaseDriver'));
             // mettre la decription de la cotisation et concatener le montant en Euro avec 0 decimale
             $result['innerHtml'] = Text::_('COM_GDA_COTISATION_TARIF_' . $result['code']) . ' : <pan class="fw-bold">' . number_format($result['montant'], 0, ',', ' ') . ',00 €</span>';
+            // Contrôles métier (popups côté client) : réduction Famille réservée aux adultes
+            // (avertissement, ne bloque pas), âge minimum du club (bloquant). Le message est
+            // rendu ici, côté serveur, via le layout adhesion.alert pour rester modifiable au
+            // même endroit que le reste du gabarit de la vue.
+            $alerts = [];
+            if (!$service->isAgeMinimumRespecte()) {
+                $alerts[] = ['title' => Text::_('COM_GDA_ADHESION_AGE_MINIMUM_TITLE'), 'message' => Text::_('COM_GDA_ADHESION_AGE_MINIMUM_MESSAGE')];
+            }
+            if (!$service->isReductionFamilleValide()) {
+                $alerts[] = ['title' => Text::_('COM_GDA_ADHESION_REDUCTION_FAMILLE_TITLE'), 'message' => Text::_('COM_GDA_ADHESION_REDUCTION_FAMILLE_MESSAGE')];
+            }
+
+            $result['age_minimum_non_respecte'] = !$service->isAgeMinimumRespecte();
+            $result['alert_html'] = $alerts !== [] ? base64_encode(LayoutHelper::render('adhesion.alert', ['alerts' => $alerts])) : null;
             $Response->data = $result;
             $Response->success = true;
         } catch (\Exception $e) {

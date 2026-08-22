@@ -31,8 +31,6 @@ $wa->useStyle('com_gdadhesions.file_upload');
 $wa->useScript('com_gdadhesions.html5-qrcode');
 $wa->useStyle('com_gdadhesions.html5-qrcode');
 $wa->useScript('com_gdadhesions.qr_scanner');
-// Popups (retour du scan QR)
-$wa->useScript('com_gdadhesions.dialog');
 // FFESSM Scrap
 $wa->useScript('com_gdadhesions.scrap-ffessm');
 // Main Adhesion JS
@@ -49,9 +47,6 @@ $wa->useScript('com_gdadhesions.brevets');
 $wa->useStyle('com_gdadhesions.tom-select');
 $wa->useScript('com_gdadhesions.tom-select');
 
-// Jommla Dialog
-$wa->useScript('joomla.dialog');
-
 Text::script('COM_GDADHESIONS_DROIT_IMAGE_OUI');
 Text::script('COM_GDADHESIONS_DROIT_IMAGE_NON');
 Text::script('COM_GDADHESIONS_PAS_DE_LICENCE');
@@ -61,15 +56,13 @@ Text::script('COM_GDA_ADHESION_RECAP_CACI_CHARGE');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_NON_CHARGE');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_NON_RENSEIGNE');
 
-Text::script('COM_GDA_QRCODE_CAMERA_ERROR');
-
-// Popups de retour du scan de la carte licence
-Text::script('COM_GDA_ADHESION_SCAN_TITLE');
+// Message de confirmation du scan de la carte licence (construit côté JS avec le porteur et le
+// nombre de brevets renvoyés par l'ajax ; le reste des popups - alerte, âge minimum, réduction
+// Famille - est rendu côté serveur par le layout adhesion.alert, cf. #adhesionAlertModal).
 Text::script('COM_GDA_ADHESION_SCAN_CONFIRM');
 Text::script('COM_GDA_ADHESION_SCAN_CONFIRM_WARN');
+// Repli si le scan échoue par erreur réseau (pas de réponse serveur à rendre).
 Text::script('COM_GDA_ADHESION_SCAN_NOT_FOUND');
-Text::script('COM_GDA_CANCEL');
-Text::script('COM_GDA_CONFIRM');
 
 Text::script('COM_GDA_ADHESION_HEADER_STEP1');
 Text::script('COM_GDA_ADHESION_HEADER_STEP2');
@@ -80,6 +73,25 @@ Text::script('COM_GDA_ADHESION_HEADER_STEP3');
 // Passer les brevets en JSON à JavaScript
 $brevetData = isset($this->brevets) && is_array($this->brevets) ? json_encode($this->brevets) : json_encode([]);
 $app->getDocument()->addScriptOptions('com_gdadhesions.brevets', $brevetData);
+
+// Popup d'erreur caméra (scanner QR) : rendue une fois ici (message statique) via le layout
+// adhesion.alert, pour rester sur le même mécanisme que les autres popups de la vue - pas de
+// round-trip serveur possible, l'échec d'accès à la caméra est purement côté navigateur.
+$cameraErrorAlertHtml = base64_encode(LayoutHelper::render('adhesion.alert', ['alerts' => [
+    ['title' => Text::_('COM_GDA_ADHESION_SCAN_TITLE'), 'message' => Text::_('COM_GDA_QRCODE_CAMERA_ERROR')],
+]]));
+$app->getDocument()->addScriptOptions('com_gdadhesions.cameraErrorAlert', $cameraErrorAlertHtml);
+
+// Popup "formulaire incomplet" (garde de navigation du wizard) : même principe, message statique
+// rendu une seule fois ici plutôt qu'à chaque changement d'étape.
+$stepInvalidAlertHtml = base64_encode(LayoutHelper::render('adhesion.alert', ['alerts' => [
+    ['title' => Text::_('COM_GDA_ADHESION_STEP_INVALID_TITLE'), 'message' => Text::_('COM_GDA_ADHESION_STEP_INVALID_MESSAGE')],
+]]));
+$app->getDocument()->addScriptOptions('com_gdadhesions.stepInvalidAlert', $stepInvalidAlertHtml);
+
+// Titre de la popup d'erreur d'upload (photo/CACI) : le message lui-même est dynamique (nom de
+// fichier, taille), construit côté JS - cf. showAdhesionAlertText() dans adhesions.js.
+Text::script('COM_GDA_ADHESION_UPLOAD_ERROR_TITLE');
 
 
 
@@ -493,11 +505,6 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
 </div> <!-- Close carousel slide -->
 
 
-<script>
-
-</script>
-
-
 <!-- Template brevet caché (partagé avec la modale d'édition des brevets de la vue Profil) -->
 <?= LayoutHelper::render('brevets.row_template'); ?>
 
@@ -518,21 +525,42 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
 
 
 
-<script type="module">
-  import JoomlaDialog from 'joomla.dialog';
-  const dialog = new JoomlaDialog({
-    popupType: 'iframe',
-    textHeader: 'The header',
-    src: 'https://www.helloasso-sandbox.com/associations/asso-didou/adhesions/adhesion-ncb-saison-2026-2027/widget'
-    // buttons: [{
-    //   text: 'Fermer',
-    //   click: (dialog) => dialog.close()
-    // }],
-    // width: '80%',
-    // height: 'auto',
-    // modal: true
-  });
+<!-- Popup de confirmation d'adhésion (contenu : layout adhesion.popup, injecté par CBsubmitformAdhesion) -->
+<div class="modal fade" id="adhesionPopupModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" id="adhesionPopupModalContent">
+      <!-- Contenu chargé dynamiquement (layout adhesion.popup) -->
+    </div>
+  </div>
+</div>
 
-  // Ouvrir la modale
-  // dialog.open();
-</script>
+<!-- Popup d'alerte métier (contenu : layout adhesion.alert, injecté au fil des contrôles - scan, âge minimum, réduction Famille) -->
+<div class="modal fade" id="adhesionAlertModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" id="adhesionAlertModalContent">
+      <!-- Contenu chargé dynamiquement (layout adhesion.alert) -->
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation du scan de la carte licence : cas particulier piloté entièrement en JS (message
+     construit avec le porteur/nombre de brevets renvoyés par l'ajax), boutons fixes comme pour
+     #deleteAdherentModal côté Secrétariat. -->
+<div class="modal fade" id="adhesionScanConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><?= Text::_('COM_GDA_ADHESION_SCAN_TITLE') ?></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= $this->escape(Text::_('JCLOSE')) ?>"></button>
+      </div>
+      <div class="modal-body">
+        <p id="adhesionScanConfirmMessage" class="mb-2"></p>
+        <p id="adhesionScanConfirmWarning" class="text-warning small mb-0"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= Text::_('COM_GDA_CANCEL') ?></button>
+        <button type="button" class="btn btn-primary" id="adhesionScanConfirmSubmit"><?= Text::_('COM_GDA_CONFIRM') ?></button>
+      </div>
+    </div>
+  </div>
+</div>

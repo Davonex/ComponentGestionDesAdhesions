@@ -192,24 +192,28 @@ class NotificationMailService
    * Envoie le mail de mise a jour du profil adherent.
    *
    * @param int $idProfil
+   * @param string $helloasso Valeur du champ formulaire 'helloasso' ('0' = paiement HelloAsso a faire)
+   * @param string $cotisationCode Code cotisation retenu (#jform_cotisation_code), pour le rappel du tarif
    *
    * @return bool
    */
-  public function sendProfileUpdateEmail(int $idProfil): bool
+  public function sendProfileUpdateEmail(int $idProfil, string $helloasso = '0', string $cotisationCode = ''): bool
   {
-    return $this->sendProfileLifecycleEmail($idProfil, self::PROFILE_MAIL_MODE_UPDATE);
+    return $this->sendProfileLifecycleEmail($idProfil, self::PROFILE_MAIL_MODE_UPDATE, $helloasso, $cotisationCode);
   }
 
   /**
    * Envoie le mail de creation du profil adherent.
    *
    * @param int $idProfil
+   * @param string $helloasso Valeur du champ formulaire 'helloasso' ('0' = paiement HelloAsso a faire)
+   * @param string $cotisationCode Code cotisation retenu (#jform_cotisation_code), pour le rappel du tarif
    *
    * @return bool
    */
-  public function sendProfileWelcomeEmail(int $idProfil): bool
+  public function sendProfileWelcomeEmail(int $idProfil, string $helloasso = '0', string $cotisationCode = ''): bool
   {
-    return $this->sendProfileLifecycleEmail($idProfil, self::PROFILE_MAIL_MODE_CREATE);
+    return $this->sendProfileLifecycleEmail($idProfil, self::PROFILE_MAIL_MODE_CREATE, $helloasso, $cotisationCode);
   }
 
   /**
@@ -217,10 +221,12 @@ class NotificationMailService
    *
    * @param int $idProfil
    * @param string $mode
+   * @param string $helloasso
+   * @param string $cotisationCode
    *
    * @return bool
    */
-  private function sendProfileLifecycleEmail(int $idProfil, string $mode): bool
+  private function sendProfileLifecycleEmail(int $idProfil, string $mode, string $helloasso = '0', string $cotisationCode = ''): bool
   {
     if ($idProfil <= 0) {
       throw new \InvalidArgumentException('Identifiant invalide pour envoi mail profil.');
@@ -238,6 +244,10 @@ class NotificationMailService
 
     $displayData = (object) $data;
     $displayData->mode = $mode;
+    // Memes informations que la popup de confirmation (adhesion.popup) : paiement HelloAsso a
+    // faire tant que le champ formulaire 'helloasso' vaut '0'.
+    $displayData->helloasso = $helloasso;
+    $displayData->cotisation_code = $cotisationCode;
 
     $htmlBody = $this->renderTemplateOrFallback('mail.adhesion_html', $displayData, true);
     $textBody = $this->renderTemplateOrFallback('mail.adhesion_text', $displayData, false);

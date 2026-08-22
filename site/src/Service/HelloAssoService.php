@@ -7,6 +7,8 @@ namespace NCB\Component\Gda\Site\Service;
 use Joomla\Http\HttpFactory;
 use NCB\Component\Gda\Site\Helper\CryptoHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
+use NCB\Component\Gda\Site\Helper\GdaLogger;
+use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use RuntimeException;
 
 final class HelloAssoService
@@ -254,15 +256,78 @@ final class HelloAssoService
         $orders = $this->getFormsOrders($formType, $formSlug, 'true', $forceRefresh);
 
         foreach ($orders as $order) {
-            $customFields = $order['items'][0]['customFields'] ?? [];
-            foreach ($customFields as $field) {
-                if (($field['answer'] ?? '') === $username) {
-                    return (string) $order['id'];
+            // Une commande peut regrouper plusieurs adhérents (items[]) : chercher dans tous les
+            // items, pas seulement le premier, sous peine de ne jamais retrouver la commande d'un
+            // adhérent qui ne serait pas en première position.
+            foreach (($order['items'] ?? []) as $item) {
+                foreach (($item['customFields'] ?? []) as $field) {
+                    if (($field['answer'] ?? '') === $username) {
+                        return (string) $order['id'];
+                    }
                 }
             }
         }
 
         return null;
+    }
+
+    /**
+     * Retrouve, parmi les items d'une commande HelloAsso, celui qui correspond à l'adhérent
+     * donné. Une commande peut regrouper plusieurs adhérents (ex : un parent réglant en une fois
+     * l'adhésion de plusieurs enfants) : chaque item porte son propre bénéficiaire (item.user) et
+     * ses propres customFields (dont la licence, dans un champ dont l'id varie d'une campagne à
+     * l'autre - la recherche se fait donc sur la VALEUR de la réponse, jamais sur l'id du champ).
+     *
+     * Cascade : licence exacte -> nom/prénom -> premier item (dernier recours, log un avertissement
+     * pour rester repérable plutôt que d'échouer silencieusement).
+     *
+     * @param array<int, array> $items         Tableau 'items' brut d'une commande HelloAsso (getOrderDetails()).
+     * @param string            $licenceAttendue Licence (username Joomla) de l'adhérent recherché.
+     * @param string            $nomAttendu      Nom de famille de l'adhérent recherché.
+     * @param string            $prenomAttendu   Prénom de l'adhérent recherché.
+     * @return array|null L'item correspondant, ou null si $items est vide.
+     */
+    public function findItemForAdherent(array $items, string $licenceAttendue, string $nomAttendu, string $prenomAttendu): ?array
+    {
+        if ($items === []) {
+            return null;
+        }
+
+        $licenceAttendue = trim($licenceAttendue);
+
+        if ($licenceAttendue !== '') {
+            foreach ($items as $item) {
+                foreach (($item['customFields'] ?? []) as $field) {
+                    if (trim((string) ($field['answer'] ?? '')) === $licenceAttendue) {
+                        return $item;
+                    }
+                }
+            }
+        }
+
+        $nomNorm = ToolsHelper::removeAccentsAndUppercase($nomAttendu);
+        $prenomNorm = ToolsHelper::removeAccentsAndUppercase($prenomAttendu);
+
+        if ($nomNorm !== '' || $prenomNorm !== '') {
+            foreach ($items as $item) {
+                $itemNom = ToolsHelper::removeAccentsAndUppercase((string) ($item['user']['lastName'] ?? ''));
+                $itemPrenom = ToolsHelper::removeAccentsAndUppercase((string) ($item['user']['firstName'] ?? ''));
+
+                if ($itemNom === $nomNorm && $itemPrenom === $prenomNorm) {
+                    return $item;
+                }
+            }
+        }
+
+        GdaLogger::warning(sprintf(
+            'HelloAssoService::findItemForAdherent() - Aucune correspondance (licence="%s", nom="%s %s") parmi %d item(s) : repli sur le premier item.',
+            $licenceAttendue,
+            $nomAttendu,
+            $prenomAttendu,
+            count($items)
+        ));
+
+        return $items[0];
     }
 
 

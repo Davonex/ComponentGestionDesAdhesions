@@ -184,6 +184,7 @@ class CampagnesModel extends ListModel
                 $db->quoteName('p.caci'),
                 $db->quoteName('p.date_caci'),
                 $db->quoteName('p.date_licence'),
+                $db->quoteName('r.id_reservation'),
             ])
             ->from($db->quoteName('#__gda_reservation', 'r'))
             ->innerJoin($db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('r.id_profil'))
@@ -200,6 +201,9 @@ class CampagnesModel extends ListModel
         } catch (\RuntimeException $e) {
             throw new \Exception($e->getMessage(), 500);
         }
+
+        $idsReservation = array_map(static fn($row) => (int) $row->id_reservation, $rows);
+        $rolesParReservation = $this->getRolesParReservation($idsReservation);
 
         $groupe = new \stdClass();
         $groupe->id_groupe = 0;
@@ -219,6 +223,7 @@ class CampagnesModel extends ListModel
             $adherent->caci_status = AdhesionStatusHelper::getCaciFileStatus($row->caci, $row->date_caci);
             $adherent->date_licence = $row->date_licence;
             $adherent->licence_status = AdhesionStatusHelper::getLicenceValidityStatus($row->date_licence);
+            $adherent->role = $rolesParReservation[(int) $row->id_reservation] ?? '';
 
             $groupe->adherents[] = $adherent;
         }

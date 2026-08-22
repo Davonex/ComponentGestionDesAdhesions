@@ -151,19 +151,8 @@
 
     if (step1Container) {
       initTooltips(step1Container);
-
-      // Bouton HelloAsso : affiche le détail du paiement dans une modal
-      step1Container.querySelectorAll('.js-show-payement').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          showPayement(
-            parseInt(btn.dataset.itemId || '0', 10),
-            parseInt(btn.dataset.itemCampagne || '0', 10),
-            btn.dataset.itemOrder,
-            btn.dataset.itemUsername,
-            btn.dataset.itemCotisation,
-          );
-        });
-      });
+      // Bouton HelloAsso (.js-show-payement) : géré par le handler délégué global de
+      // media/com_gdadhesions/js/form_modal.js, commun à toutes les vues - pas de binding ici.
     }
   };
 
@@ -288,19 +277,8 @@
 
     if (step4Container) {
       initTooltips(step4Container);
-
-      // Bouton HelloAsso : affiche le détail du paiement dans une modal
-      step4Container.querySelectorAll('.js-show-payement').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          showPayement(
-            parseInt(btn.dataset.itemId || '0', 10),
-            parseInt(btn.dataset.itemCampagne || '0', 10),
-            btn.dataset.itemOrder,
-            btn.dataset.itemUsername,
-            btn.dataset.itemCotisation,
-          );
-        });
-      });
+      // Bouton HelloAsso (.js-show-payement) : géré par le handler délégué global de
+      // media/com_gdadhesions/js/form_modal.js, commun à toutes les vues - pas de binding ici.
     }
   };
 
@@ -1372,55 +1350,8 @@
 
 
 
-  /**
-   * Charge le détail du paiement HelloAsso et l'affiche dans la modal #payementModal.
-   *
-   * @param {number} idProfil
-   * @param {number} idCampagne
-   * @param {number} idOrder
-   * @param {string} username
-   * @param {number} cotisation
-   */
-  const showPayement = function (idProfil, idCampagne, idOrder ,username,cotisation) {
-    const modalEl   = document.getElementById('payementModal');
-    const modalContent = document.getElementById('payementModalcontent');
-
-    if (!modalEl || !modalContent) {
-      return;
-    }
-
-    // Affiche le spinner de chargement
-    modalContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-success" role="status"><span class="visually-hidden">Chargement...</span></div></div>';
-
-    // Ouvre la modal Bootstrap (API compatible Bootstrap 5)
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
-
-    const ajaxData = {
-      task: 'secretariat.getPayement',
-      id_order: idOrder,
-      id_profil: idProfil,
-      id_campagne: idCampagne,
-      username: username,
-      cotisation: cotisation
-    };
-
-    const csrfTokenName = Joomla.getOptions('csrf.token');
-    if (csrfTokenName) {
-      ajaxData[csrfTokenName] = 1;
-    }
-
-    if (typeof simpleCallAjax === 'function') {
-      simpleCallAjax(ajaxData, function (response) {
-        if (response.success) {
-          modalContent.innerHTML = decodeURIComponent(escape(atob(response.data)));
-        } else {
-          modalContent.innerHTML = '<div class="alert alert-danger">' + (response.message || 'Erreur inconnue') + '</div>';
-        }
-      },false);
-    } else {
-      modalContent.innerHTML = '<div class="alert alert-danger">simpleCallAjax non disponible.</div>';
-    }
-  };
+  // Bouton HelloAsso (.js-show-payement) : géré par le handler délégué global de
+  // media/com_gdadhesions/js/form_modal.js (chargé sur toutes les vues) - l'ancienne fonction
+  // showPayement() ici faisait strictement doublon (double appel ajax à chaque clic).
 
 });

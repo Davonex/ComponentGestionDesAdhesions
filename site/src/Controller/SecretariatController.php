@@ -646,24 +646,16 @@ class SecretariatController extends BaseController
       $idProfil   = $input->getInt('id_profil', 0);
       $idCampagne = $input->getInt('id_campagne', 0);
       $idOrder    = $input->getString('id_order', '');
-      $username   = $input->getString('username', '');
-      $cotisation = $input->getInt('cotisation', 0);
 
       /** @var \NCB\Component\Gda\Site\Model\SecretariatModel $model */
       $model = $this->getModel('secretariat', 'site');
 
-      /* Récupère les informations de paiement depuis l'API HelloAsso.  */
-      $payement = $model->getPayement($idProfil, $idCampagne, $idOrder, $username);
-
-      
+      // cotisation_code et licence sont relus en base par le modèle (id_profil/id_campagne
+      // suffisent) : on ne fait plus confiance aux data-item-* postés par le JS.
+      $report = $model->getPayement($idProfil, $idCampagne, $idOrder);
 
       $html = $this->renderLayoutOrFail('secretariat.payement', [
-        'payement'    => $payement,
-        'id_profil'   => $idProfil,
-        'id_campagne' => $idCampagne,
-        'id_order'    => $idOrder,
-        'username'    => $username,
-        'cotisation'  => $cotisation
+        'report' => $report,
       ]);
 
       $response = new JsonResponse();

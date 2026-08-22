@@ -115,9 +115,7 @@ $isCompleted = $statusEnum === AdhesionStatusHelper::STATUS_COMPLETED;
               class="<?= $btnClasses ?> btn-lg js-show-payement"
               data-item-id="<?= (int) ($action['id_profil'] ?? 0) ?>"
               data-item-campagne="<?= (int) ($action['id_campagne'] ?? 0) ?>"
-              data-item-order="<?= htmlspecialchars((string) ($action['id_order'] ?? '0'), ENT_QUOTES, 'UTF-8') ?>"
-              data-item-username="<?= htmlspecialchars((string) ($action['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
-              data-item-cotisation="<?= (int) ($action['cotisation'] ?? 0) ?>">
+              data-item-order="<?= htmlspecialchars((string) ($action['id_order'] ?? '0'), ENT_QUOTES, 'UTF-8') ?>">
               <i class="fa <?= $icon ?> me-2"></i> <?= $label ?>
             </button>
           <?php elseif (($action['type'] ?? '') === 'external_link') : ?>

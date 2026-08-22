@@ -282,8 +282,6 @@ class AdhesionStatusHelper
                     'id_profil'   => (int) ($souscription->id_profil ?? 0),
                     'id_campagne' => (int) ($souscription->id_campagne ?? 0),
                     'id_order'    => (string) ($souscription->id_order ?? '0'),
-                    'username'    => (string) ($souscription->username ?? ''),
-                    'cotisation'  => CotisationService::getMontant((string) ($souscription->cotisation_code ?? '')),
                 ];
 
             case self::STATUS_LICENCE_REQUIRED:

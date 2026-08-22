@@ -19,6 +19,8 @@ const QrScanner = (function () {
    * @param {string} options.modalId      Conteneur plein écran (classe .qr-modal)
    * @param {string} options.readerId     Div dans lequel html5-qrcode injecte le flux vidéo
    * @param {Function} options.onScan     Callback appelé avec le texte décodé, scanner déjà arrêté
+   * @param {Function} [options.onCameraError] Callback appelé si la caméra ne démarre pas (permission
+   *        refusée, etc). Repli sur le bandeau de messages Joomla si absent.
    */
   function create(name, options) {
     const openBtn = document.getElementById(options.openBtnId);
@@ -83,7 +85,11 @@ const QrScanner = (function () {
         console.error('Erreur initialisation scanner:', err);
         isRunning = false;
         stop();
-        Joomla.renderMessages({ error: [Joomla.Text._('COM_GDA_QRCODE_CAMERA_ERROR')] });
+        if (typeof options.onCameraError === 'function') {
+          options.onCameraError();
+        } else {
+          Joomla.renderMessages({ error: [Joomla.Text._('COM_GDA_QRCODE_CAMERA_ERROR')] });
+        }
       });
     }
 

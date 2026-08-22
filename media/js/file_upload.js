@@ -23,7 +23,7 @@ function loadPdfJs() {
   class FileUpload {
 
   /** Define event  */
-  constructor( mediaBrowser, dropArea,previewImage,imputImage, flag, acceptPdf = false ) {
+  constructor( mediaBrowser, dropArea,previewImage,imputImage, flag, acceptPdf = false, onError = null ) {
 
       this._accepted = ["image/jpeg", "image/png", "image/jpg","image/webp"];
       this._maxSize = 3097152; // ~2.95 Mo
@@ -33,6 +33,10 @@ function loadPdfJs() {
       this._previewImage = previewImage;
          // Flag qui permet de signaler si un fichier a été uploader
       this._flag = flag;
+      // Popup d'erreur optionnelle (ex: showAdhesionAlertText côté vue Adhésion) ; à défaut,
+      // repli sur le bandeau de messages Joomla - utilisé notamment par la popup d'édition de
+      // profil de la vue Utilisateurs (form_modal.js), qui n'a pas ce mécanisme.
+      this._onError = onError;
       // this._dialog = dialog;
 
       let _file = null;
@@ -77,11 +81,20 @@ function loadPdfJs() {
 
 
   }
-  //** delete the prevent event */ 
+  //** delete the prevent event */
   preventDefaults(e) {
       e.preventDefault();
       e.stopPropagation();
     }
+
+  /** Affiche un message d'erreur via le callback onError si fourni, sinon le bandeau Joomla. */
+  _showError(message) {
+    if (typeof this._onError === 'function') {
+      this._onError(message);
+    } else {
+      Joomla.renderMessages({ error: [message] });
+    }
+  }
 
   get File() {
       return this._file;
@@ -144,7 +157,7 @@ function loadPdfJs() {
           this.uploadFile(imageFile);
         } catch (e) {
           console.error(e);
-          Joomla.renderMessages({ error: ['Le fichier PDF "' + file.name + '" n\'a pas pu être converti en image.'] });
+          this._showError('Le fichier PDF "' + file.name + '" n\'a pas pu être converti en image.');
         }
       }
 
@@ -173,7 +186,7 @@ function loadPdfJs() {
     /** Signale (et affiche l'erreur) si le fichier dépasse la taille max autorisée */
     isFileTooLarge(file) {
       if (file.size > this._maxSize) {
-        Joomla.renderMessages({error: ['Le fichier "' + file.name + '" est trop gros : ' + Math.round(file.size/1048576 * 100)/100 + ' Mo. Votre fichier ne doit pas depasser 2 Mo.']});
+        this._showError('Le fichier "' + file.name + '" est trop gros : ' + Math.round(file.size/1048576 * 100)/100 + ' Mo. Votre fichier ne doit pas depasser 2 Mo.');
         return true;
       }
       return false;
@@ -186,9 +199,7 @@ function loadPdfJs() {
         return false;
       }
       if ( this._accepted.includes(file.type) === false) {
-        Joomla.renderMessages({error: ['Le format "' + file.type + '" n\'est pas accepté. Uniquement les images de type jpeg et png sont acceptées']});
-        // this._dialog.popupContent = 'Le format <b>"' + file.type + '"</b> n\'est pas accepté.';
-        // this._dialog.popupContent += '<br>Uniquement les images de type <b>jpeg</b> et <b>png</b> sont acceptées'
+        this._showError('Le format "' + file.type + '" n\'est pas accepté. Uniquement les images de type jpeg et png sont acceptées');
         return false
       }
       return true;
@@ -210,9 +221,11 @@ function loadPdfJs() {
      *   ne sont pas fiables lorsqu'ils sont ajoutés dynamiquement en JS sur certains navigateurs mobiles).
      * @param {boolean} [ids.acceptPdf] Si true, un PDF déposé/sélectionné est converti en JPEG
      *   (1ère page) avant d'être traité comme une image. pdf.js n'est chargé que dans ce cas.
+     * @param {Function} [ids.onError] Callback(message) pour les erreurs de validation de fichier.
+     *   Repli sur Joomla.renderMessages() si absent.
      * @returns {FileUpload|null}
      */
-    static create(name, { mediaBrowserId, dropAreaId, previewId, inputId, flagId, captureInputId, acceptPdf } = {}) {
+    static create(name, { mediaBrowserId, dropAreaId, previewId, inputId, flagId, captureInputId, acceptPdf, onError } = {}) {
       const mediaBrowser = document.getElementById(mediaBrowserId);
       const dropArea = document.getElementById(dropAreaId);
       const previewImage = document.getElementById(previewId);
@@ -224,7 +237,7 @@ function loadPdfJs() {
         return null;
       }
 
-      const instance = new FileUpload(mediaBrowser, dropArea, previewImage, imputImage, flag, !!acceptPdf);
+      const instance = new FileUpload(mediaBrowser, dropArea, previewImage, imputImage, flag, !!acceptPdf, onError || null);
 
       if (captureInputId) {
         const captureInput = document.getElementById(captureInputId);

@@ -13,12 +13,15 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\MVC\Model\ListModel;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\CMS\User\UserFactoryInterface;
+use Joomla\Database\ParameterType;
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
+use NCB\Component\Gda\Site\Service\CotisationService;
 use NCB\Component\Gda\Site\Service\HelloAssoService;
 use NCB\Component\Gda\Site\Service\NotificationMailService;
 use NCB\Component\Gda\Site\Service\SaisonService;
@@ -794,28 +797,37 @@ class SecretariatModel extends ListModel
   }
 
   /**
-   * Récupère le détail du paiement HelloAsso d'une souscription.
-   * Utilise le cache HelloAsso (30 min) pour éviter les appels intempestifs.
+   * Construit le rapport de paiement HelloAsso d'un adhérent pour une campagne, prêt à afficher
+   * (layouts/secretariat/payement.php n'a plus qu'à en formater/échapper les propriétés).
+   *
+   * cotisation_code et la licence (username) sont relus en base ici, jamais reçus du client (le
+   * contrôleur ne les poste plus) : plus fiable pour un rapport financier affiché au secrétariat.
    *
    * @param int    $idProfil   Identifiant du profil
    * @param int    $idCampagne Identifiant de la campagne
    * @param string $idOrder    Identifiant de commande déjà connu ('0' si inconnu)
-   * @param string $username   Username Joomla de l'adhérent
-   * @return array             Tableau avec la clé 'id_order' (et les données futures)
+   * @return object Rapport de paiement, voir buildPaymentReport()
    */
-  public function getPayement(int $idProfil, int $idCampagne, string $idOrder, string $username): array
+  public function getPayement(int $idProfil, int $idCampagne, string $idOrder): object
   {
+    $adherent = $this->getAdherentPourPayement($idProfil, $idCampagne);
+
+    if ($adherent === null) {
+      throw new \RuntimeException('Adhérent ou souscription introuvable.');
+    }
+
     // Si l'id_order n'est pas encore connu, on tente de le trouver dans HelloAsso
     if ($idOrder === '0' || $idOrder === '') {
       $saison = SaisonService::getSaison($idCampagne);
+
       if ($saison === null || empty($saison->formType) || empty($saison->formSlug)) {
-        return [];
+        return $this->buildPaymentReport(null, [], $adherent);
       }
 
-      $foundOrder = $this->getHelloAsso()->findOrderByUsername($saison->formType, $saison->formSlug, $username, false);
+      $foundOrder = $this->getHelloAsso()->findOrderByUsername($saison->formType, $saison->formSlug, $adherent->username, false);
 
       if ($foundOrder === null) {
-        return [];
+        return $this->buildPaymentReport(null, [], $adherent);
       }
 
       // On mémorise l'id_order pour ne plus refaire cette recherche
@@ -825,7 +837,156 @@ class SecretariatModel extends ListModel
       $idOrder = $foundOrder;
     }
 
-    // Récupère le détail complet de la commande HelloAsso
-    return $this->getHelloAsso()->getOrderDetails($idOrder);
+    // Récupère le détail complet de la commande HelloAsso (une commande peut regrouper plusieurs
+    // adhérents : on retrouve ensuite l'item qui correspond à celui-ci, pas systématiquement items[0]).
+    $orderDetails = $this->getHelloAsso()->getOrderDetails($idOrder);
+
+    if (empty($orderDetails['payments'])) {
+      return $this->buildPaymentReport(null, $orderDetails, $adherent);
+    }
+
+    $item = $this->getHelloAsso()->findItemForAdherent(
+      $orderDetails['items'] ?? [],
+      $adherent->username,
+      $adherent->nom,
+      $adherent->prenom
+    );
+
+    return $this->buildPaymentReport($item, $orderDetails, $adherent);
+  }
+
+  /**
+   * Charge cotisation_code (#__gda_souscriptions) et nom/prenom/username (#__gda_profils/#__users)
+   * pour un couple id_profil/id_campagne - source de vérité pour getPayement(), jamais les valeurs
+   * postées par le client.
+   */
+  private function getAdherentPourPayement(int $idProfil, int $idCampagne): ?object
+  {
+    if ($idProfil <= 0 || $idCampagne <= 0) {
+      return null;
+    }
+
+    $db = $this->getDatabase();
+    $query = $db->getQuery(true)
+      ->select([
+        $db->quoteName('s.cotisation_code'),
+        $db->quoteName('p.nom'),
+        $db->quoteName('p.prenom'),
+        $db->quoteName('u.username'),
+      ])
+      ->from($db->quoteName('#__gda_souscriptions', 's'))
+      ->join('INNER', $db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('s.id_profil'))
+      ->join('INNER', $db->quoteName('#__users', 'u') . ' ON ' . $db->quoteName('u.id') . ' = ' . $db->quoteName('s.id_profil'))
+      ->where($db->quoteName('s.id_profil') . ' = :id_profil')
+      ->where($db->quoteName('s.id_campagne') . ' = :id_campagne')
+      ->bind(':id_profil', $idProfil, ParameterType::INTEGER)
+      ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER);
+
+    $db->setQuery($query);
+
+    return $db->loadObject() ?: null;
+  }
+
+  /**
+   * Construit le rapport de paiement à 5 lignes (Montant catalogue / Réduction / Total payé /
+   * Cotisation attendue / Restant dû ou Trop versé) à partir de l'item HelloAsso de l'adhérent et
+   * des données club. Fonction pure (pas de DB/HTTP) : c'est ici que vivent les règles métier.
+   *
+   * - montant_catalogue = item.initialAmount (prix affiché avant réduction)
+   * - reduction_montant = item.discount.amount
+   * - total_paye = somme de item.payments[].shareAmount : argent RÉELLEMENT reçu pour cet item,
+   *   pas "montant_catalogue - reduction" (qui suppose un paiement intégral et ne serait plus
+   *   correct pour un paiement partiel/échelonné)
+   * - difference = cotisation_montant - total_paye (positif = restant dû, négatif = trop versé)
+   *
+   * @param array|null $item         Item HelloAsso de l'adhérent (HelloAssoService::findItemForAdherent()), ou null si aucune commande/paiement.
+   * @param array      $orderDetails Commande HelloAsso complète (HelloAssoService::getOrderDetails()), ou [] si non résolue.
+   * @param object     $adherent     Résultat de getAdherentPourPayement().
+   */
+  private function buildPaymentReport(?array $item, array $orderDetails, object $adherent): object
+  {
+    // CotisationService::getMontant() retourne un montant en EUROS (ex: 205), contrairement aux
+    // montants HelloAsso ($totalPaye, $grossAmount, $discountAmount ci-dessous) qui sont en centimes.
+    $cotisationCode = trim((string) ($adherent->cotisation_code ?? ''));
+    $cotisationConnue = $cotisationCode !== '';
+    $cotisationMontant = $cotisationConnue ? CotisationService::getMontant($cotisationCode) : 0;
+    $cotisationLabel = $cotisationConnue ? Text::_('COM_GDA_COTISATION_TARIF_' . $cotisationCode) : '';
+
+    $orderFound = !empty($orderDetails['payments']) && $item !== null;
+
+    if (!$orderFound) {
+      return (object) [
+        'order_found' => false,
+        'id_order' => '',
+        'date' => '',
+        'libelle_choisi' => '',
+        'statut' => '',
+        'beneficiaire_nom' => trim((string) ($adherent->prenom ?? '') . ' ' . (string) ($adherent->nom ?? '')),
+        'beneficiaire_licence' => (string) ($adherent->username ?? ''),
+        'payeur_nom' => '',
+        'payeur_email' => '',
+        'montant_catalogue' => 0.0,
+        'reduction_code' => null,
+        'reduction_montant' => 0.0,
+        'total_paye' => 0.0,
+        'cotisation_code' => $cotisationCode !== '' ? $cotisationCode : null,
+        'cotisation_label' => $cotisationLabel,
+        'cotisation_montant' => (float) $cotisationMontant,
+        'cotisation_connue' => $cotisationConnue,
+        'difference' => $cotisationConnue ? (float) $cotisationMontant : 0.0,
+        'receipt_url' => '',
+        'fiscal_receipt_url' => '',
+      ];
+    }
+
+    $payer = $orderDetails['payer'] ?? [];
+    $grossAmount = (int) ($item['initialAmount'] ?? ($item['amount'] ?? 0));
+    $discountAmount = (int) ($item['discount']['amount'] ?? 0);
+
+    $totalPaye = 0;
+    foreach (($item['payments'] ?? []) as $itemPayment) {
+      $totalPaye += (int) ($itemPayment['shareAmount'] ?? 0);
+    }
+
+    $receiptUrl = '';
+    foreach (($orderDetails['payments'] ?? []) as $pay) {
+      if ($receiptUrl === '' && !empty($pay['paymentReceiptUrl'])) {
+        $receiptUrl = (string) $pay['paymentReceiptUrl'];
+      }
+    }
+
+    $date = '';
+    $dateStr = (string) ($orderDetails['date'] ?? '');
+
+    if ($dateStr !== '') {
+      try {
+        $date = (new \DateTime($dateStr))->format('d/m/Y H:i');
+      } catch (\Exception $e) {
+        $date = '';
+      }
+    }
+
+    return (object) [
+      'order_found' => true,
+      'id_order' => (string) ($orderDetails['id'] ?? ''),
+      'date' => $date,
+      'libelle_choisi' => (string) ($item['name'] ?? ''),
+      'statut' => Text::_('COM_GDA_SECRETARIAT_PAYEMENT_STATE_' . strtoupper((string) ($item['state'] ?? 'unknown'))),
+      'beneficiaire_nom' => trim((string) ($item['user']['firstName'] ?? '') . ' ' . (string) ($item['user']['lastName'] ?? '')),
+      'beneficiaire_licence' => (string) ($adherent->username ?? ''),
+      'payeur_nom' => trim((string) ($payer['firstName'] ?? '') . ' ' . (string) ($payer['lastName'] ?? '')),
+      'payeur_email' => (string) ($payer['email'] ?? ''),
+      'montant_catalogue' => $grossAmount / 100,
+      'reduction_code' => $discountAmount > 0 ? trim((string) ($item['discount']['code'] ?? '')) : null,
+      'reduction_montant' => $discountAmount / 100,
+      'total_paye' => $totalPaye / 100,
+      'cotisation_code' => $cotisationCode !== '' ? $cotisationCode : null,
+      'cotisation_label' => $cotisationLabel,
+      'cotisation_montant' => (float) $cotisationMontant,
+      'cotisation_connue' => $cotisationConnue,
+      'difference' => $cotisationConnue ? $cotisationMontant - ($totalPaye / 100) : 0.0,
+      'receipt_url' => $receiptUrl,
+      'fiscal_receipt_url' => (string) ($orderDetails['fiscalReceiptUrl'] ?? ''),
+    ];
   }
 }

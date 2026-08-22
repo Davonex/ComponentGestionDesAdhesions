@@ -201,9 +201,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
         if (!next) {
-            Joomla.renderMessages({
-                "error": ["Champ invalide ou incomplet!"]
-            });
+            showAdhesionAlert(Joomla.getOptions('com_gdadhesions.stepInvalidAlert'));
             event.preventDefault()
             return;
         } else {
@@ -225,14 +223,87 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
+/**
+ * Injecte un contenu de modal (layout adhesion.alert, rendu et encodé côté serveur) dans
+ * #adhesionAlertModal et l'affiche. Remplace GdaDialog.alert() pour la vue Adhésion : même
+ * gabarit graphique (gda.css) que le reste du composant, visible sur mobile.
+ *
+ * @param {string|null} encodedHtml Contenu base64 de la .modal-content (LayoutHelper::render()).
+ */
+function showAdhesionAlert(encodedHtml) {
+    const modalEl = document.getElementById('adhesionAlertModal');
+    const modalContent = document.getElementById('adhesionAlertModalContent');
+    if (!modalEl || !modalContent || !encodedHtml) {
+        return;
+    }
+    modalContent.innerHTML = decodeURIComponent(escape(atob(encodedHtml)));
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
+/**
+ * Variante de showAdhesionAlert() pour un message connu uniquement côté client (ex: erreur de
+ * validation d'un fichier déposé - nom, taille - qui ne peut pas être pré-rendue côté serveur).
+ * Construit le même gabarit que le layout adhesion.alert (un seul message).
+ *
+ * @param {string} title
+ * @param {string} message
+ */
+function showAdhesionAlertText(title, message) {
+    const modalEl = document.getElementById('adhesionAlertModal');
+    const modalContent = document.getElementById('adhesionAlertModalContent');
+    if (!modalEl || !modalContent) {
+        return;
+    }
+    const escapeHtml = (str) => {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    };
+    modalContent.innerHTML =
+        '<div class="modal-header bg-gda-header text-header">'
+        + '<h5 class="modal-title mb-0"><i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i>' + escapeHtml(title) + '</h5>'
+        + '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>'
+        + '</div>'
+        + '<div class="modal-body"><p class="mb-0">' + escapeHtml(message) + '</p></div>'
+        + '<div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button></div>';
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
 // Gestion du QR code : la mécanique du scanner vit dans QrScanner.create() (qr_scanner.js),
 // partagée avec la modale d'édition des brevets de la vue Profil.
 document.addEventListener("DOMContentLoaded", function () {
+    const scanConfirmModalEl = document.getElementById('adhesionScanConfirmModal');
+    const scanConfirmMessage = document.getElementById('adhesionScanConfirmMessage');
+    const scanConfirmWarning = document.getElementById('adhesionScanConfirmWarning');
+    const scanConfirmSubmit = document.getElementById('adhesionScanConfirmSubmit');
+    const scanConfirmModalInstance = scanConfirmModalEl && window.bootstrap
+        ? bootstrap.Modal.getOrCreateInstance(scanConfirmModalEl)
+        : null;
+    // Résultat du scan en attente de confirmation utilisateur (case "Oui" du modal).
+    let pendingScanData = null;
+
+    scanConfirmSubmit?.addEventListener('click', function () {
+        if (pendingScanData !== null) {
+            /**
+             * @external {Function} AdhesionCB - see media\com_gdadhesions\js\scrap-ffessm.js
+             */
+            AdhesionCB(pendingScanData);
+        }
+        scanConfirmModalInstance?.hide();
+    });
+
+    scanConfirmModalEl?.addEventListener('hidden.bs.modal', function () {
+        pendingScanData = null;
+    });
+
     QrScanner.create('adhesion', {
         openBtnId: 'openQrScanner',
         closeBtnId: 'closeQrScanner',
         modalId: 'qrModal',
         readerId: 'qrReader',
+        // Échec d'accès à la caméra (permission refusée, etc) : même popup que les autres
+        // contrôles de la vue, plutôt que le bandeau de messages Joomla (peu visible sur mobile).
+        onCameraError: () => showAdhesionAlert(Joomla.getOptions('com_gdadhesions.cameraErrorAlert')),
         /**
          * Le retour du scan passe par une popup et non par le bandeau de messages Joomla :
          * sur mobile, le haut de page est rarement visible au moment du scan.
@@ -246,26 +317,32 @@ document.addEventListener("DOMContentLoaded", function () {
                 const porteur = response.data.porteur || '';
                 const nbBrevets = (response.data.brevets || []).length;
 
-                GdaDialog.confirm(
-                    Joomla.Text._('COM_GDA_ADHESION_SCAN_TITLE'),
+                pendingScanData = response.data;
+
+                if (scanConfirmMessage) {
                     // Remplacement par fonction : en argument littéral, "$&" ou "$'" présents
                     // dans une valeur scrapée seraient interprétés par String.replace().
-                    Joomla.Text._('COM_GDA_ADHESION_SCAN_CONFIRM')
+                    scanConfirmMessage.textContent = Joomla.Text._('COM_GDA_ADHESION_SCAN_CONFIRM')
                         .replace('%1$s', () => porteur)
-                        .replace('%2$s', () => nbBrevets),
-                    /**
-                     * @external {Function} AdhesionCB - see media\com_gdadhesions\js\scrap-ffessm.js
-                     */
-                    () => AdhesionCB(response.data),
-                    Joomla.Text._('COM_GDA_ADHESION_SCAN_CONFIRM_WARN')
-                );
+                        .replace('%2$s', () => nbBrevets);
+                }
+                if (scanConfirmWarning) {
+                    scanConfirmWarning.textContent = Joomla.Text._('COM_GDA_ADHESION_SCAN_CONFIRM_WARN');
+                }
+
+                scanConfirmModalInstance?.show();
             },
-            // Licence déjà connue de la base, ou introuvable : message bloquant.
+            // Licence déjà connue de la base, ou introuvable : message bloquant, rendu côté
+            // serveur par adhesion.alert (response.data). En cas d'erreur réseau (response null),
+            // aucun contenu rendu n'est disponible : repli sur le bandeau de messages Joomla.
             (response) => {
-                GdaDialog.alert(
-                    Joomla.Text._('COM_GDA_ADHESION_SCAN_TITLE'),
-                    (response && response.message) || Joomla.Text._('COM_GDA_ADHESION_SCAN_NOT_FOUND')
-                );
+                if (response && response.data) {
+                    showAdhesionAlert(response.data);
+                } else {
+                    // Erreur réseau (response null) : aucun contenu adhesion.alert rendu côté
+                    // serveur n'est disponible, repli sur le bandeau de messages Joomla.
+                    Joomla.renderMessages({ "error": [(response && response.message) || Joomla.Text._('COM_GDA_ADHESION_SCAN_NOT_FOUND')] });
+                }
             }
         ),
     });
@@ -285,12 +362,17 @@ document.addEventListener('DOMContentLoaded', function () {
      * FileUpload.create() (media/com_gdadhesions/js/file_upload.js).
      * Les instances sont accessibles via window.GdaFileUploads.photo / .caci
      */
+    // Erreur de validation (taille, format, PDF non converti) : même popup que le reste de la
+    // vue plutôt que le bandeau Joomla.
+    const onFileUploadError = (message) => showAdhesionAlertText(Joomla.Text._('COM_GDA_ADHESION_UPLOAD_ERROR_TITLE'), message);
+
     FileUpload.create('photo', {
         mediaBrowserId: 'step-0',
         dropAreaId: 'photoDropArea',
         previewId: 'photoPreview',
         inputId: 'photoUpload',
         flagId: 'photoFlag',
+        onError: onFileUploadError,
     });
 
     FileUpload.create('caci', {
@@ -300,6 +382,7 @@ document.addEventListener('DOMContentLoaded', function () {
         inputId: 'caciUpload',
         flagId: 'caciFlag',
         acceptPdf: true,
+        onError: onFileUploadError,
     });
 
     // Alias conservés pour compatibilité avec form_modal.js::submitform()
@@ -377,24 +460,13 @@ function CBsubmitformAdhesion(response) {
     // const carousel = bootstrap.Carousel.getInstance(document.getElementById('wizardInscription'));
     // carousel.to(0);
 
-    // Afficher la boite de dialogue Joomla
-    import('joomla.dialog').then(({ default: JoomlaDialog }) => {
-        const dialog = new JoomlaDialog({
-            popupType: 'inline',
-            // textHeader: response.message,
-            popupContent: response.data.popupcontent,
-            width: '50%',
-            // height: 'fit-content',
-        });
-        dialog.popupButtons = [{
-            label: 'Ok',
-            onClick: () => dialog.destroy(),
-            className: 'btn btn-success ms-2'
-        }];
-        dialog.show();
-    });
-
-
+    // Popup de confirmation (contenu : layout adhesion.popup, déjà rendu par le contrôleur).
+    const popupModalEl = document.getElementById('adhesionPopupModal');
+    const popupModalContent = document.getElementById('adhesionPopupModalContent');
+    if (popupModalEl && popupModalContent) {
+        popupModalContent.innerHTML = response.data.popupcontent;
+        bootstrap.Modal.getOrCreateInstance(popupModalEl).show();
+    }
 }
 // Exposer globalement la fonction callback
 window.CBsubmitformAdhesion = CBsubmitformAdhesion;
@@ -403,9 +475,25 @@ window.CBsubmitformAdhesion = CBsubmitformAdhesion;
 
 
 function CBCheckCotisation(response) {
-    // console.log (response.data);       
+    // console.log (response.data);
     //sprintf(Text::_('COM_GDA_COTISATION_TARIF_'+response.data.code), response.data.montant);
     document.querySelector("#recap_cotisation").innerHTML = response.data.innerHtml;
     document.querySelector("#jform_cotisation_code").value = response.data.code;
     document.querySelector("#jform_cotisation_montant").value = response.data.montant;
+
+    // Âge minimum du club : bloquant, on désactive le bouton Valider (le contrôleur revérifie de
+    // toute façon côté serveur, ce n'est qu'un garde-fou visuel). Réévalué à chaque passage sur
+    // l'étape récapitulatif, donc se lève automatiquement si la date est corrigée.
+    const btnValider = document.getElementById('btnValider');
+
+    if (btnValider) {
+        btnValider.disabled = !!response.data.age_minimum_non_respecte;
+    }
+
+    // Âge minimum et réduction Famille réservée aux adultes : le contrôleur rend déjà le(s)
+    // message(s) via le layout adhesion.alert (une seule popup, combinée si les deux se
+    // produisent en même temps).
+    if (response.data.alert_html) {
+        showAdhesionAlert(response.data.alert_html);
+    }
 }

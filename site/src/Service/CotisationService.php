@@ -133,6 +133,37 @@ final class CotisationService
     }
 
 
+    /**
+     * La réduction "Famille" ne s'applique qu'aux adultes (le tarif enfant/jeune familial est
+     * déjà un tarif réduit distinct, cf. getCode() codes D/E) : false si "Famille" est choisie
+     * pour un mineur.
+     */
+    public function isReductionFamilleValide(): bool
+    {
+        return !($this->isFamille() && $this->isEnfant());
+    }
+
+    /**
+     * Âge minimum accepté par le club, calculé à la même date de référence que GetCategorie()
+     * (1er septembre de la saison) pour rester cohérent : un enfant qui aura l'âge minimum avant
+     * la rentrée est accepté. Retourne true si la date de naissance est manquante/invalide (ce
+     * n'est pas à ce contrôle de le signaler, un champ requis s'en charge déjà).
+     *
+     * @param int $ageMinimum Âge minimum en années (8 par défaut).
+     */
+    public function isAgeMinimumRespecte(int $ageMinimum = 8): bool
+    {
+        $naissance = $this->parseDateNaissance();
+
+        if ($naissance === null) {
+            return true;
+        }
+
+        $limite = (new \DateTime($this->dateRentree))->modify('-' . $ageMinimum . ' years');
+
+        return $naissance <= $limite;
+    }
+
     // ──────────────────────────────────────────────
     //  Règles métier (privées)
     // ──────────────────────────────────────────────

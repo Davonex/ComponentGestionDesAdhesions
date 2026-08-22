@@ -302,8 +302,6 @@ document.addEventListener('click', function (event) {
     id_order:    btn.dataset.itemOrder    || '0',
     id_profil:   parseInt(btn.dataset.itemId       || '0', 10),
     id_campagne: parseInt(btn.dataset.itemCampagne || '0', 10),
-    username:    btn.dataset.itemUsername || '',
-    cotisation:  btn.dataset.itemCotisation || '0',
   };
   const csrfTokenName = Joomla.getOptions('csrf.token');
   if (csrfTokenName) { ajaxData[csrfTokenName] = 1; }

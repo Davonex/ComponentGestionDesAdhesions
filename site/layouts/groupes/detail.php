@@ -8,10 +8,14 @@ use NCB\Component\Gda\Site\Helper\ToolsHelper;
 /**
  * @var array $displayData
  * - $displayData['groupe'] : object{id_groupe, groupe_name, icon, adherents}
+ * - $displayData['showRole'] : bool, affiche la colonne Rôle (adherent->role) — utilisé par
+ *   l'onglet "Suivi des inscriptions" de la vue Campagnes (CampagnesModel::getInscritsCampagne()),
+ *   absent pour la vue Groupes qui ne connaît pas cette notion.
  */
 
 $groupe = $displayData['groupe'];
 $adherents = $groupe->adherents;
+$showRole = $displayData['showRole'] ?? false;
 ?>
 
 <?php if (empty($adherents)) : ?>
@@ -25,6 +29,9 @@ $adherents = $groupe->adherents;
                 <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_BREVETS') ?></th>
                 <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_LICENCE') ?></th>
                 <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI') ?></th>
+                <?php if ($showRole) : ?>
+                    <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_ROLE') ?></th>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -100,6 +107,9 @@ $adherents = $groupe->adherents;
                             <span class="badge bg-<?= $this->escape($statusClass) ?>" title="<?= $this->escape($statusLabel) ?>"><?= $dateCaci !== '' ? $this->escape($dateCaci) : '&mdash;' ?></span>
                         <?php endif; ?>
                     </td>
+                    <?php if ($showRole) : ?>
+                        <td class="text-center"><?= $adherent->role !== '' ? $this->escape($adherent->role) : '&mdash;' ?></td>
+                    <?php endif; ?>
                 </tr>
             <?php endforeach; ?>
         </tbody>

@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function () {
    * Ouverture de la prévisualisation de la photo en modal.
    */
   document.addEventListener('click', function (event) {
-    const trigger = event.target.closest('.js-image-preview-thumb');
+    const trigger = event.target.closest('.js-image-preview-thumb, .js-caci-thumb');
     const previewImage = document.getElementById('imagePreviewImage');
 
     if (!trigger || !previewImage) {

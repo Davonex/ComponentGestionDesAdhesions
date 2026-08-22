@@ -121,7 +121,6 @@ $items = $displayData['items'] ?? [];
                     data-item-id="<?= (int) ($item->id_profil) ?>"
                     data-item-campagne="<?= (int) ($item->id_campagne) ?>"
                     data-item-order="<?= (string) ($item->id_order) ?>"
-                    data-item-username="<?= $this->escape((string) ($item->username)) ?>"
                     data-bs-toggle="tooltip"
                     data-bs-title="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_PAYEMENT_HINT') ?? 'Voir le détail du paiement HelloAsso') ?>">
                     <img width="20" height="20" src="<?= FileHelper::getHelloAssoLogoSrc() ?>" alt="COM_GDA_CAMPAGNE_HELLOASSO">

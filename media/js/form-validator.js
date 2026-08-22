@@ -74,9 +74,14 @@ const ajaxRequest = function (elementInput, task) {
                 onSuccess: (data) => {
                     const response = JSON.parse(data);
                     if (!response.success) {
-                        //alert("Cette adresse email existe déjà !");
-                    
-                        Joomla.renderMessages({ "error": [response.message] });
+                        // Email/licence déjà connu(e) : message bloquant, plus visible en popup
+                        // qu'au bandeau Joomla (peu visible sur mobile). Rendu côté serveur par
+                        // adhesion.alert, cf. showAdhesionAlert() dans adhesions.js.
+                        if (response.data) {
+                            showAdhesionAlert(response.data);
+                        } else {
+                            Joomla.renderMessages({ "error": [response.message] });
+                        }
                         elementInput.classList.remove("is-valid");
                         elementInput.classList.add("is-invalid");
                     } else {

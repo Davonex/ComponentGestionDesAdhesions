@@ -13,4 +13,4 @@ $inscrits = $displayData['inscrits'];
 
 ?>
 
-<?= LayoutHelper::render('groupes.detail', ['groupe' => $inscrits]) ?>
+<?= LayoutHelper::render('groupes.detail', ['groupe' => $inscrits, 'showRole' => true]) ?>
