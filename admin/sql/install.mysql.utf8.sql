@@ -84,7 +84,7 @@ INSERT INTO `#__gda_role_de_campagne` (`id_type`, `roles`) VALUES
 --
 -- Capacité par rôle pour une occurrence de campagne donnée (role_actif = 1). Les rôles proposés
 -- restent définis par nature dans #__gda_role_de_campagne ci-dessus ; cette table répartit
--- seulement la capacité de CETTE campagne entre eux. Voir sql/updates/mysql/0.9.10.sql.
+-- seulement la capacité de CETTE campagne entre eux. Voir sql/updates/mysql/0.9.11.sql.
 --
 CREATE TABLE IF NOT EXISTS `#__gda_campagne_roles` (
   `id_campagne` int NOT NULL,

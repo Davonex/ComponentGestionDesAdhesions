@@ -44,6 +44,16 @@ CREATE TABLE IF NOT EXISTS `#__gda_campagne_roles` (
 -- rôle ; cette contrainte disparaît avec role_actif, d'où la nécessité de suivre le statut par
 -- PLACE plutôt que par réservation (une réservation Loisir peut être confirmée sur un rôle et en
 -- attente sur un autre en même temps).
+--
+-- Idempotence des ALTER TABLE ci-dessous : marqueur /** CAN FAIL **/ (mécanisme standard de
+-- Joomla\CMS\Installer\Installer::parseSQLFiles(), déjà utilisé par Joomla core lui-même dans
+-- ses propres fichiers sql/updates) plutôt qu'un DDL conditionnel dynamique (SET @sql = ...;
+-- PREPARE/EXECUTE) : le pilote mysqli de Joomla exécute les requêtes via son propre protocole de
+-- requêtes préparées, qui interdit d'imbriquer un PREPARE SQL dynamique à l'intérieur ("This
+-- command is not supported in the prepared statement protocol yet") - une instruction PREPARE ne
+-- peut donc pas être exécutée par l'installeur réel, même si elle fonctionne en ligne de commande
+-- mysql directe. Avec /** CAN FAIL **/, une colonne/contrainte déjà existante fait simplement
+-- échouer silencieusement CETTE instruction (log, pas d'arrêt), sans bloc conditionnel.
 -- ---------------------------------------------------------------------------------------------
 
 -- 1. Natures : id_type=3 (Sortie, jamais utilisée) devient "Loisir", récupère les campagnes
@@ -62,38 +72,24 @@ REPLACE INTO `#__gda_role_de_campagne` (`id_type`, `roles`) VALUES (3, 'Plongeur
 
 -- 3. #__gda_reservation_places : ajout des colonnes id_campagne (dénormalisée, évite une
 --    jointure sur les requêtes d'occupation/rang très fréquentes), statut, date_rang.
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation_places' AND COLUMN_NAME = 'id_campagne');
-SET @sql = IF(@col_exists = 0,
-  'ALTER TABLE `#__gda_reservation_places` ADD COLUMN `id_campagne` int NOT NULL DEFAULT 0 COMMENT ''Dénormalisé depuis gda_reservation.id_campagne : évite une jointure sur les requêtes d''''occupation/rang, très fréquentes'' AFTER `id_reservation`',
-  'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation_places' AND COLUMN_NAME = 'statut');
-SET @sql = IF(@col_exists = 0,
-  'ALTER TABLE `#__gda_reservation_places` ADD COLUMN `statut` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''attente'' COMMENT ''confirmee | attente | annulee'' AFTER `role`',
-  'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation_places' AND COLUMN_NAME = 'date_rang');
-SET @sql = IF(@col_exists = 0,
-  'ALTER TABLE `#__gda_reservation_places` ADD COLUMN `date_rang` datetime DEFAULT NULL COMMENT ''Horodatage de création de cette place : rang FIFO dans la file d''''attente de (id_campagne, role)'' AFTER `statut`',
-  'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+ALTER TABLE `#__gda_reservation_places` ADD COLUMN `id_campagne` int NOT NULL DEFAULT 0 COMMENT 'Dénormalisé depuis gda_reservation.id_campagne : évite une jointure sur les requêtes d''occupation/rang, très fréquentes' AFTER `id_reservation` /** CAN FAIL **/;
+ALTER TABLE `#__gda_reservation_places` ADD COLUMN `statut` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'attente' COMMENT 'confirmee | attente | annulee' AFTER `role` /** CAN FAIL **/;
+ALTER TABLE `#__gda_reservation_places` ADD COLUMN `date_rang` datetime DEFAULT NULL COMMENT 'Horodatage de création de cette place : rang FIFO dans la file d''attente de (id_campagne, role)' AFTER `statut` /** CAN FAIL **/;
 
 -- Reprise exacte des places déjà enregistrées (campagnes déjà role_actif=1, ex: 47) : le
 -- formulaire imposait jusqu'ici "1 réservation = 1 rôle = 1 statut", la reprise est donc sans
--- perte ni ambiguïté. Idempotent (id_campagne=0 = pas encore repris).
+-- perte ni ambiguïté. Idempotent (id_campagne=0 = pas encore repris) — nécessite que #__gda_reservation
+-- porte encore sa colonne `statut` (supprimée à l'étape 6) : c'est pourquoi cette reprise est
+-- placée ici, avant l'étape 6, et non après.
 UPDATE `#__gda_reservation_places` rp
   INNER JOIN `#__gda_reservation` r ON r.id_reservation = rp.id_reservation
   SET rp.id_campagne = r.id_campagne, rp.statut = r.statut, rp.date_rang = r.date_reservation
-  WHERE rp.id_campagne = 0;
+  WHERE rp.id_campagne = 0 /** CAN FAIL **/;
 
 -- Backfill des réservations actives SANS place (campagnes encore role_actif=0, ex: 40) : une
 -- ligne par réservation active, rôle = 1er rôle par défaut de la nature. Générique (aucune
--- campagne codée en dur), idempotent (LEFT JOIN ... IS NULL).
+-- campagne codée en dur), idempotent (LEFT JOIN ... IS NULL). Dépend elle aussi de
+-- #__gda_reservation.statut, voir remarque ci-dessus.
 INSERT INTO `#__gda_reservation_places` (`id_reservation`, `id_campagne`, `role`, `statut`, `date_rang`, `tri`)
 SELECT r.id_reservation, r.id_campagne,
        SUBSTRING_INDEX(rdc.roles, ';', 1),
@@ -103,7 +99,7 @@ FROM `#__gda_reservation` r
 INNER JOIN `#__gda_campagnes` c ON c.id_campagne = r.id_campagne
 INNER JOIN `#__gda_role_de_campagne` rdc ON rdc.id_type = c.id_type
 LEFT JOIN `#__gda_reservation_places` rp ON rp.id_reservation = r.id_reservation
-WHERE rp.id_place IS NULL;
+WHERE rp.id_place IS NULL /** CAN FAIL **/;
 
 -- 4. #__gda_campagne_roles : capacité par défaut pour les campagnes qui n'en ont pas encore
 --    (ex-role_actif=0), reprise de leur ancien nbr_place global sur le 1er rôle par défaut de
@@ -121,68 +117,25 @@ ALTER TABLE `#__gda_reservation_places`
   MODIFY COLUMN `role` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   MODIFY COLUMN `date_rang` datetime NOT NULL;
 
-SET @fk_exists = (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation_places' AND CONSTRAINT_NAME = 'gda_reservation_places_gda_campagnes_FK');
-SET @sql = IF(@fk_exists = 0,
-  'ALTER TABLE `#__gda_reservation_places` ADD CONSTRAINT `gda_reservation_places_gda_campagnes_FK` FOREIGN KEY (`id_campagne`) REFERENCES `#__gda_campagnes` (`id_campagne`) ON DELETE CASCADE',
-  'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @idx_exists = (SELECT COUNT(*) FROM information_schema.STATISTICS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation_places' AND INDEX_NAME = 'gda_reservation_places_occupation_IDX');
-SET @sql = IF(@idx_exists = 0,
-  'ALTER TABLE `#__gda_reservation_places` ADD KEY `gda_reservation_places_occupation_IDX` (`id_campagne`, `role`, `statut`)',
-  'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @idx_exists = (SELECT COUNT(*) FROM information_schema.STATISTICS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation_places' AND INDEX_NAME = 'gda_reservation_places_rang_IDX');
-SET @sql = IF(@idx_exists = 0,
-  'ALTER TABLE `#__gda_reservation_places` ADD KEY `gda_reservation_places_rang_IDX` (`id_campagne`, `role`, `date_rang`)',
-  'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+ALTER TABLE `#__gda_reservation_places` ADD CONSTRAINT `gda_reservation_places_gda_campagnes_FK` FOREIGN KEY (`id_campagne`) REFERENCES `#__gda_campagnes` (`id_campagne`) ON DELETE CASCADE /** CAN FAIL **/;
+ALTER TABLE `#__gda_reservation_places` ADD KEY `gda_reservation_places_occupation_IDX` (`id_campagne`, `role`, `statut`) /** CAN FAIL **/;
+ALTER TABLE `#__gda_reservation_places` ADD KEY `gda_reservation_places_rang_IDX` (`id_campagne`, `role`, `date_rang`) /** CAN FAIL **/;
 
 -- 6. #__gda_reservation : devient une enveloppe légère. annulee reprend statut='annulee', puis
 --    nbr_places/nbr_places_confirmees/statut/date_demande disparaissent (déplacés au niveau
---    place ci-dessus).
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation' AND COLUMN_NAME = 'annulee');
-SET @sql = IF(@col_exists = 0,
-  'ALTER TABLE `#__gda_reservation` ADD COLUMN `annulee` tinyint(1) unsigned NOT NULL DEFAULT 0 COMMENT ''Réservation annulée ("Me désinscrire") : ses places restent tracées dans #__gda_reservation_places'' AFTER `id_profil`',
-  'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+--    place ci-dessus). L'UPDATE de reprise doit s'exécuter avant le DROP COLUMN `statut`.
+ALTER TABLE `#__gda_reservation` ADD COLUMN `annulee` tinyint(1) unsigned NOT NULL DEFAULT 0 COMMENT 'Réservation annulée ("Me désinscrire") : ses places restent tracées dans #__gda_reservation_places' AFTER `id_profil` /** CAN FAIL **/;
 
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation' AND COLUMN_NAME = 'statut');
-SET @sql = IF(@col_exists > 0, 'UPDATE `#__gda_reservation` SET `annulee` = 1 WHERE `statut` = ''annulee''', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+UPDATE `#__gda_reservation` SET `annulee` = 1 WHERE `statut` = 'annulee' /** CAN FAIL **/;
 
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation' AND COLUMN_NAME = 'nbr_places');
-SET @sql = IF(@col_exists > 0, 'ALTER TABLE `#__gda_reservation` DROP COLUMN `nbr_places`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation' AND COLUMN_NAME = 'nbr_places_confirmees');
-SET @sql = IF(@col_exists > 0, 'ALTER TABLE `#__gda_reservation` DROP COLUMN `nbr_places_confirmees`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation' AND COLUMN_NAME = 'date_demande');
-SET @sql = IF(@col_exists > 0, 'ALTER TABLE `#__gda_reservation` DROP COLUMN `date_demande`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_reservation' AND COLUMN_NAME = 'statut');
-SET @sql = IF(@col_exists > 0, 'ALTER TABLE `#__gda_reservation` DROP COLUMN `statut`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+ALTER TABLE `#__gda_reservation` DROP COLUMN `nbr_places` /** CAN FAIL **/;
+ALTER TABLE `#__gda_reservation` DROP COLUMN `nbr_places_confirmees` /** CAN FAIL **/;
+ALTER TABLE `#__gda_reservation` DROP COLUMN `date_demande` /** CAN FAIL **/;
+ALTER TABLE `#__gda_reservation` DROP COLUMN `statut` /** CAN FAIL **/;
 
 -- 7. #__gda_campagnes : role_actif devient inutile (toujours vrai hors Saison, jamais utilisé
 --    par Saison). nbr_place conservée (vestigiale, voir cartographie) : suppression différée.
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '#__gda_campagnes' AND COLUMN_NAME = 'role_actif');
-SET @sql = IF(@col_exists > 0, 'ALTER TABLE `#__gda_campagnes` DROP COLUMN `role_actif`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+ALTER TABLE `#__gda_campagnes` DROP COLUMN `role_actif` /** CAN FAIL **/;
 
 -- 8. Clé de config pour filtrer les campagnes Loisir (miroir de IdTypeFormation).
 INSERT INTO `#__gda_conf` (`key`, `value`)

@@ -1,4 +1,8 @@
 # Component com_gadhesions
+## Version 0.9.11
+  - 🪲 Bugs
+    - Installation/mise à jour : `sql/updates/mysql/0.9.10.sql` échouait sur un environnement neuf (`erreur SQL 42S02, 1146, La table '...#__gda_reservation_places' n'existe pas`) — le marqueur `#__` n'est jamais substitué par Joomla lorsqu'il apparaît à l'intérieur d'une chaîne entre guillemets simples, et les instructions `PREPARE`/`EXECUTE` dynamiques utilisées pour rendre la migration idempotente ne sont pas exécutables par le pilote `mysqli` de l'installeur réel. Migration idempotente réécrite avec le marqueur standard `/** CAN FAIL **/` (déjà utilisé par Joomla core dans ses propres fichiers de mise à jour), sans SQL dynamique. Renommé en `0.9.11.sql` : `0.9.10` ayant déjà été publié, la correction est livrée comme nouvelle version plutôt que de réécrire une version déjà diffusée.
+
 ## Version 0.9.10
   - 📰 Nouveautés
     - Status Licence et Caci sur la page d'accueil
