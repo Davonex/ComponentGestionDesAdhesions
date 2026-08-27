@@ -37,11 +37,11 @@ $data_rapport = [
         'jform_campagne[id_campagne]' => $item->id_campagne,
         'jform_campagne[titre]' => $item->titre,
         'jform_campagne[event_helloasso]' => $item->event_helloasso,
-        'jform_campagne[role_actif]' => (int) $item->role_actif,
         'task' => "campagnes.rapport"
     ];
 
-$placesTotal = ((int) $item->nbr_place === 0) ? Text::_('COM_GDA_CAMPAGNE_NO_LIMIT') : (int) $item->nbr_place;
+$capaciteTotale = (int) ($item->capacite_totale ?? $item->nbr_place);
+$placesTotal = ($capaciteTotale === 0) ? Text::_('COM_GDA_CAMPAGNE_NO_LIMIT') : $capaciteTotale;
 
 // Reformaté au format attendu par le champ calendar (showtime), la base stockant du Y-m-d H:i:s.
 $dateEvenement = (!empty($item->date_evenement) && $item->date_evenement !== '0000-00-00 00:00:00')
@@ -142,10 +142,9 @@ $rapportTooltip = $hasHelloAsso
                 <span class="hidden" data-bs name="id_groupes"><?= $item->id_groupes;?></span>
                 <span class="hidden" data-bs name="id_campagne"><?= $item->id_campagne; ?></span>
                 <span class="hidden" data-bs name="active"><?= $item->active; ?></span>
-                <span class="hidden" data-bs name="nbr_place"><?= $item->nbr_place; ?></span>
                 <span class="hidden" data-bs name="date_evenement"><?= $dateEvenement; ?></span>
                 <span class="hidden" data-bs name="reservation_multiple"><?= (int) $item->reservation_multiple; ?></span>
-                <span class="hidden" data-bs name="role_actif"><?= (int) $item->role_actif; ?></span>
+                <span class="hidden" data-bs name="role_places"><?= htmlspecialchars(json_encode($item->role_places ?? []), ENT_QUOTES, 'UTF-8'); ?></span>
                 <span class="hidden" data-bs name="modal-title"><?= Text::_('COM_GDA_CAMPAGNE_EDIT'); ?></span>
             </td>
         </tr>

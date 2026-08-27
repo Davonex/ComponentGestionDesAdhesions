@@ -12,10 +12,11 @@ use Joomla\CMS\Plugin\PluginHelper;
 use Joomla\CMS\Response\JsonResponse;
 use Joomla\Database\DatabaseInterface;
 use Joomla\Registry\Registry;
+use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Service\ReservationService;
 
 /**
- * Réservations des adhérents aux campagnes hors saison (Formation pour l'instant).
+ * Réservations des adhérents aux campagnes hors saison (Formation et Loisir).
  *
  * Toutes les tâches sont ajax et suivent le pattern des autres contrôleurs du composant :
  * checkToken(), JsonResponse, HTML renvoyé encodé en base64.
@@ -54,9 +55,9 @@ class ReservationController extends BaseController
         /** @var \NCB\Component\Gda\Site\Model\AccueilModel $model */
         $model = $this->getModel('Accueil', 'Site');
 
-        foreach ($model->getFormations($user) as $formation) {
+        foreach ($model->getCampagnesReservables($user) as $formation) {
             if ((int) $formation->id_campagne === $idCampagne) {
-                return LayoutHelper::render('accueil.dash_formation_ligne', [
+                return LayoutHelper::render('accueil.dash_campagne_reservable_ligne', [
                     'formation' => $formation,
                     'user'      => $user,
                 ]);
@@ -67,8 +68,16 @@ class ReservationController extends BaseController
     }
 
     /**
-     * Réserve une ou plusieurs places, ou met à jour une réservation existante.
-     * Le service décide seul du statut (confirmée / liste d'attente) selon les places restantes.
+     * Réserve une ou plusieurs places (potentiellement réparties sur plusieurs rôles à la fois
+     * pour une campagne Loisir), ou met à jour une réservation existante. Le service décide seul
+     * du statut de chaque place (confirmée / liste d'attente) selon les places restantes de
+     * chaque rôle demandé. Si au moins une place est confirmée, que le paiement n'a pas encore
+     * été rapproché (#__gda_reservation.id_order vide) et que la campagne est liée à un
+     * événement HelloAsso, la réponse porte en plus un popup de paiement (voir
+     * reservation.helloasso_popup) : ce popup réapparaît à chaque réservation/modification tant
+     * que le paiement n'a pas été rapproché.
+     *
+     * @return void Réponse ajax échoée directement (JsonResponse).
      */
     public function reserver()
     {
@@ -91,20 +100,77 @@ class ReservationController extends BaseController
             $campagnesModel = $this->getModel('Campagnes', 'Site');
             $campagne       = $campagnesModel->getCampagne($idCampagne);
 
-            $reservation = $this->getReservationService()->reserver([
-                'id_campagne'     => $idCampagne,
-                'id_profil'       => (int) $user->id,
-                'nbr_place_total' => (int) $campagne->nbr_place,
-                'nbr_places'      => $campagne->reservation_multiple ? $input->getInt('nbr_places', 1) : 1,
-                'commentaire'     => $input->getString('commentaire', null),
-                'roles'           => $campagne->role_actif ? $input->get('roles', [], 'array') : [],
-            ]);
+            $demandes = [];
+            foreach ($input->get('role_places', [], 'array') as $ligne) {
+                $demandes[] = [
+                    'role'     => trim((string) ($ligne['role'] ?? '')),
+                    'quantite' => (int) ($ligne['quantite'] ?? 0),
+                ];
+            }
+
+            $idTypeFormation = (int) ConfHelper::getValue('IdTypeFormation');
+
+            if ((int) $campagne->id_type === $idTypeFormation) {
+                // Formation : un seul rôle possible, toujours 1 place (garde-fou serveur, même
+                // motif que le verrou reservation_multiple dans CampagnesModel::Sauver()).
+                $demandes = array_slice($demandes, 0, 1);
+
+                if ($demandes) {
+                    $demandes[0]['quantite'] = 1;
+                }
+            } elseif (!$campagne->reservation_multiple && array_sum(array_column($demandes, 'quantite')) > 1) {
+                // Loisir sans reservation_multiple : total <= 1 place, même garde-fou.
+                throw new \Exception(Text::_('COM_GDA_RESERVATION_MULTIPLE_INTERDITE'), 400);
+            }
+
+            $capacitesParRole = $campagnesModel->getRolesCapacite([$idCampagne])[$idCampagne] ?? [];
+
+            $reservation = $this->getReservationService()->reserver(
+                $idCampagne,
+                (int) $user->id,
+                $demandes,
+                $capacitesParRole,
+                $input->getString('commentaire', null)
+            );
+
+            $enAttente          = false;
+            $aUnePlaceConfirmee = false;
+
+            foreach ($reservation->places as $place) {
+                if ($place->statut === ReservationService::STATUT_ATTENTE) {
+                    $enAttente = true;
+                } elseif ($place->statut === ReservationService::STATUT_CONFIRMEE) {
+                    $aUnePlaceConfirmee = true;
+                }
+            }
+
+            $helloAssoPopup = null;
+
+            if ($aUnePlaceConfirmee && empty($reservation->id_order) && !empty($campagne->event_helloasso)) {
+                $eventHelloAsso = json_decode((string) $campagne->event_helloasso, true);
+                $urlHelloAsso   = $eventHelloAsso['url'] ?? null;
+
+                if (!empty($urlHelloAsso)) {
+                    $helloAssoPopup = LayoutHelper::render('reservation.helloasso_popup', [
+                        'campagne'     => $campagne,
+                        'urlHelloAsso' => $urlHelloAsso,
+                    ]);
+                }
+            }
 
             $Response->success = true;
-            $Response->message = $reservation->statut === ReservationService::STATUT_ATTENTE
+            $Response->message = $enAttente
                 ? Text::sprintf('COM_GDA_RESERVATION_EN_ATTENTE', $campagne->titre)
                 : Text::sprintf('COM_GDA_RESERVATION_CONFIRMEE', $campagne->titre);
-            $Response->data = base64_encode($this->renderLigne($idCampagne, $user));
+            // JsonResponse (Joomla\CMS\Response\JsonResponse) ne déclare que success/message/
+            // messages/data : y ajouter une propriété dynamique (ex: $Response->helloasso_popup)
+            // est deprecated depuis PHP 8.2 et casse la réponse (le warning HTML s'intercale
+            // avant le JSON). Le popup HelloAsso est donc niché dans data, seule propriété
+            // extensible sans risque.
+            $Response->data = [
+                'ligne'           => base64_encode($this->renderLigne($idCampagne, $user)),
+                'helloasso_popup' => $helloAssoPopup !== null ? base64_encode($helloAssoPopup) : null,
+            ];
 
             echo $Response;
         } catch (\Exception $e) {
@@ -178,16 +244,31 @@ class ReservationController extends BaseController
 
             $service     = $this->getReservationService();
             $reservation = $service->getReservation($idCampagne, (int) $user->id);
-            $rolesDispo  = $campagne->role_actif
-                ? ($campagnesModel->getRolesDeCampagne()[(int) $campagne->id_type] ?? [])
-                : [];
+
+            // Rôles proposés : ceux réellement configurés pour CETTE campagne (#__gda_campagne_roles),
+            // pas le gabarit par défaut de la nature (getRolesDeCampagne()) — un rôle ajouté/renommé
+            // par le Bureau doit apparaître ici même s'il ne fait pas partie des rôles par défaut.
+            $capacitesParRole = $campagnesModel->getRolesCapacite([$idCampagne])[$idCampagne] ?? [];
+            $rolesDispo       = array_keys($capacitesParRole);
+
+            // Places restantes par rôle, pour les afficher dans le sélecteur : le total de la
+            // campagne ne suffit pas à savoir si LE rôle choisi a encore de la place.
+            $placesDisponiblesParRole = [];
+            foreach ($rolesDispo as $roleDispo) {
+                $placesDisponiblesParRole[$roleDispo] = $service->getPlacesDisponiblesParRole(
+                    $idCampagne,
+                    $roleDispo,
+                    (int) ($capacitesParRole[$roleDispo] ?? 0)
+                );
+            }
 
             $Response->success = true;
             $Response->data    = base64_encode(LayoutHelper::render('reservation.form', [
-                'campagne'          => $campagne,
-                'reservation'       => $reservation,
-                'rolesDisponibles'  => $rolesDispo,
-                'placesDisponibles' => $service->getPlacesDisponibles($idCampagne, (int) $campagne->nbr_place),
+                'campagne'                 => $campagne,
+                'reservation'               => $reservation,
+                'rolesDisponibles'          => $rolesDispo,
+                'placesDisponibles'         => $service->getPlacesDisponiblesTotal($idCampagne, $service->getCapaciteTotale($campagne)),
+                'placesDisponiblesParRole'  => $placesDisponiblesParRole,
             ]));
 
             echo $Response;

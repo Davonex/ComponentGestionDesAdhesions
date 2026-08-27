@@ -18,6 +18,7 @@ $wa = $app->getDocument()->getWebAssetManager();
 $wa->useStyle('com_gdadhesions.gda');
 $wa->useScript('core');
 $wa->useScript('com_gdadhesions.form_modal');
+$wa->useScript('com_gdadhesions.row_list');
 $wa->useScript('com_gdadhesions.campagne');
 $wa->useScript('form.validate');
 
@@ -95,7 +96,7 @@ $layoutData = [
                     <select class="form-select" id="campagneSuiviSelect"
                         data-empty-label="<?= $this->escape(Text::_('COM_GDA_CAMPAGNES_SUIVI_EMPTY')) ?>">
                         <option value=""><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_SELECT_EMPTY') ?></option>
-                        <?php foreach ($this->lstFormations as $campagne) : ?>
+                        <?php foreach ($this->lstSuiviCampagnes as $campagne) : ?>
                             <option value="<?= (int) $campagne->id_campagne ?>" data-active="<?= (int) $campagne->active ?>">
                                 <?= $this->escape($campagne->titre) ?>
                             </option>

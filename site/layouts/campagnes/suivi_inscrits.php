@@ -3,6 +3,8 @@
 use Joomla\CMS\Layout\LayoutHelper;
 
 /**
+ * Suivi des inscriptions d'une campagne (Formation ou Loisir) — voir CampagnesController::suivi().
+ *
  * @var array $displayData
  * - $displayData['inscrits'] : object{id_groupe: 0, groupe_name, icon, adherents} — voir
  *   CampagnesModel::getInscritsCampagne(), même forme qu'un groupe de GroupesModel afin de
@@ -13,4 +15,4 @@ $inscrits = $displayData['inscrits'];
 
 ?>
 
-<?= LayoutHelper::render('groupes.detail', ['groupe' => $inscrits, 'showRole' => true]) ?>
+<?= LayoutHelper::render('groupes.detail', ['groupe' => $inscrits, 'showRole' => true, 'showReservationStatut' => true]) ?>

@@ -19,7 +19,7 @@ class HtmlView extends BaseHtmlView
     public $pagination;
     public array $types = [];
     public array $roles = [];
-    public array $lstFormations = [];
+    public array $lstSuiviCampagnes = [];
 
     public function display($tpl=null): void
     {
@@ -48,12 +48,14 @@ class HtmlView extends BaseHtmlView
         $this->types = $model->getTypes();
         $this->roles = $model->getRolesDeCampagne();
 
-        // Onglet "Réservations formation" : seule nature avec un rendu de suivi réel pour l'instant
-        // (les autres tombent sur le placeholder "à venir" côté contrôleur), inutile de les proposer.
+        // Onglet "Suivi des inscriptions" : Formation et Loisir ont un rendu de suivi réel
+        // (une future nature sans suivi encore construit tomberait sur le placeholder "à venir"
+        // côté contrôleur, inutile de la proposer ici).
         $idTypeFormation = (int) ConfHelper::getValue('IdTypeFormation');
-        $this->lstFormations = array_values(array_filter(
+        $idTypeLoisir    = (int) ConfHelper::getValue('IdTypeLoisir');
+        $this->lstSuiviCampagnes = array_values(array_filter(
             $this->lstCampagnes,
-            fn($campagne) => (int) $campagne->id_type === $idTypeFormation
+            fn($campagne) => in_array((int) $campagne->id_type, [$idTypeFormation, $idTypeLoisir], true)
         ));
 
         $this->form = $model->getForm();

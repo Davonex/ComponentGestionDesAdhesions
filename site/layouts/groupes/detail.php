@@ -1,5 +1,6 @@
 <?php
 
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
@@ -11,11 +12,15 @@ use NCB\Component\Gda\Site\Helper\ToolsHelper;
  * - $displayData['showRole'] : bool, affiche la colonne Rôle (adherent->role) — utilisé par
  *   l'onglet "Suivi des inscriptions" de la vue Campagnes (CampagnesModel::getInscritsCampagne()),
  *   absent pour la vue Groupes qui ne connaît pas cette notion.
+ * - $displayData['showReservationStatut'] : bool, affiche les colonnes Statut/Date de réservation
+ *   (adherent->en_attente, ->rang_attente, ->date_reservation) — même onglet Suivi que showRole,
+ *   mêmes libellés que la popup rapport (COM_GDA_CAMPAGNE_RAPPORT_*).
  */
 
 $groupe = $displayData['groupe'];
 $adherents = $groupe->adherents;
 $showRole = $displayData['showRole'] ?? false;
+$showReservationStatut = $displayData['showReservationStatut'] ?? false;
 ?>
 
 <?php if (empty($adherents)) : ?>
@@ -31,6 +36,10 @@ $showRole = $displayData['showRole'] ?? false;
                 <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI') ?></th>
                 <?php if ($showRole) : ?>
                     <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_ROLE') ?></th>
+                <?php endif; ?>
+                <?php if ($showReservationStatut) : ?>
+                    <th class="text-center"><?= Text::_('COM_GDA_CAMPAGNE_RAPPORT_COL_STATUT') ?></th>
+                    <th class="text-center"><?= Text::_('COM_GDA_CAMPAGNE_RAPPORT_COL_DATE') ?></th>
                 <?php endif; ?>
             </tr>
         </thead>
@@ -89,9 +98,11 @@ $showRole = $displayData['showRole'] ?? false;
                         </a>
                     </td>
                     <td class="text-center">
-                        <span class="badge bg-<?= $this->escape($licenceStatusClass) ?>" title="<?= $this->escape($licenceStatusLabel) ?>"><?= $dateLicence !== '' ? $this->escape($dateLicence) : '&mdash;' ?></span>
+                        
+                        <span class="badge bg-<?= $this->escape($licenceStatusClass) ?>" title="<?= $this->escape($licenceStatusLabel) ?>"> <i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= $dateLicence !== '' ? $this->escape($dateLicence) : '&mdash;' ?></span>
                     </td>
                     <td class="text-center">
+                        
                         <?php if (!empty($pathCaci)) : ?>
                             <a
                                 href="#"
@@ -101,14 +112,29 @@ $showRole = $displayData['showRole'] ?? false;
                                 data-bs-toggle="modal"
                                 data-bs-target="#imagePreviewModal"
                                 title="<?= $this->escape($statusLabel) ?>">
+                                <i class="fa-solid fa-file-medical me-1" aria-hidden="true"></i>
                                 <?= $dateCaci !== '' ? $this->escape($dateCaci) : '&mdash;' ?>
                             </a>
                         <?php else : ?>
-                            <span class="badge bg-<?= $this->escape($statusClass) ?>" title="<?= $this->escape($statusLabel) ?>"><?= $dateCaci !== '' ? $this->escape($dateCaci) : '&mdash;' ?></span>
+                            <span class="badge bg-<?= $this->escape($statusClass) ?>" title="<?= $this->escape($statusLabel) ?>"><i class="fa-solid fa-file-medical me-1" aria-hidden="true"></i><?= $dateCaci !== '' ? $this->escape($dateCaci) : '&mdash;' ?></span>
                         <?php endif; ?>
                     </td>
                     <?php if ($showRole) : ?>
                         <td class="text-center"><?= $adherent->role !== '' ? $this->escape($adherent->role) : '&mdash;' ?></td>
+                    <?php endif; ?>
+                    <?php if ($showReservationStatut) : ?>
+                        <td class="text-center">
+                            <?php if ($adherent->en_attente) : ?>
+                                <span class="badge bg-warning text-dark">
+                                    <?= Text::sprintf('COM_GDA_CAMPAGNE_RAPPORT_LISTE_ATTENTE', $adherent->rang_attente) ?>
+                                </span>
+                            <?php else : ?>
+                                <span class="badge bg-success"><?= Text::_('COM_GDA_CAMPAGNE_RAPPORT_CONFIRMEE') ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center">
+                            <?= $adherent->date_reservation ? HTMLHelper::_('date', $adherent->date_reservation, 'd M Y H:i') : '&mdash;' ?>
+                        </td>
                     <?php endif; ?>
                 </tr>
             <?php endforeach; ?>

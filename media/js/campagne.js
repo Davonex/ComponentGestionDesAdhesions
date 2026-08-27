@@ -148,28 +148,25 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /**
- *  Modal d'ajout/édition : affiche la description d'aide de la nature sélectionnée, adapte le
- *  switch "réservation de plusieurs places" (forcé sur Non pour Formation - une formation est
- *  toujours 1 place, masqué pour Boutique qui n'a pas de réservation), et le switch "rôle par
- *  place" (visible seulement pour Formation/Sortie, avec la liste fixe de rôles de la nature
- *  affichée en lecture seule quand il est activé).
+ *  Modal d'ajout/édition : adapte le switch "réservation de plusieurs places" (forcé sur Non
+ *  pour Formation - une formation est toujours 1 place, libre pour Loisir), et remplit les
+ *  lignes rôle+capacité (Formation et Loisir demandent toutes deux systématiquement un rôle par
+ *  place, voir ReservationService), selon la nature sélectionnée.
  *
  *  Se déclenche au changement du select ET à l'ouverture de la modal ('shown.bs.modal',
- *  après que LstModal ait préempli/réinitialisé le formulaire) : ouvrir la modal ne
- *  déclenche pas d'évènement 'change' sur le select, sans quoi l'encart de description
- *  restait vide-mais-visible tant qu'on n'y touchait pas.
+ *  après que LstModal ait préempli/réinitialisé le formulaire) : ouvrir la modal ne déclenche
+ *  pas d'évènement 'change' sur le select, sans quoi les lignes de rôles restaient celles de la
+ *  précédente édition tant qu'on n'y touchait pas.
  */
 document.addEventListener('DOMContentLoaded', function () {
     const modalForm = document.getElementById('modalForm');
     const typeSelect = document.getElementById('jform_campagne_id_type');
-    const descriptionEl = document.getElementById('jform_campagne_type_description');
-    const fieldReservationMultiple = document.getElementById('fieldReservationMultiple');
+    const typeMetaEl = document.getElementById('fieldRolePlaces');
     const fieldsetReservationMultiple = document.getElementById('jform_campagne_reservation_multiple');
-    const fieldRoleActif = document.getElementById('fieldRoleActif');
-    const fieldsetRoleActif = document.getElementById('jform_campagne_role_actif');
-    const roleDescriptionEl = document.getElementById('jform_campagne_role_description');
+    const rolePlacesRawData = document.getElementById('jform_campagne_role_places');
+    const idCampagneField = document.getElementById('jform_campagne_id_campagne');
 
-    if (!modalForm || !typeSelect || !descriptionEl) {
+    if (!modalForm || !typeSelect || !typeMetaEl) {
         return;
     }
 
@@ -177,80 +174,77 @@ document.addEventListener('DOMContentLoaded', function () {
     // fois au chargement de la page, pas réinjecté en ajax), une init au chargement suffit.
     initTooltips(modalForm);
 
+    const roleRows = RowList.init({
+        containerId: 'jform_campagne_role_places_rows',
+        templateId: 'campagne-role-template',
+        itemClass: 'campagne-role-item',
+        namePrefix: 'jform_campagne[role_places]',
+        addBtnId: 'jform_campagne_role_places_add',
+        fields: ['role', 'nbr_place'],
+    });
+
     const currentMeta = function () {
-        const descriptions = JSON.parse(descriptionEl.dataset.descriptions || '{}');
+        const descriptions = JSON.parse(typeMetaEl.dataset.typeMeta || '{}');
         return descriptions[typeSelect.value] || null;
     };
 
-    // Affiche la liste fixe de rôles de la nature courante, uniquement si le switch
-    // "rôle par place" est activé et que la nature en propose une.
-    const updateRoleDescription = function (meta) {
-        if (!roleDescriptionEl) {
+    /**
+     *  Remplit les lignes rôle+capacité : depuis la répartition déjà enregistrée si on édite une
+     *  campagne existante (JSON reçu via LstModal/openModal dans #jform_campagne_role_places,
+     *  même mécanisme générique que les autres champs - voir campagnes/row.php), sinon depuis les
+     *  rôles par défaut de la nature sélectionnée (préremplissage à 0, le Bureau ajuste ensuite).
+     */
+    const renderRoleRows = function (meta) {
+        if (!roleRows) {
             return;
         }
 
-        const checkedRoleActif = fieldsetRoleActif
-            ? fieldsetRoleActif.querySelector('input[type="radio"]:checked')
-            : null;
-        const roleActifOn = checkedRoleActif !== null && checkedRoleActif.value === '1';
-        const roles = meta && Array.isArray(meta.roles) ? meta.roles : [];
+        roleRows.clear();
 
-        if (roleActifOn && roles.length) {
-            roleDescriptionEl.textContent = roles.join(' / ');
-            roleDescriptionEl.classList.remove('d-none');
-        } else {
-            roleDescriptionEl.textContent = '';
-            roleDescriptionEl.classList.add('d-none');
+        const isEditing = idCampagneField && idCampagneField.value !== '';
+
+        if (isEditing && rolePlacesRawData && rolePlacesRawData.textContent.trim() !== '') {
+            let existant = {};
+
+            try {
+                existant = JSON.parse(rolePlacesRawData.textContent.trim());
+            } catch (e) {
+                existant = {};
+            }
+
+            Object.keys(existant).forEach(function (role) {
+                roleRows.addRow({ role: role, nbr_place: existant[role] });
+            });
+
+            return;
         }
+
+        const roles = meta && Array.isArray(meta.roles) ? meta.roles : [];
+        roles.forEach(function (role) {
+            roleRows.addRow({ role: role, nbr_place: 0 });
+        });
     };
 
     const updateTypeUi = function () {
         const meta = currentMeta();
 
-        descriptionEl.textContent = meta ? meta.desc : '';
-        descriptionEl.classList.toggle('d-none', !meta || !meta.desc);
-
-        if (fieldReservationMultiple && fieldsetReservationMultiple) {
-            if (meta && meta.name === 'Boutique') {
-                fieldReservationMultiple.classList.add('d-none');
-                fieldsetReservationMultiple.disabled = false;
-            } else if (meta && meta.name === 'Formation') {
-                fieldReservationMultiple.classList.remove('d-none');
+        if (fieldsetReservationMultiple) {
+            if (meta && meta.name === 'Formation') {
                 const radioNon = fieldsetReservationMultiple.querySelector('input[type="radio"][value="0"]');
                 if (radioNon) {
                     radioNon.checked = true;
                 }
                 fieldsetReservationMultiple.disabled = true;
             } else {
-                fieldReservationMultiple.classList.remove('d-none');
                 fieldsetReservationMultiple.disabled = false;
             }
         }
 
-        if (fieldRoleActif && fieldsetRoleActif) {
-            const natureAvecRole = meta !== null && (meta.name === 'Formation' || meta.name === 'Sortie');
-
-            fieldRoleActif.classList.toggle('d-none', !natureAvecRole);
-
-            if (!natureAvecRole) {
-                const radioNon = fieldsetRoleActif.querySelector('input[type="radio"][value="0"]');
-                if (radioNon) {
-                    radioNon.checked = true;
-                }
-            }
-        }
-
-        updateRoleDescription(meta);
+        renderRoleRows(meta);
     };
 
     typeSelect.addEventListener('change', updateTypeUi);
     modalForm.addEventListener('shown.bs.modal', updateTypeUi);
-
-    if (fieldsetRoleActif) {
-        fieldsetRoleActif.addEventListener('change', function () {
-            updateRoleDescription(currentMeta());
-        });
-    }
 });
 
 /**

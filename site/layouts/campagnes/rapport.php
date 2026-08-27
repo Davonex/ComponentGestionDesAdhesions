@@ -7,14 +7,13 @@ use NCB\Component\Gda\Site\Helper\FileHelper;
 /**
  * @var array $displayData
  * - $displayData['items']       : array de lignes (cf. CampagnesModel::getRapport())
- * - $displayData['form']        : données jform_campagne (titre, event_helloasso, role_actif)
+ * - $displayData['form']        : données jform_campagne (titre, event_helloasso)
  * - $displayData['hasHelloAsso'] : true si la campagne encaisse via HelloAsso (rapport à venir)
  */
 
 $items        = $displayData['items'];
 $form         = $displayData['form'];
 $hasHelloAsso = $displayData['hasHelloAsso'];
-$roleActif    = !empty($form['role_actif']);
 
 ?>
 
@@ -39,9 +38,7 @@ $roleActif    = !empty($form['role_actif']);
                     <tr>
                         <th><?= Text::_('COM_GDA_CAMPAGNE_RAPPORT_COL_ADHERENT') ?></th>
                         <th><?= Text::_('COM_GDA_CAMPAGNE_RAPPORT_COL_NIVEAU') ?></th>
-                        <?php if ($roleActif) : ?>
-                            <th><?= Text::_('COM_GDA_CAMPAGNE_RAPPORT_COL_ROLE') ?></th>
-                        <?php endif; ?>
+                        <th><?= Text::_('COM_GDA_CAMPAGNE_RAPPORT_COL_ROLE') ?></th>
                         <th><?= Text::_('COM_GDA_CAMPAGNE_RAPPORT_COL_DATE') ?></th>
                         <th><?= Text::_('COM_GDA_CAMPAGNE_RAPPORT_COL_STATUT') ?></th>
                     </tr>
@@ -54,9 +51,7 @@ $roleActif    = !empty($form['role_actif']);
                                 <br><small class="text-muted"><?= htmlspecialchars($item['username']) ?></small>
                             </td>
                             <td><?= htmlspecialchars($item['niveau']) ?></td>
-                            <?php if ($roleActif) : ?>
-                                <td><?= htmlspecialchars($item['role']) ?></td>
-                            <?php endif; ?>
+                            <td><?= htmlspecialchars($item['role']) ?></td>
                             <td><?= $item['date_reservation'] ? HTMLHelper::_('date', $item['date_reservation'], 'd M Y H:i') : '—' ?></td>
                             <td>
                                 <?php if ($item['en_attente']) : ?>

@@ -38,6 +38,7 @@ $isCompleted = $statusEnum === AdhesionStatusHelper::STATUS_COMPLETED;
 
 
     <div class="card-header">
+      <i class="fa-solid fa-id-card me-2" aria-hidden="true"></i>
       <span class="me-2"></span> Suivi Adhésion
       <span class="badge <?= $badgeClass; ?> float-end">
         <?= $statusLabel; ?>

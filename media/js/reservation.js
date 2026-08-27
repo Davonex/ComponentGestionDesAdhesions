@@ -1,17 +1,21 @@
 /**
- * Réservation aux campagnes depuis le dashboard adhérent (nature Formation pour l'instant).
+ * Réservation aux campagnes depuis le dashboard adhérent (natures Formation et Loisir).
  *
- * Dépend de form_modal.js pour simpleCallAjax().
+ * Dépend de form_modal.js pour simpleCallAjax() et de row_list.js pour RowList (lignes rôle+quantité).
  *
  * Tous les handlers sont délégués sur `document` : les lignes du dashboard sont remplacées en
  * ajax après chaque réservation, un écouteur posé directement dessus serait perdu.
  */
 
 /**
- * Remplace une ligne de formation par le HTML renvoyé par le serveur.
+ * Remplace une ligne de formation par le HTML renvoyé par le serveur. response.data est soit une
+ * chaîne base64 directe (annuler()), soit un objet {ligne, helloasso_popup} (reserver() - voir
+ * ReservationController::reserver(), qui niche tout dans data plutôt que d'ajouter une propriété
+ * dynamique à JsonResponse, deprecated depuis PHP 8.2).
  */
 const reservationLigneCB = function (response) {
-    const html = decodeURIComponent(escape(atob(response.data)));
+    const ligneBase64 = (response.data && typeof response.data === 'object') ? response.data.ligne : response.data;
+    const html = decodeURIComponent(escape(atob(ligneBase64)));
     const doc = document.createElement('div');
     doc.innerHTML = html;
 
@@ -30,7 +34,9 @@ const reservationLigneCB = function (response) {
 
 /**
  * Envoie la réservation. `extra` porte les champs du popup (places, rôle, commentaire) ;
- * en réservation directe depuis le dashboard, il est vide.
+ * en réservation directe depuis le dashboard, il est vide. `onDone` reçoit la réponse complète
+ * (pas seulement un signal de fin), pour que l'appelant puisse par exemple afficher le popup
+ * HelloAsso porté par response.data.helloasso_popup (voir ReservationController::reserver()).
  */
 const reservationEnvoyer = function (idCampagne, extra, onDone) {
     const data = Object.assign({
@@ -43,7 +49,7 @@ const reservationEnvoyer = function (idCampagne, extra, onDone) {
 
     simpleCallAjax(data, function (response) {
         reservationLigneCB(response);
-        if (typeof onDone === 'function') { onDone(); }
+        if (typeof onDone === 'function') { onDone(response); }
     });
 };
 
@@ -68,7 +74,50 @@ const reservationOuvrirPopup = function (idCampagne) {
 
     simpleCallAjax(data, function (response) {
         content.innerHTML = decodeURIComponent(escape(atob(response.data)));
+        reservationInitRoleRows();
     }, false);
+};
+
+/**
+ * Initialise les lignes rôle+quantité du popup (module RowList, cf. row_list.js) : le contenu de
+ * la popup étant réinjecté en ajax à chaque ouverture, RowList.init() doit être rappelé à chaque
+ * fois plutôt qu'une seule fois au chargement de la page. Préremplit depuis la réservation
+ * existante (#reservationExistantes, JSON role => quantité), sinon une ligne vide par défaut.
+ */
+const reservationInitRoleRows = function () {
+    const rows = RowList.init({
+        containerId: 'reservationRoleRows',
+        templateId: 'reservation-role-template',
+        itemClass: 'reservation-role-item',
+        namePrefix: 'role_places',
+        addBtnId: 'reservationRoleAdd',
+        fields: ['role', 'quantite'],
+    });
+
+    if (!rows) {
+        return;
+    }
+
+    const rawData = document.getElementById('reservationExistantes');
+    let existantes = {};
+
+    if (rawData && rawData.textContent.trim() !== '') {
+        try {
+            existantes = JSON.parse(rawData.textContent.trim());
+        } catch (e) {
+            existantes = {};
+        }
+    }
+
+    const roles = Object.keys(existantes);
+
+    if (roles.length) {
+        roles.forEach(function (role) {
+            rows.addRow({ role: role, quantite: existantes[role] });
+        });
+    } else {
+        rows.addRow();
+    }
 };
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -119,25 +168,40 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const extra = {};
-        const nbrPlaces = form.querySelector('[name="nbr_places"]');
         const commentaire = form.querySelector('[name="commentaire"]');
 
-        if (nbrPlaces) { extra.nbr_places = nbrPlaces.value; }
         if (commentaire) { extra.commentaire = commentaire.value; }
 
-        // Un rôle par place : autant d'entrées roles[] que de sélecteurs présents.
-        form.querySelectorAll('[name="roles[]"]').forEach(function (select, index) {
-            extra['roles[' + index + ']'] = select.value;
+        // Une ligne = un rôle + une quantité (role_places[i][role]/role_places[i][quantite],
+        // nommés par RowList - cf. row_list.js) : on transmet chaque champ tel quel, quel que
+        // soit le nombre de lignes.
+        form.querySelectorAll('[name^="role_places["]').forEach(function (input) {
+            extra[input.name] = input.value;
         });
 
         bouton.disabled = true;
-        reservationEnvoyer(idCampagne, extra, function () {
+        reservationEnvoyer(idCampagne, extra, function (response) {
             bouton.disabled = false;
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('reservationModal')).hide();
+
+            // Réservation confirmée sur une campagne HelloAsso non encore payée : le serveur
+            // renvoie en plus un popup de paiement (voir reservation.helloasso_popup, niché dans
+            // response.data) - on remplace le contenu du popup au lieu de le fermer, plutôt que
+            // d'empiler une seconde modal.
+            const popupBase64 = response && response.data ? response.data.helloasso_popup : null;
+
+            if (popupBase64) {
+                const content = document.getElementById('reservationModalContent');
+                if (content) {
+                    content.innerHTML = decodeURIComponent(escape(atob(popupBase64)));
+                }
+            } else {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('reservationModal')).hide();
+            }
         });
     });
 
-    // Désistement depuis le popup.
+    // Désistement depuis le popup : confirmation avant envoi, la place étant aussitôt reprise
+    // par le premier de la liste d'attente s'il y en a une.
     document.addEventListener('click', function (event) {
         const bouton = event.target.closest('.js-annuler-reservation');
 
@@ -153,16 +217,22 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const data = { task: 'reservation.annuler', id_campagne: idCampagne };
-        const csrfTokenName = Joomla.getOptions('csrf.token');
-        if (csrfTokenName) { data[csrfTokenName] = 1; }
+        GdaDialog.confirm(
+            Joomla.Text._('COM_GDA_RESERVATION_DESISTER_CONFIRM_TITRE'),
+            Joomla.Text._('COM_GDA_RESERVATION_DESISTER_CONFIRM_MESSAGE'),
+            function () {
+                const data = { task: 'reservation.annuler', id_campagne: idCampagne };
+                const csrfTokenName = Joomla.getOptions('csrf.token');
+                if (csrfTokenName) { data[csrfTokenName] = 1; }
 
-        bouton.disabled = true;
-        simpleCallAjax(data, function (response) {
-            reservationLigneCB(response);
-            bouton.disabled = false;
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('reservationModal')).hide();
-        });
+                bouton.disabled = true;
+                simpleCallAjax(data, function (response) {
+                    reservationLigneCB(response);
+                    bouton.disabled = false;
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('reservationModal')).hide();
+                });
+            }
+        );
     });
 
     // Clic sur le titre d'une formation : affiche l'article lié dans un popup.

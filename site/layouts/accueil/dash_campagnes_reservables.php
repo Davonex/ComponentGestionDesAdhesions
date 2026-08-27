@@ -1,14 +1,13 @@
 <?php
 
 /**
- * Layout : encart "Campagnes de formation" du dashboard adhérent.
+ * Layout : encart "Mes réservations" du dashboard adhérent (campagnes Formation et Loisir).
  *
- * Remplace, pour la nature Formation, l'ancien layout générique accueil/dash_campagnes.php
- * (qui lisait #__gda_souscriptions, désormais réservée à la saison). Les trois autres natures
- * — Sortie, Soirée, Boutique — auront chacune leur propre layout.
+ * Remplace l'ancien layout générique accueil/dash_campagnes.php (qui lisait #__gda_souscriptions,
+ * désormais réservée à la saison).
  *
  * @var array $displayData
- * - $displayData['formations'] : AccueilModel::getFormations(), triées par date de fin croissante
+ * - $displayData['formations'] : AccueilModel::getCampagnesReservables(), triées par date de fin croissante
  * - $displayData['user']       : utilisateur connecté
  */
 
@@ -20,7 +19,7 @@ use Joomla\CMS\Layout\LayoutHelper;
 $formations = $displayData['formations'] ?? [];
 $user       = $displayData['user'];
 
-// Encart entièrement masqué s'il n'y a aucune formation ouverte : un bloc vide n'apporte rien
+// Encart entièrement masqué s'il n'y a aucune campagne ouverte : un bloc vide n'apporte rien
 // au dashboard.
 if (empty($formations)) {
     return;
@@ -36,7 +35,7 @@ if (empty($formations)) {
 
         <div class="card-body" id="gda-formations-liste">
             <?php foreach ($formations as $formation) : ?>
-                <?= LayoutHelper::render('accueil.dash_formation_ligne', [
+                <?= LayoutHelper::render('accueil.dash_campagne_reservable_ligne', [
                     'formation' => $formation,
                     'user'      => $user,
                 ]) ?>

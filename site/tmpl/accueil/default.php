@@ -21,21 +21,23 @@ Bootstrap::framework();
 /** @var Joomla\CMS\Application\SiteApplication $app */
 $app = Factory::getApplication();
 $wa = $app->getDocument()->getWebAssetManager();
-// $wa->useScript('core');
-// $wa->useScript('keepalive');
-// $wa->useScript('field.modal-fields');
-// $wa->useScript('joomla.dialog');
-
 
 $wa->useStyle('com_gdadhesions.gda');
 $wa->useScript('com_gdadhesions.form_modal');
 $wa->useScript('com_gdadhesions.spinner');
 
+$wa->useScript('com_gdadhesions.row_list');
 $wa->useScript('com_gdadhesions.campagne');
+$wa->useScript('com_gdadhesions.dialog');
 $wa->useScript('com_gdadhesions.reservation');
 // tom-select
 $wa->useStyle('com_gdadhesions.tom-select');
 $wa->useScript('com_gdadhesions.tom-select');
+
+Text::script('COM_GDA_RESERVATION_DESISTER_CONFIRM_TITRE');
+Text::script('COM_GDA_RESERVATION_DESISTER_CONFIRM_MESSAGE');
+Text::script('COM_GDA_CANCEL');
+Text::script('COM_GDA_CONFIRM');
 
 
 ?>
@@ -48,7 +50,7 @@ $wa->useScript('com_gdadhesions.tom-select');
       type="button"
       data-bs-toggle="collapse"
       data-bs-target="#welcomeCard"
-      aria-expanded="false">
+      aria-expanded="true">
       <i class="fa-solid fa-chevron-right"></i>
     </button>
 
@@ -63,11 +65,16 @@ $wa->useScript('com_gdadhesions.tom-select');
 
   </div>
 
-  <div class="collapse" id="welcomeCard">
+  <div class="collapse show" id="welcomeCard">
     <div class="card-body">
-      <p class="mb-0">
-        Bienvenue dans votre espace adhérent
-      </p>
+      <!-- <p class="mb-0">
+        <?php echo Text::_('COM_GDA_ACCUEIL_WELCOME_MESSAGE'); ?>
+      </p> -->
+
+      <?php echo LayoutHelper::render('accueil.welcome_status', [
+        'profil' => $this->profil,
+        'itemid' => $this->itemid ?? 0,
+      ]); ?>
     </div>
   </div>
 
@@ -120,10 +127,10 @@ $wa->useScript('com_gdadhesions.tom-select');
 
   </div> -->
 
-  <!-- Campagnes de formation -->
+  <!-- Campagnes réservables (Formation et Loisir) -->
 
   <?php echo LayoutHelper::render(
-    'accueil.dash_formation',
+    'accueil.dash_campagnes_reservables',
     ['formations' => $this->formations, 'user' => $this->user]
   );
   ?>

@@ -11,7 +11,7 @@ use NCB\Component\Gda\Site\Helper\FileHelper;
  * - $displayData['task']  : Controler joomla task
  * - $displayData['form']  : Formulaire de la campagne
  * - $displayData['types'] : natures distinctes présentes dans $displayData['campagnes']
- * - $displayData['roles'] : id_type => liste de rôles fixes (Formation/Sortie uniquement)
+ * - $displayData['roles'] : id_type => liste de rôles PAR DÉFAUT (préremplissage à la création)
  */
 
 $items = $displayData['campagnes'];
@@ -20,21 +20,12 @@ $form  = $displayData['form'];
 $types = $displayData['types'] ?? [];
 $roles = $displayData['roles'] ?? [];
 
-// Description d'aide par nature (COM_GDA_CAMPAGNE_TYPE_xxx_DESC), affichée sous le sélecteur
-// de nature dans la modal d'ajout/édition.
-$typeDescriptionKeys = [
-    'Formation' => 'COM_GDA_CAMPAGNE_TYPE_FORMATION_DESC',
-    'Sortie'    => 'COM_GDA_CAMPAGNE_TYPE_SORTIE_DESC',
-    'Soirée'    => 'COM_GDA_CAMPAGNE_TYPE_SOIREE_DESC',
-    'Boutique'  => 'COM_GDA_CAMPAGNE_TYPE_BOUTIQUE_DESC',
-];
-
+// Métadonnées par nature (nom + rôles par défaut), lues en JS pour préremplir les lignes
+// rôle+capacité et adapter le switch reservation_multiple selon la nature sélectionnée.
 $typesMeta = [];
 foreach ($types as $type) {
-    $descKey = $typeDescriptionKeys[$type->type_name] ?? null;
     $typesMeta[(int) $type->id_type] = [
         'name'  => $type->type_name,
-        'desc'  => $descKey !== null ? Text::_($descKey) : '',
         'roles' => $roles[(int) $type->id_type] ?? [],
     ];
 }
@@ -160,22 +151,13 @@ $renderFieldHint = function (string $fieldName, bool $inline = false) use ($form
               </div>
             </div>
 
+            <!-- Date de l'événement à la place de l'ancien encart de description de nature
+                 (retiré pour réduire la hauteur globale du formulaire) : distincte de la période
+                 de souscription ci-dessous. -->
             <div class="row g-3 align-items-start mb-3">
               <div class="col-12 col-lg-6">
                 <?= $form->renderField('description');  ?>
               </div>
-              <div class="col-12 col-lg-6">
-                <div class="alert alert-light border small mb-0 d-none" id="jform_campagne_type_description"
-                    data-descriptions='<?= htmlspecialchars(json_encode($typesMeta), ENT_QUOTES, 'UTF-8'); ?>'></div>
-              </div>
-            </div>
-
-            <!-- <hr class="my-4"> -->
-
-            <!-- <h6 class="text-uppercase text-muted small fw-bold mb-3"><?= Text::_('COM_GDA_CAMPAGNE_SECTION_NATURE'); ?></h6> -->
-
-            <!-- Date de l'événement : distincte de la période de souscription ci-dessous. -->
-            <div class="row g-3 align-items-start">
               <div class="col-12 col-lg-6">
                 <?= $form->renderField('date_evenement');  ?>
               </div>
@@ -190,23 +172,34 @@ $renderFieldHint = function (string $fieldName, bool $inline = false) use ($form
               </div>
             </div>
 
-            <!-- Les champs switch occupent une demi-largeur : libellé et switch étant sur la même
-                 ligne (gda-field-inline), une colonne plus étroite les ferait passer à la ligne. -->
-            <div class="row g-3 align-items-center">
-              <div class="col-12 col-lg-6">
-                <?= $renderFieldHint('nbr_place', true);  ?>
-              </div>
-              <div class="col-12 col-lg-6" id="fieldReservationMultiple">
-                <?= $renderFieldHint('reservation_multiple', true);  ?>
+            <!-- Rôles et capacité : Formation et Loisir demandent toutes deux systématiquement un
+                 rôle par place (voir ReservationService) ; liste librement ajoutable/renommable/
+                 supprimable, préremplie des rôles par défaut de la nature à la création (voir
+                 campagne.js). #jform_campagne_role_places ne fait que recevoir en JSON (via
+                 LstModal/openModal) la répartition déjà enregistrée pour la campagne éditée ;
+                 il n'est jamais soumis lui-même. data-type-meta porte les métadonnées par nature
+                 (nom + rôles par défaut) lues par campagne.js. -->
+            <div class="row g-3 align-items-start" id="fieldRolePlaces"
+                data-type-meta='<?= htmlspecialchars(json_encode($typesMeta), ENT_QUOTES, 'UTF-8'); ?>'>
+              <div class="col-12">
+                <label class="control-label gda-field-hint-label mb-2"><?= Text::_('COM_GDA_CAMPAGNE_ROLE_PLACES'); ?></label>
+                <div id="jform_campagne_role_places_rows"></div>
+                <button type="button" class="btn btn-sm btn-outline-success mt-1" id="jform_campagne_role_places_add">
+                  <span class="fa-solid fa-plus"></span> <?= Text::_('COM_GDA_CAMPAGNE_ROLE_ADD'); ?>
+                </button>
+                <div id="jform_campagne_role_places" class="d-none"></div>
               </div>
             </div>
 
-            <div class="row g-3 align-items-center" id="fieldRoleActif">
-              <div class="col-12 col-lg-6">
-                <?= $renderFieldHint('role_actif', true);  ?>
-              </div>
-              <div class="col-12 col-lg-6">
-                <div class="alert alert-light border small mb-0 d-none" id="jform_campagne_role_description"></div>
+            <?= LayoutHelper::render('campagnes.role_row_template'); ?>
+
+            <!-- Le champ switch occupe une demi-largeur : libellé et switch étant sur la même
+                 ligne (gda-field-inline), une colonne plus étroite le ferait passer à la ligne.
+                 Placé sous la ligne des rôles (et non à côté des dates) car sa valeur en dépend
+                 (forcé à Non pour Formation, voir campagne.js). -->
+            <div class="row g-3 align-items-center">
+              <div class="col-12 col-lg-6" id="fieldReservationMultiple">
+                <?= $renderFieldHint('reservation_multiple', true);  ?>
               </div>
             </div>
 

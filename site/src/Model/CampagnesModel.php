@@ -12,6 +12,7 @@ use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Service\BrevetService;
+use NCB\Component\Gda\Site\Service\ReservationService;
 use NCB\Component\Gda\Site\Service\SouscriptionService;
 
 
@@ -21,21 +22,6 @@ class CampagnesModel extends ListModel
     protected $_item = null;
 
     private ?BrevetService $brevetService = null;
-
-    /**
-     * Expression SELECT des places occupées d'une campagne, à utiliser avec une jointure sur
-     * #__gda_reservation aliasée `r` et un paramètre lié :statut_annulee.
-     *
-     * On additionne les PLACES accordées (nbr_places_confirmees) et non le nombre de lignes :
-     * depuis la mise en place des réservations, un adhérent peut occuper plusieurs places. Les
-     * réservations annulées et les places encore en liste d'attente n'occupent rien.
-     */
-    private function getSelectPlacesOccupees($db): string
-    {
-        return 'COALESCE(SUM(CASE WHEN ' . $db->quoteName('r.statut') . ' != :statut_annulee'
-            . ' THEN ' . $db->quoteName('r.nbr_places_confirmees') . ' ELSE 0 END), 0) AS places_occupees';
-    }
-
 
     function getCampagne($id_campagne)
     {
@@ -49,20 +35,16 @@ class CampagnesModel extends ListModel
              $db = $this->getDatabase();
             $select = $db->getQuery(true);
 
-            $statut_annulee = \NCB\Component\Gda\Site\Service\ReservationService::STATUT_ANNULEE;
-
             $select->select('c.*');
             $select->select('tc.*');
-            $select->select($this->getSelectPlacesOccupees($db));
+            $select->select(ReservationService::getSelectPlacesOccupeesTotal($db, 'c') . ' AS places_occupees');
+            $select->select(ReservationService::getSelectCapaciteTotale($db, 'c') . ' AS capacite_totale');
             $select->from($db->quoteName('#__gda_campagnes', 'c'));
             $select->join('left', $db->quoteName('#__gda_type_de_campagne', 'tc'), $db->quoteName('c.id_type') . ' = ' . $db->quoteName('tc.id_type'));
-            $select->join('left', $db->quoteName('#__gda_reservation', 'r'), $db->quoteName('c.id_campagne') . ' = ' . $db->quoteName('r.id_campagne'));
 
             $select->where($db->quoteName('c.id_campagne') . '= :value_id_campagne');
 
             $select->bind(':value_id_campagne', $id_campagne);
-            $select->bind(':statut_annulee', $statut_annulee);
-            $select->group($db->quoteName('c.id_campagne'));
 
             $db->setQuery($select);
             try {
@@ -75,6 +57,9 @@ class CampagnesModel extends ListModel
             if (count($item) !== 1) {
              throw new \Exception("Bizard  il y a 0 ou plusieurs campagne avec l'ID:".$id_campagne, 500);
             }
+
+            // Capacité par rôle, pour préremplir le formulaire d'édition.
+            $item[0]->role_places = $this->getRolesCapacite([(int) $id_campagne])[(int) $id_campagne] ?? [];
         }
         return $item[0];
     }
@@ -89,20 +74,16 @@ class CampagnesModel extends ListModel
 
         $select = $db->getQuery(true);
 
-        $statut_annulee = \NCB\Component\Gda\Site\Service\ReservationService::STATUT_ANNULEE;
-
         $select->select('c.*');
         $select->select('tc.*');
-        $select->select($this->getSelectPlacesOccupees($db));
+        $select->select(ReservationService::getSelectPlacesOccupeesTotal($db, 'c') . ' AS places_occupees');
+        $select->select(ReservationService::getSelectCapaciteTotale($db, 'c') . ' AS capacite_totale');
         $select->from($db->quoteName('#__gda_campagnes', 'c'));
         $select->join('left', $db->quoteName('#__gda_type_de_campagne', 'tc'), $db->quoteName('c.id_type') . ' = ' . $db->quoteName('tc.id_type'));
-        $select->join('left', $db->quoteName('#__gda_reservation', 'r'), $db->quoteName('c.id_campagne') . ' = ' . $db->quoteName('r.id_campagne'));
 
         $select->where($db->quoteName('c.effacer') . '= 0');
         $select->where($db->quoteName('c.id_type') . ' != :id_type_saison');
         $select->bind(':id_type_saison', $id_type_saison);
-        $select->bind(':statut_annulee', $statut_annulee);
-        $select->group($db->quoteName('c.id_campagne'));
 
         $db->setQuery($select);
             try {
@@ -111,6 +92,18 @@ class CampagnesModel extends ListModel
                 throw new \Exception(Text::_('COM_GDA_ERROR_CAMPAGNES'), 404, $e);
                 // $select->__toString()
             }
+
+        // Capacité par rôle, pour préremplir la modal d'édition de chaque ligne : une seule
+        // requête groupée plutôt qu'un appel par campagne (pas de N+1).
+        if (!empty($this->_items)) {
+            $idsCampagne = array_map(static fn($item) => (int) $item->id_campagne, $this->_items);
+            $rolesParCampagne = $this->getRolesCapacite($idsCampagne);
+
+            foreach ($this->_items as $item) {
+                $item->role_places = $rolesParCampagne[(int) $item->id_campagne] ?? [];
+            }
+        }
+
         return $this->_items;
     }
 
@@ -139,11 +132,13 @@ class CampagnesModel extends ListModel
     }
 
     /**
-     * Liste fixe des rôles proposés par nature de campagne (ex: Formation -> Encadrants/Participants),
-     * pour affichage en lecture seule dans le formulaire quand "role_actif" est activé. Non
-     * configurable pour l'instant (#__gda_role_de_campagne n'a pas encore d'écran d'administration).
+     * Rôles par défaut par nature de campagne (ex: Formation -> Pratiquant/Encadrant), utilisés
+     * pour préremplir les lignes rôle+capacité à la création d'une nouvelle campagne. Simple
+     * gabarit de départ : les rôles réels d'une campagne (#__gda_campagne_roles) sont ensuite
+     * librement ajoutés/renommés/supprimés par le Bureau. Non configurable pour l'instant
+     * (#__gda_role_de_campagne n'a pas encore d'écran d'administration).
      *
-     * @return array<int, string[]> id_type => liste des rôles
+     * @return array<int, string[]> id_type => liste des rôles par défaut
      */
     function getRolesDeCampagne(): array
     {
@@ -165,6 +160,107 @@ class CampagnesModel extends ListModel
     }
 
     /**
+     * Capacité par rôle (#__gda_campagne_roles) pour une ou plusieurs campagnes, à la fois pour
+     * préremplir le formulaire d'édition (une campagne) et pour enrichir une liste sans N+1
+     * (plusieurs campagnes en une seule requête, groupées ensuite en PHP).
+     *
+     * L'ordre des rôles retourné suit le gabarit par défaut de la nature de chaque campagne
+     * (#__gda_role_de_campagne, ex: Formation -> Pratiquant puis Encadrant) plutôt que l'ordre
+     * SQL naturel (clé primaire (id_campagne, role), donc alphabétique - "Encadrant" avant
+     * "Pratiquant" - sans rapport avec l'ordre attendu à l'écran). Un rôle absent du gabarit
+     * (renommé ou ajouté librement par le Bureau) est conservé après ceux du gabarit.
+     *
+     * @param  int[] $idsCampagne Identifiants des campagnes concernées.
+     * @return array<int, array<string, int>> id_campagne => [role => nbr_place], ordonné.
+     */
+    function getRolesCapacite(array $idsCampagne): array
+    {
+        if (empty($idsCampagne)) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['cr.id_campagne', 'cr.role', 'cr.nbr_place', 'c.id_type']))
+            ->from($db->quoteName('#__gda_campagne_roles', 'cr'))
+            ->join('inner', $db->quoteName('#__gda_campagnes', 'c') . ' ON ' . $db->quoteName('c.id_campagne') . ' = ' . $db->quoteName('cr.id_campagne'))
+            ->whereIn($db->quoteName('cr.id_campagne'), $idsCampagne);
+
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+
+        $capacites = [];
+        $idsType   = [];
+        foreach ($rows as $row) {
+            $capacites[(int) $row->id_campagne][(string) $row->role] = (int) $row->nbr_place;
+            $idsType[(int) $row->id_campagne] = (int) $row->id_type;
+        }
+
+        $gabarits = $this->getRolesDeCampagne();
+
+        foreach ($capacites as $idCampagne => $roles) {
+            $capacites[$idCampagne] = ReservationService::ordonnerParGabarit($roles, $gabarits[$idsType[$idCampagne]] ?? []);
+        }
+
+        return $capacites;
+    }
+
+    /**
+     * Remplace la répartition des places par rôle d'une campagne (stratégie "table rase", même
+     * motif que ReservationService::reserver() côté places : le nombre de rôles peut varier d'une
+     * campagne à l'autre et être librement renommé, un diff ligne à ligne n'apporterait rien).
+     *
+     * Tableau INDEXÉ de paires (et non associatif par nom de rôle) : les noms de rôle sont du
+     * texte libre, renommable en direct dans le même enregistrement — une clé associative ne peut
+     * pas représenter proprement "cette ligne s'appelait X, s'appelle maintenant Y". Une capacité
+     * à 0 reste une ligne valide et persistée (ex: "15 Pratiquant, 0 Encadrant") ; seules les
+     * lignes sans nom de rôle sont ignorées. Les rôles en double (même nom soumis deux fois) sont
+     * fusionnés par somme des capacités, pour éviter un conflit sur la clé primaire (id_campagne, role).
+     *
+     * @param  int                                    $idCampagne Campagne concernée.
+     * @param  array<int, array{role: mixed, nbr_place: mixed}> $rolePlaces Paires role/capacité.
+     */
+    private function saveRolePlaces(int $idCampagne, array $rolePlaces): void
+    {
+        $db = $this->getDatabase();
+
+        $delete = $db->getQuery(true)
+            ->delete($db->quoteName('#__gda_campagne_roles'))
+            ->where($db->quoteName('id_campagne') . ' = :id_campagne')
+            ->bind(':id_campagne', $idCampagne, \Joomla\Database\ParameterType::INTEGER);
+
+        $db->setQuery($delete);
+        $db->execute();
+
+        $capacitesParRole = [];
+
+        foreach ($rolePlaces as $ligne) {
+            $role     = trim((string) ($ligne['role'] ?? ''));
+            $nbrPlace = max(0, (int) ($ligne['nbr_place'] ?? 0));
+
+            if ($role === '') {
+                continue;
+            }
+
+            $capacitesParRole[$role] = ($capacitesParRole[$role] ?? 0) + $nbrPlace;
+        }
+
+        foreach ($capacitesParRole as $role => $nbrPlace) {
+            $insert = $db->getQuery(true)
+                ->insert($db->quoteName('#__gda_campagne_roles'))
+                ->columns($db->quoteName(['id_campagne', 'role', 'nbr_place']))
+                ->values(':id_campagne, :role, :nbr_place')
+                ->bind(':id_campagne', $idCampagne, \Joomla\Database\ParameterType::INTEGER)
+                ->bind(':role', $role)
+                ->bind(':nbr_place', $nbrPlace, \Joomla\Database\ParameterType::INTEGER);
+
+            $db->setQuery($insert);
+            $db->execute();
+        }
+    }
+
+    /**
      * Retourne les adhérents ayant réservé une place sur une campagne (hors saison), sous la même
      * forme qu'un groupe issu de GroupesModel::getGroupesAvecAdherents() afin de pouvoir réutiliser
      * tel quel les layouts groupes.detail / groupes.vignette pour l'onglet "Suivi des inscriptions".
@@ -172,8 +268,14 @@ class CampagnesModel extends ListModel
     function getInscritsCampagne(int $id_campagne, string $titre): object
     {
         $db = $this->getDatabase();
-        $statut_annulee = \NCB\Component\Gda\Site\Service\ReservationService::STATUT_ANNULEE;
+        $statut_annulee = ReservationService::STATUT_ANNULEE;
+        $statut_attente = ReservationService::STATUT_ATTENTE;
 
+        // Une ligne par PLACE (#__gda_reservation_places), pas par réservation : depuis la fusion
+        // Formation/Loisir, une réservation peut porter plusieurs rôles à la fois, chacun avec
+        // son propre statut. Un adhérent avec 2 places confirmées + 1 en attente apparaît donc en
+        // 3 lignes ici, chacune avec son rôle/statut propre — layout groupes.detail inchangé, il
+        // affiche déjà un rôle/statut par ligne.
         $query = $db->getQuery(true)
             ->select([
                 $db->quoteName('p.id_profil'),
@@ -184,13 +286,17 @@ class CampagnesModel extends ListModel
                 $db->quoteName('p.caci'),
                 $db->quoteName('p.date_caci'),
                 $db->quoteName('p.date_licence'),
-                $db->quoteName('r.id_reservation'),
+                $db->quoteName('rp.id_place'),
+                $db->quoteName('rp.role'),
+                $db->quoteName('rp.statut'),
+                $db->quoteName('rp.date_rang'),
             ])
-            ->from($db->quoteName('#__gda_reservation', 'r'))
+            ->from($db->quoteName('#__gda_reservation_places', 'rp'))
+            ->innerJoin($db->quoteName('#__gda_reservation', 'r') . ' ON ' . $db->quoteName('r.id_reservation') . ' = ' . $db->quoteName('rp.id_reservation'))
             ->innerJoin($db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('r.id_profil'))
-            ->where($db->quoteName('r.id_campagne') . ' = :id_campagne')
-            ->where($db->quoteName('r.statut') . ' != :statut_annulee')
-            ->order($db->quoteName('p.nom') . ' ASC, ' . $db->quoteName('p.prenom') . ' ASC')
+            ->where($db->quoteName('rp.id_campagne') . ' = :id_campagne')
+            ->where($db->quoteName('rp.statut') . ' != :statut_annulee')
+            ->order($db->quoteName('p.nom') . ' ASC, ' . $db->quoteName('p.prenom') . ' ASC, ' . $db->quoteName('rp.role') . ' ASC')
             ->bind(':id_campagne', $id_campagne, \Joomla\Database\ParameterType::INTEGER)
             ->bind(':statut_annulee', $statut_annulee);
 
@@ -202,8 +308,8 @@ class CampagnesModel extends ListModel
             throw new \Exception($e->getMessage(), 500);
         }
 
-        $idsReservation = array_map(static fn($row) => (int) $row->id_reservation, $rows);
-        $rolesParReservation = $this->getRolesParReservation($idsReservation);
+        // Rang de file d'attente : indépendant de l'ordre alphabétique d'affichage ci-dessous.
+        $rangAttenteParPlace = ReservationService::calculerRangsAttente($rows);
 
         $groupe = new \stdClass();
         $groupe->id_groupe = 0;
@@ -223,7 +329,10 @@ class CampagnesModel extends ListModel
             $adherent->caci_status = AdhesionStatusHelper::getCaciFileStatus($row->caci, $row->date_caci);
             $adherent->date_licence = $row->date_licence;
             $adherent->licence_status = AdhesionStatusHelper::getLicenceValidityStatus($row->date_licence);
-            $adherent->role = $rolesParReservation[(int) $row->id_reservation] ?? '';
+            $adherent->role = $row->role;
+            $adherent->date_reservation = $row->date_rang;
+            $adherent->en_attente = $row->statut === $statut_attente;
+            $adherent->rang_attente = $rangAttenteParPlace[(int) $row->id_place] ?? null;
 
             $groupe->adherents[] = $adherent;
         }
@@ -231,9 +340,10 @@ class CampagnesModel extends ListModel
         // Aperçu des brevets (badges) attendu par le layout groupes.detail réutilisé ici : sans
         // cette propriété, brevets_shortlist reste absente et le layout affiche silencieusement
         // "aucun brevet" pour tout le monde. Même motif que GroupesModel::enrichirBrevetsShortList()
-        // (une seule requête groupée pour tous les inscrits, pas de N+1).
+        // (une seule requête groupée pour tous les inscrits, pas de N+1). array_unique : un même
+        // adhérent peut désormais apparaître sur plusieurs lignes (plusieurs rôles/places).
         if (!empty($groupe->adherents)) {
-            $idProfils = array_map(static fn($adherent) => $adherent->id_profil, $groupe->adherents);
+            $idProfils = array_unique(array_map(static fn($adherent) => $adherent->id_profil, $groupe->adherents));
             $shortLists = $this->getBrevetService()->getBrevetsShortListProfils($idProfils);
 
             foreach ($groupe->adherents as $adherent) {
@@ -345,8 +455,14 @@ class CampagnesModel extends ListModel
         // Date de l'événement : datetime (heure comprise), donc convertisseur dédié.
         $value_date_evenement = ToolsHelper::to_sqldatetime($data['date_evenement'] ?? null);
         $value_event_helloasso = (isset($data['event_helloasso'])) ? ($data['event_helloasso']) : null;
-        $value_reservation_multiple = !empty($data['reservation_multiple']) ? 1 : 0;
-        $value_role_actif = !empty($data['role_actif']) ? 1 : 0;
+        // Formation reste toujours 1 place = 1 rôle par adhérent ; Loisir laisse le Bureau
+        // choisir. Forcé côté serveur (le formulaire le fait déjà côté client mais ce n'est pas
+        // suffisant pour une règle métier bloquante, cf. contrôles serveur similaires dans
+        // AdhesionController::save()).
+        $idTypeFormation = (int) ConfHelper::getValue('IdTypeFormation');
+        $value_reservation_multiple = ((int) $data['id_type'] === $idTypeFormation)
+            ? 0
+            : (empty($data['reservation_multiple']) ? 0 : 1);
 
        if ($data['id_campagne']) {
             // Update Item 
@@ -363,7 +479,6 @@ class CampagnesModel extends ListModel
                 $db->quoteName('id_groupes') . '= :value_id_groupes',
                 $db->quoteName('nbr_place') . '= :value_nbr_place',
                 $db->quoteName('reservation_multiple') . '= :value_reservation_multiple',
-                $db->quoteName('role_actif') . '= :value_role_actif',
                 $db->quoteName('active') . '= :value_active',
             );
             $conditions = array( $db->quoteName('id_campagne') . ' = :value_id_campagne');
@@ -374,10 +489,10 @@ class CampagnesModel extends ListModel
             $value_active = (int) 0;
 
                 // Insert
-            $columns = array('titre','description', 'event_helloasso','date_debut', 'date_fin', 'date_evenement', 'active', 'id_article','id_type','id_groupes','nbr_place','reservation_multiple','role_actif');
+            $columns = array('titre','description', 'event_helloasso','date_debut', 'date_fin', 'date_evenement', 'active', 'id_article','id_type','id_groupes','nbr_place','reservation_multiple');
             $query->insert($db->quoteName('#__gda_campagnes'));
             $query->columns($db->quoteName($columns));
-            $query->values(':value_titre, :value_description, :value_event_helloasso, :value_date_debut, :value_date_fin, :value_date_evenement, :value_active, :value_id_article, :value_id_type, :value_id_groupes, :value_nbr_place, :value_reservation_multiple, :value_role_actif');
+            $query->values(':value_titre, :value_description, :value_event_helloasso, :value_date_debut, :value_date_fin, :value_date_evenement, :value_active, :value_id_article, :value_id_type, :value_id_groupes, :value_nbr_place, :value_reservation_multiple');
        }
 
         // Bind values
@@ -392,9 +507,12 @@ class CampagnesModel extends ListModel
         $query->bind(':value_id_type',  $data['id_type']);
         $query->bind(':value_id_groupes', $value_id_groupes);
 
-        $query->bind(':value_nbr_place',  $data['nbr_place']);
+        // Champ retiré du formulaire (remplacé par la répartition par rôle ci-dessous, toujours
+        // active) : absent du POST, d'où le repli à 0. Variable locale obligatoire :
+        // DatabaseQuery::bind() attend une référence, une expression ?? ne l'est pas.
+        $value_nbr_place = $data['nbr_place'] ?? 0;
+        $query->bind(':value_nbr_place',  $value_nbr_place);
         $query->bind(':value_reservation_multiple',  $value_reservation_multiple);
-        $query->bind(':value_role_actif',  $value_role_actif);
 
         // $query->__toString()
 
@@ -406,6 +524,10 @@ class CampagnesModel extends ListModel
         } catch (\RuntimeException $e) {
             throw new \Exception($e->getMessage(), 500);
         }
+
+        // Répartition par rôle : toujours active (Formation et Loisir demandent systématiquement
+        // un rôle par place).
+        $this->saveRolePlaces((int) $data['id_campagne'], $data['role_places'] ?? []);
 
         return  $data['id_campagne'];
     }
@@ -521,8 +643,9 @@ class CampagnesModel extends ListModel
 
     /**
      * Rapport rapide des réservations d'une campagne (hors HelloAsso, cf. getRapportHelloAsso).
-     * Une ligne par réservation non annulée : identité, niveau de plongée, rôle choisi (si la
-     * campagne le demande) et rang dans la liste d'attente le cas échéant.
+     * Une ligne par PLACE non annulée (#__gda_reservation_places) : identité, niveau de plongée,
+     * rôle et rang dans la liste d'attente le cas échéant. Depuis la fusion Formation/Loisir, un
+     * adhérent ayant réservé plusieurs rôles à la fois apparaît en plusieurs lignes.
      *
      * @return array<int, array{nom_complet: string, username: string, niveau: string, role: string,
      *                           date_reservation: ?string, en_attente: bool, rang_attente: ?int}>
@@ -533,25 +656,24 @@ class CampagnesModel extends ListModel
         $app = Factory::getApplication();
         $data = $app->getUserState('campagne.rapport');
         $idCampagne = (int) ($data['id_campagne'] ?? 0);
-        $roleActif = !empty($data['role_actif']);
 
         $db = $this->getDatabase();
-        $statut_annulee = \NCB\Component\Gda\Site\Service\ReservationService::STATUT_ANNULEE;
-        $statut_attente = \NCB\Component\Gda\Site\Service\ReservationService::STATUT_ATTENTE;
+        $statut_annulee = ReservationService::STATUT_ANNULEE;
+        $statut_attente = ReservationService::STATUT_ATTENTE;
 
         $query = $db->getQuery(true)
             ->select($db->quoteName([
-                'r.id_reservation', 'r.id_profil', 'r.date_reservation', 'r.statut',
-                'p.nom', 'p.prenom', 'u.username',
+                'rp.id_place', 'rp.role', 'rp.statut', 'rp.date_rang',
+                'p.id_profil', 'p.nom', 'p.prenom', 'u.username',
             ]))
-            ->from($db->quoteName('#__gda_reservation', 'r'))
+            ->from($db->quoteName('#__gda_reservation_places', 'rp'))
+            ->innerJoin($db->quoteName('#__gda_reservation', 'r') . ' ON ' . $db->quoteName('r.id_reservation') . ' = ' . $db->quoteName('rp.id_reservation'))
             ->innerJoin($db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('r.id_profil'))
             ->innerJoin($db->quoteName('#__users', 'u') . ' ON ' . $db->quoteName('u.id') . ' = ' . $db->quoteName('p.id_profil'))
-            ->where($db->quoteName('r.id_campagne') . ' = :id_campagne')
-            ->where($db->quoteName('r.statut') . ' != :statut_annulee')
-            // Ordre = ordre d'arrivée dans la file d'attente : sert à calculer le rang des places
-            // encore en attente ci-dessous.
-            ->order($db->quoteName('r.date_reservation') . ' ASC')
+            ->where($db->quoteName('rp.id_campagne') . ' = :id_campagne')
+            ->where($db->quoteName('rp.statut') . ' != :statut_annulee')
+            // Ordre = ordre d'arrivée dans la file d'attente, pour un affichage chronologique.
+            ->order($db->quoteName('rp.date_rang') . ' ASC')
             ->bind(':id_campagne', $idCampagne, \Joomla\Database\ParameterType::INTEGER)
             ->bind(':statut_annulee', $statut_annulee);
 
@@ -570,24 +692,19 @@ class CampagnesModel extends ListModel
         $idsProfil = array_values(array_unique(array_map(fn($row) => (int) $row->id_profil, $rows)));
         $niveauxParProfil = $this->getNiveauxParProfil($idsProfil);
 
-        $idsReservation = array_map(fn($row) => (int) $row->id_reservation, $rows);
-        $rolesParReservation = $roleActif ? $this->getRolesParReservation($idsReservation) : [];
+        $rangAttenteParPlace = ReservationService::calculerRangsAttente($rows);
 
-        $rangAttente = 0;
         $rapport = [];
 
         foreach ($rows as $row) {
-            $enAttente = $row->statut === $statut_attente;
-            $rangAttente += $enAttente ? 1 : 0;
-
             $rapport[] = [
                 'nom_complet'      => trim($row->prenom . ' ' . $row->nom),
                 'username'         => $row->username,
                 'niveau'           => $niveauxParProfil[(int) $row->id_profil] ?? '',
-                'role'             => $rolesParReservation[(int) $row->id_reservation] ?? '',
-                'date_reservation' => $row->date_reservation,
-                'en_attente'       => $enAttente,
-                'rang_attente'     => $enAttente ? $rangAttente : null,
+                'role'             => $row->role,
+                'date_reservation' => $row->date_rang,
+                'en_attente'       => $row->statut === $statut_attente,
+                'rang_attente'     => $rangAttenteParPlace[(int) $row->id_place] ?? null,
             ];
         }
 
@@ -595,7 +712,12 @@ class CampagnesModel extends ListModel
     }
 
     /**
-     * Niveaux de plongée (codes de brevets) par profil, du plus récemment obtenu au plus ancien.
+     * Niveaux de plongée (codes de brevets) par profil, un aperçu par activité/rôle (même
+     * réduction "plus fort poids" que partout ailleurs dans le composant).
+     *
+     * Ne lit plus #__gda_niveaux (table legacy, remplacée par #__gda_brevets/#__gda_mapping_brevets
+     * et vidée depuis) : délègue à BrevetService::getBrevetsShortListProfils(), le point
+     * d'extension standard déjà utilisé par getInscritsCampagne(), GroupesModel et UtilisateursModel.
      *
      * @param  int[] $idsProfil
      * @return array<int, string> id_profil => codes concaténés (ex: "N2, RIFAP")
@@ -606,56 +728,15 @@ class CampagnesModel extends ListModel
             return [];
         }
 
-        $db = $this->getDatabase();
-        $query = $db->getQuery(true)
-            ->select($db->quoteName(['id_profil', 'code']))
-            ->from($db->quoteName('#__gda_niveaux'))
-            ->whereIn($db->quoteName('id_profil'), $idsProfil)
-            ->order($db->quoteName('obtention') . ' DESC');
-
-        $db->setQuery($query);
-        $rows = $db->loadObjectList() ?: [];
-
-        $codesParProfil = [];
-        foreach ($rows as $row) {
-            $codesParProfil[(int) $row->id_profil][] = $row->code;
-        }
+        $shortLists = $this->getBrevetService()->getBrevetsShortListProfils($idsProfil);
 
         return array_map(
-            fn($codes) => implode(', ', array_unique(array_filter($codes))),
-            $codesParProfil
+            fn($brevets) => implode(', ', array_unique(array_filter(array_map(
+                fn($brevet) => $brevet->code ?? '',
+                $brevets
+            )))),
+            $shortLists
         );
-    }
-
-    /**
-     * Rôles choisis par réservation (une campagne peut réserver plusieurs places, une place = un
-     * rôle). Ne concerne que les campagnes avec role_actif = 1.
-     *
-     * @param  int[] $idsReservation
-     * @return array<int, string> id_reservation => rôles concaténés
-     */
-    private function getRolesParReservation(array $idsReservation): array
-    {
-        if (empty($idsReservation)) {
-            return [];
-        }
-
-        $db = $this->getDatabase();
-        $query = $db->getQuery(true)
-            ->select($db->quoteName(['id_reservation', 'role']))
-            ->from($db->quoteName('#__gda_reservation_places'))
-            ->whereIn($db->quoteName('id_reservation'), $idsReservation)
-            ->order($db->quoteName('tri') . ' ASC');
-
-        $db->setQuery($query);
-        $rows = $db->loadObjectList() ?: [];
-
-        $rolesParReservation = [];
-        foreach ($rows as $row) {
-            $rolesParReservation[(int) $row->id_reservation][] = $row->role;
-        }
-
-        return array_map(fn($roles) => implode(', ', $roles), $rolesParReservation);
     }
 
 }

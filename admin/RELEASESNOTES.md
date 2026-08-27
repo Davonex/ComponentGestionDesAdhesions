@@ -1,4 +1,16 @@
 # Component com_gadhesions
+## Version 0.9.10
+  - 📰 Nouveautés
+    - Status Licence et Caci sur la page d'accueil
+    - 2 types de campagne 
+      1. Formation ( Fosse, Rifapp, Sortie technique) : réservation individuelle
+      2. Loisir ( Restaurant, Soirée club, sortie mer, etc...) : Possibilité de réserver plusieurs places ( Plongeur / Non Plongeur, etc...)
+
+  - 📈 Améliorations
+    - Evolution du formulaire de reservation
+
+  - 🪲 Bugs
+    - Suppression de la table #__gda_niveaux
 
 ## Version 0.9.9
   - 📰 Nouveautés

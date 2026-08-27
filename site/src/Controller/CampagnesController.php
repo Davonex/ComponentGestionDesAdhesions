@@ -31,8 +31,10 @@ class CampagnesController extends BaseController
      * campagne de ce type via cette vue — y compris un appel ajax direct, puisque le champ
      * "Type de campagne" du formulaire n'expose déjà plus Saison comme option sélectionnable
      * (voir models/fields/typedecampagne.php).
+     * @param string|int $idType L'identifiant du type de campagne à vérifier.
+     * @throws \Exception Si le type de campagne est Saison.
      */
-    private function guardNonSaison($idType): void
+    private function guardNonSaison(string $idType): void
     {
         if ((string) $idType === (string) ConfHelper::getValue('IdTypeSaison')) {
             throw new \Exception(Text::_('COM_GDA_CAMPAGNE_TYPE_SAISON_EXCLU'), 501);
@@ -46,11 +48,12 @@ class CampagnesController extends BaseController
     {
 
         $Response = new JsonResponse();
+        /** @var \Joomla\CMS\Application\SiteApplication $app */
+        $app   = Factory::getApplication();
         try {
             $this->checkToken();
 
-            /** @var \Joomla\CMS\Application\SiteApplication $app */
-            $app   = Factory::getApplication();
+
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');
             $form = $model->getForm(null, false);
@@ -177,11 +180,12 @@ class CampagnesController extends BaseController
     {
 
         $Response = new JsonResponse();
+        /** @var \Joomla\CMS\Application\SiteApplication $app */
+        $app   = Factory::getApplication();
         try {
             $this->checkToken();
 
-            /** @var \Joomla\CMS\Application\SiteApplication $app */
-            $app   = Factory::getApplication();
+
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');
             // $form = $model->getForm(null, false);
@@ -237,11 +241,12 @@ class CampagnesController extends BaseController
     public function rapport()
     {
         $Response = new JsonResponse();
+        /** @var \Joomla\CMS\Application\SiteApplication $app */
+        $app   = Factory::getApplication();
         try {
             $this->checkToken();
 
-            /** @var \Joomla\CMS\Application\SiteApplication $app */
-            $app   = Factory::getApplication();
+
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');
 
@@ -265,51 +270,46 @@ class CampagnesController extends BaseController
                 ]);
                 $Response->data =  base64_encode($Layout);
                 $Response->success = true;
-
             } else {
                 $Response->success = false;
             }
 
 
             echo $Response;
-        } catch (\RuntimeException $e) {
-            $response = new JsonResponse();
-            $response->success = false;
-            $response->message = 'HelloAsso refuse l’accès a cette ressource.';
-            $response->data = null;
-            echo $response;
         } catch (\Exception $e) {
             echo new JsonResponse($e);
         }
-      $app->close();  // stoppe l’exécution pour que seule la réponse JSON parte  
+        $app->close();  // stoppe l’exécution pour que seule la réponse JSON parte  
     }
 
 
     /**
      *  Ajax pour le suivi des inscriptions d'une campagne (onglet "Suivi des inscriptions").
-     *  Affiche le layout de suivi propre à la nature de la campagne (Formation pour l'instant,
-     *  "à venir" pour les autres natures).
+     *  Affiche le layout de suivi (Formation et Loisir, les deux seules natures hors Saison à
+     *  suivre des réservations), "à venir" pour toute future nature qui n'en aurait pas encore.
      */
     public function suivi()
     {
         $Response = new JsonResponse();
+        /** @var \Joomla\CMS\Application\SiteApplication $app */
+        $app = Factory::getApplication();
         try {
             $this->checkToken();
 
-            /** @var \Joomla\CMS\Application\SiteApplication $app */
-            $app = Factory::getApplication();
+
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');
 
             $idCampagne = (int) $app->input->getInt('id_campagne');
 
             if ($idCampagne > 0) {
-                $campagne = $model->getCampagne($idCampagne);
+                $campagne        = $model->getCampagne($idCampagne);
                 $idTypeFormation = (int) ConfHelper::getValue('IdTypeFormation');
+                $idTypeLoisir    = (int) ConfHelper::getValue('IdTypeLoisir');
 
-                if ((int) $campagne->id_type === $idTypeFormation) {
+                if (in_array((int) $campagne->id_type, [$idTypeFormation, $idTypeLoisir], true)) {
                     $inscrits = $model->getInscritsCampagne($idCampagne, $campagne->titre);
-                    $Layout = LayoutHelper::render('campagnes.suivi_formation', ['inscrits' => $inscrits]);
+                    $Layout = LayoutHelper::render('campagnes.suivi_inscrits', ['inscrits' => $inscrits]);
                 } else {
                     $Layout = LayoutHelper::render('campagnes.suivi_comingsoon', ['type_name' => $campagne->type_name]);
                 }
@@ -333,11 +333,12 @@ class CampagnesController extends BaseController
     function getformDetailHelloAsso()
     {
         $Response = new JsonResponse();
+        /** @var \Joomla\CMS\Application\SiteApplication $app */
+        $app   = Factory::getApplication();
         try {
             $this->checkToken();
 
-            /** @var \Joomla\CMS\Application\SiteApplication $app */
-            $app   = Factory::getApplication();
+
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');
 
@@ -350,28 +351,26 @@ class CampagnesController extends BaseController
                 $service = new \NCB\Component\Gda\Site\Service\HelloAssoService();
                 $service->getAccessToken();
                 $dataForm = $service->getFormsPublic($formType, $formSlug);
-              
-                
-                
+
+
+
                 $Response->success = true;
                 $Response->data =  base64_encode(json_encode(
                     [
                         // 'startDate'   => ToolsHelper::isoToFrDate($dataForm['startDate']),
-                    // 'endDate'      => ToolsHelper::isoToFrDate($dataForm['endDate']),
-                    'title'        => $dataForm['title'],
-                    'description'  => $dataForm['description']]));
-                
-
-            } else { 
+                        // 'endDate'      => ToolsHelper::isoToFrDate($dataForm['endDate']),
+                        'title'        => $dataForm['title'],
+                        'description'  => $dataForm['description']
+                    ]
+                ));
+            } else {
                 $Response->success = false;
             }
 
-           echo $Response;
+            echo $Response;
         } catch (\Exception $e) {
             echo new JsonResponse($e);
         }
-      $app->close();  // stoppe l’exécution pour que seule la réponse JSON parte  
+        $app->close();  // stoppe l’exécution pour que seule la réponse JSON parte  
     }
-
-
 }
