@@ -65,7 +65,29 @@ $items = $displayData['items'];
                             $licenceClass .= ' gda-licence-chip--warning';
                         }
                         ?>
-                        <?php $isCaciValidable = (bool) ($item->is_caci_validable ?? false); ?>
+                        <?php
+                        $isCaciValidable = (bool) ($item->is_caci_validable ?? false);
+                        $dateCaciAffiche = trim((string) ($item->date_caci ?? ''));
+                        $hintCaciFichierManquant = Text::_('COM_GDA_SECRETARIAT_CACI_FICHIER_MANQUANT_HINT');
+                        $hintDateCaciMissing = Text::_('COM_GDA_SECRETARIAT_DATE_CACI_MISSING_HINT');
+                        $hintDateCaciInvalid = Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE_DISABLED_HINT');
+                        $hintDateCaciValid = Text::_('COM_GDA_SECRETARIAT_DATE_CACI_VALID_HINT');
+                        $badgeDateCaciClass = $isCaciValidable ? 'bg-success' : 'bg-danger';
+
+                        // Raison affichée (badge date + tooltip bouton Valider), classée par priorité :
+                        // fichier manquant d'abord (bloquant quelle que soit la date), puis date absente,
+                        // puis date insuffisante. Les deux points d'affichage doivent rester synchronisés
+                        // (même variable) pour ne jamais montrer une raison différente entre le badge et le bouton.
+                        if ($isCaciValidable) {
+                            $badgeDateCaciTitle = $hintDateCaciValid;
+                        } elseif (empty($pathCaci)) {
+                            $badgeDateCaciTitle = $hintCaciFichierManquant;
+                        } elseif ($dateCaciAffiche === '') {
+                            $badgeDateCaciTitle = $hintDateCaciMissing;
+                        } else {
+                            $badgeDateCaciTitle = $hintDateCaciInvalid;
+                        }
+                        ?>
                         <!-- suppression -->
                         <tr>
                             <td class="text-center">
@@ -158,11 +180,16 @@ $items = $displayData['items'];
                                 data-item-id="<?= $item->id_profil ?>"
                                 data-item-campagne="<?= (int) $item->id_campagne ?>"
                                 data-current-date="<?= $this->escape($item->date_caci) ?>"
+                                data-hint-missing="<?= $this->escape($hintDateCaciMissing) ?>"
+                                data-hint-invalid="<?= $this->escape($hintDateCaciInvalid) ?>"
+                                data-hint-valid="<?= $this->escape($hintDateCaciValid) ?>"
+                                data-hint-fichier-manquant="<?= $this->escape($hintCaciFichierManquant) ?>"
+                                data-caci-fichier-manquant="<?= empty($pathCaci) ? '1' : '0' ?>"
                                 data-bs-toggle="tooltip"
                                 data-bs-title="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_DATE_CACI_EDIT_HINT')); ?>"
                                 style="cursor: pointer;"
                                 title="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_DATE_CACI_EDIT_HINT')); ?>">
-                                <span class="date-display"><?= $this->escape($item->date_caci) ?></span>
+                                <span class="date-display badge <?= $badgeDateCaciClass ?>" title="<?= $this->escape($badgeDateCaciTitle) ?>"><i class="fa-solid fa-file-medical me-1" aria-hidden="true"></i><span class="date-value"><?= $dateCaciAffiche !== '' ? $this->escape($dateCaciAffiche) : '—' ?></span></span>
                                 <input
                                     type="text"
                                     class="form-control form-control-sm date-input d-none"
@@ -174,10 +201,11 @@ $items = $displayData['items'];
                             <!-- Action -->
                             <td class="text-center">
                                 <span
-                                    class="d-inline-block"
+                                    class="d-inline-block js-validate-caci-tooltip"
                                     data-bs-toggle="tooltip"
-                                    data-bs-title="<?= $this->escape($isCaciValidable ? Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE') : Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE_DISABLED_HINT')) ?>"
-                                    title="<?= $this->escape($isCaciValidable ? Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE') : Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE_DISABLED_HINT')) ?>">
+                                    data-label-valide="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE')) ?>"
+                                    data-bs-title="<?= $this->escape($isCaciValidable ? Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE') : $badgeDateCaciTitle) ?>"
+                                    title="<?= $this->escape($isCaciValidable ? Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE') : $badgeDateCaciTitle) ?>">
                                     <button
                                         type="button"
                                         class="btn btn-sm btn-primary js-validate-caci"

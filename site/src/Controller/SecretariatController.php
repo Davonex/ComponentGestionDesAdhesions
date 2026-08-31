@@ -13,6 +13,7 @@ use Joomla\CMS\Response\JsonResponse;
 use Joomla\Database\DatabaseInterface;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
+use NCB\Component\Gda\Site\Helper\UsersHelper;
 use NCB\Component\Gda\Site\Service\SouscriptionService;
 
 class SecretariatController extends BaseController
@@ -63,6 +64,21 @@ class SecretariatController extends BaseController
   }
 
   /**
+   * Vérifie que l'utilisateur connecté est membre du Bureau, sinon lève une exception. La vue
+   * Secrétariat n'est accessible qu'au Bureau, mais ce contrôle ne protège pas les tâches ajax
+   * (appelables directement) : chacune doit revérifier l'appartenance au Bureau elle-même.
+   *
+   * @return void
+   * @throws \RuntimeException Si l'utilisateur connecté n'est pas membre du Bureau.
+   */
+  private function guardBureauMember(): void
+  {
+    if (!UsersHelper::isBureauMember()) {
+      throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
+    }
+  }
+
+  /**
    * Ajax: suppression definitive d'un adherent (profil + user).
    */
   public function deleteAdherent(): void
@@ -72,6 +88,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $input = $app->input;
       $idProfil = $input->getInt('id_profil', 0);
@@ -121,6 +138,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $input = $app->input;
       $idProfil = $input->getInt('id_profil', 0);
@@ -165,6 +183,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $input = $app->input;
       $idProfil = $input->getInt('id_profil', 0);
@@ -198,6 +217,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $input = $app->input;
       $idProfil = $input->getInt('id_profil', 0);
@@ -206,6 +226,7 @@ class SecretariatController extends BaseController
       /** @var \NCB\Component\Gda\Site\Model\SecretariatModel $model */
       $model = $this->getModel('secretariat', 'site');
       $model->updateDateCaci($idProfil, $dateCaci);
+      $caciFile = $model->getCaciFile($idProfil);
 
       $userFactory = Factory::getContainer()->get(UserFactoryInterface::class);
       $user = $userFactory->loadUserById($idProfil);
@@ -217,7 +238,7 @@ class SecretariatController extends BaseController
       $response = new JsonResponse();
       $response->success = true;
       $response->message = "La date du CACI de <b>$name</b> a été mise à jour";
-      $response->data = ['is_caci_validable' => $souscriptionService->isCaciValidable($dateCaci)];
+      $response->data = ['is_caci_validable' => $souscriptionService->isCaciValidable($dateCaci, $caciFile)];
     } catch (\Throwable $e) {
       $response = new JsonResponse();
       $response->success = false;
@@ -240,6 +261,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $input = $app->input;
       $idProfil = $input->getInt('id_profil', 0);
@@ -290,6 +312,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $input = $app->input;
       $idProfil = $input->getInt('id_profil', 0);
@@ -336,6 +359,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $input = $app->input;
       $idProfil = $input->getInt('id_profil', 0);
@@ -382,6 +406,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $input = $app->input;
       $idProfil = $input->getInt('id_profil', 0);
@@ -434,6 +459,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $input = $app->input;
       $idProfil = $input->getInt('id_profil', 0);
@@ -479,6 +505,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $saison = ConfHelper::getSaisonService()->getSaisonCourante();
 
@@ -520,6 +547,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $saison = ConfHelper::getSaisonService()->getSaisonCourante();
 
@@ -561,6 +589,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $saison = ConfHelper::getSaisonService()->getSaisonCourante();
 
@@ -601,6 +630,7 @@ class SecretariatController extends BaseController
 
     try {
       $this->checkToken();
+      $this->guardBureauMember();
 
       $saison = ConfHelper::getSaisonService()->getSaisonCourante();
 
@@ -632,7 +662,15 @@ class SecretariatController extends BaseController
   }
 
   /**
-   * Ajax: charge le détail du paiement HelloAsso d'une souscription.
+   * Ajax: charge le détail du paiement HelloAsso d'une souscription. Réutilisé par deux
+   * contextes distincts (même bouton .js-show-payement) : le Secrétariat consultant le paiement
+   * d'un adhérent en cours de traitement, et le dashboard Accueil où l'adhérent consulte le
+   * sien — d'où le contrôle d'accès ci-dessous plutôt qu'un simple accès Bureau : l'id_profil
+   * demandé doit être celui de l'appelant, sauf pour un membre du Bureau qui peut consulter
+   * n'importe quel adhérent.
+   *
+   * @return void
+   * @throws \RuntimeException Si l'appelant n'est ni le propriétaire du profil demandé, ni membre du Bureau.
    */
   public function getPayement(): void
   {
@@ -646,6 +684,13 @@ class SecretariatController extends BaseController
       $idProfil   = $input->getInt('id_profil', 0);
       $idCampagne = $input->getInt('id_campagne', 0);
       $idOrder    = $input->getString('id_order', '');
+
+      $currentUser = $app->getIdentity();
+      $estProprietaire = $currentUser !== null && (int) $currentUser->id > 0 && (int) $currentUser->id === $idProfil;
+
+      if (!$estProprietaire && !UsersHelper::isBureauMember()) {
+        throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
+      }
 
       /** @var \NCB\Component\Gda\Site\Model\SecretariatModel $model */
       $model = $this->getModel('secretariat', 'site');

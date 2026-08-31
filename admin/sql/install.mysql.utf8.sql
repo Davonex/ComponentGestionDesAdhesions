@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `#__gda_conf` (
   `key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `value` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Déchargement des données de la table `#__gda_conf`
@@ -126,7 +126,8 @@ INSERT INTO `#__gda_conf` (`id`, `key`, `value`) VALUES
 (21,'LicADULTE','48,50'),
 (22,'LicENFANT','14,00'),
 (23,'DevMailOverride',''),
-(25,'IdTypeLoisir','3');
+(25,'IdTypeLoisir','3'),
+(26,'MoisDebutSaisonFederale','9');
 
 --
 -- Structure de la table `#__gda_groupes`

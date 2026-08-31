@@ -19,6 +19,7 @@ use Joomla\CMS\Mail\Mail;
 use Joomla\CMS\Mail\MailerFactoryInterface;
 use Joomla\Database\DatabaseInterface;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
+use NCB\Component\Gda\Site\Helper\ToolsHelper;
 
 
 class NotificationMailService
@@ -225,6 +226,9 @@ class NotificationMailService
    * @param string $cotisationCode
    *
    * @return bool
+   * @throws \InvalidArgumentException Si $idProfil est invalide (<= 0) ou si $mode n'est ni
+   *                                    self::PROFILE_MAIL_MODE_CREATE ni self::PROFILE_MAIL_MODE_UPDATE.
+   * @throws \RuntimeException Si aucun destinataire (email) n'est trouve pour ce profil.
    */
   private function sendProfileLifecycleEmail(int $idProfil, string $mode, string $helloasso = '0', string $cotisationCode = ''): bool
   {
@@ -248,6 +252,14 @@ class NotificationMailService
     // faire tant que le champ formulaire 'helloasso' vaut '0'.
     $displayData->helloasso = $helloasso;
     $displayData->cotisation_code = $cotisationCode;
+    // Rappel CACI, meme regle et memes textes que la popup de confirmation (adhesion.popup) :
+    // SouscriptionService::isCaciValidable() (fichier present ET date valide au moins 9 mois a
+    // compter du 1er jour du mois de debut de saison federale). date_caci est stockee au format
+    // SQL (Y-m-d) en base, reconvertie en d/m/Y (format attendu par le service) via
+    // ToolsHelper::from_sqldate().
+    $souscriptionService = new SouscriptionService($this->db);
+    $dateCaciFr = ToolsHelper::from_sqldate($data->date_caci ?? null);
+    $displayData->caci_validable = $souscriptionService->isCaciValidable($dateCaciFr, $data->caci ?? null);
 
     $htmlBody = $this->renderTemplateOrFallback('mail.adhesion_html', $displayData, true);
     $textBody = $this->renderTemplateOrFallback('mail.adhesion_text', $displayData, false);
@@ -330,6 +342,8 @@ class NotificationMailService
         $this->db->quoteName('u.email'),
         $this->db->quoteName('u.username'),
         $this->db->quoteName('p.key'),
+        $this->db->quoteName('p.caci'),
+        $this->db->quoteName('p.date_caci'),
       ])
       ->from($this->db->quoteName('#__gda_profils', 'p'))
       ->join('INNER', $this->db->quoteName('#__users', 'u') . ' ON ' . $this->db->quoteName('u.id') . ' = ' . $this->db->quoteName('p.id_profil'))

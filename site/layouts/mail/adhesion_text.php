@@ -29,6 +29,7 @@ $fullName = trim($civilite . ' ' . $prenom . ' ' . $nom);
 $profileUrl = Uri::root() . ltrim(Route::_('index.php?option=com_gdadhesions&view=adhesion&key=' . $profilKey, false), '/');
 $bodyKey = $mode === 'create' ? 'COM_GDA_EMAIL_PROFILE_CREATE_BODY' : 'COM_GDA_EMAIL_PROFILE_UPDATE_BODY';
 $urlHelloAsso = ConfHelper::getSaisonService()->getSaisonOuverte()->url ?? '#';
+$isCaciValidable = (bool) ($displayData->caci_validable ?? true);
 
 echo Text::sprintf('COM_GDA_EMAIL_PROFILE_LIFECYCLE_INTRO', $fullName) . "\n\n";
 echo Text::_($bodyKey) . "\n\n";
@@ -39,6 +40,14 @@ if (!UsersHelper::userExists($username) || UsersHelper::isBlocked($username)) {
 echo Text::sprintf('COM_GDA_EMAIL_PROFILE_LIFECYCLE_USERNAME_LINE', $username) . "\n";
 
 echo Text::_('COM_GDA_EMAIL_PROFILE_LIFECYCLE_LINK_LABEL') . "\n\n";
+
+// Rappel CACI (memes textes que la popup de confirmation, adhesion.popup)
+if (!$isCaciValidable) {
+    echo Text::_('COM_GDA_ADHESION_POPUP_CACI_TITLE') . "\n";
+    echo Text::_('COM_GDA_ADHESION_POPUP_CACI_L1') . "\n";
+    echo '- ' . Text::_('COM_GDA_ADHESION_POPUP_CACI_L2') . "\n";
+    echo '- ' . Text::_('COM_GDA_ADHESION_POPUP_CACI_L3') . "\n\n";
+}
 
 // Section HelloAsso (memes textes que la popup de confirmation, adhesion.popup), sans le HTML
 // <strong>/<span> du gabarit d'origine.

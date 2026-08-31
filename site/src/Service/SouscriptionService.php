@@ -5,6 +5,7 @@ namespace NCB\Component\Gda\Site\Service;
 \defined('_JEXEC') or die;
 
 use Joomla\Database\DatabaseInterface;
+use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 
@@ -14,6 +15,14 @@ use NCB\Component\Gda\Site\Helper\ToolsHelper;
  */
 final class SouscriptionService
 {
+    /**
+     * Nombre de mois de validité minimale exigés pour le CACI à compter du 1er jour du mois de
+     * début de saison fédérale (clé de config `MoisDebutSaisonFederale`) courante, pour être
+     * acceptable par le secrétariat. Règle interne au club (pas une donnée officielle FFESSM),
+     * contrairement au mois de début de saison lui-même.
+     */
+    private const NB_MOIS_VALIDITE_CACI_MIN = 9;
+
     private DatabaseInterface $db;
 
     public function __construct(DatabaseInterface $db)
@@ -183,17 +192,46 @@ final class SouscriptionService
     }
 
     /**
-     * Détermine si un CACI est valide pour être accepté par le secrétariat, c'est-à-dire
-     * daté d'au moins 3 mois à compter d'aujourd'hui.
+     * Détermine si un CACI est valide pour être accepté par le secrétariat, c'est-à-dire si le
+     * fichier a bien été chargé (présent sur disque, même contrôle que
+     * AdhesionStatusHelper::getCaciFileStatus()) ET si la date renseignée respecte la durée de
+     * validité minimale du club (voir isDateCaciValidable()).
      *
      * Point d'entrée unique pour cette règle métier : le rendu serveur (layout secretariat/step_one)
      * et la réponse AJAX (secretariat.updateDateCaci) doivent tous les deux s'appuyer sur cette
      * méthode plutôt que de recalculer la règle chacun de leur côté (source d'incohérences).
      *
      * @param string|null $dateCaci Date du CACI au format d/m/Y.
+     * @param string|null $caciFile Nom du fichier CACI (colonne #__gda_profils.caci), ou null si
+     *                              l'appelant ne le connaît pas encore (traité comme absent).
      * @return bool
      */
-    public function isCaciValidable(?string $dateCaci): bool
+    public function isCaciValidable(?string $dateCaci, ?string $caciFile = null): bool
+    {
+        $cheminCaci = (string) ConfHelper::getValue('CaciPath') . $caciFile;
+
+        if (empty($caciFile) || \is_file(JPATH_ROOT . $cheminCaci) === false) {
+            return false;
+        }
+
+        return $this->isDateCaciValidable($dateCaci);
+    }
+
+    /**
+     * Détermine si une date de CACI respecte, à elle seule, la durée de validité minimale exigée
+     * par le club : au moins NB_MOIS_VALIDITE_CACI_MIN mois (9 par défaut) à compter du 1er jour
+     * du mois de début de saison fédérale courante (soit une échéance au 1er juin suivant avec les
+     * valeurs par défaut). Cette référence fixe (et non "aujourd'hui") garantit un seuil identique
+     * quel que soit le moment de l'année où la date est contrôlée.
+     *
+     * Contrairement à isCaciValidable(), ne vérifie pas la présence du fichier CACI : utilisée par
+     * le formulaire d'adhésion pour valider la date au fil de la saisie, avant même que le fichier
+     * ne soit forcément chargé.
+     *
+     * @param string|null $dateCaci Date du CACI au format d/m/Y.
+     * @return bool
+     */
+    public function isDateCaciValidable(?string $dateCaci): bool
     {
         $dateCaci = trim((string) $dateCaci);
 
@@ -215,9 +253,31 @@ final class SouscriptionService
             return false;
         }
 
-        $minValidDate = new \DateTimeImmutable('today +3 months');
+        $minValidDate = self::getDebutSaisonFederaleCourante()->modify('+' . self::NB_MOIS_VALIDITE_CACI_MIN . ' months');
 
         return $date >= $minValidDate;
+    }
+
+    /**
+     * Calcule le 1er jour du mois de début de la saison fédérale FFESSM en cours (mois défini par
+     * la clé de config `MoisDebutSaisonFederale`, valeur officielle 9 = septembre), en se basant
+     * uniquement sur la date du jour : la saison fédérale N débute ce mois-là de l'année N et se
+     * poursuit jusqu'à la veille de ce même mois l'année N+1.
+     *
+     * @return \DateTimeImmutable Date de début de la saison fédérale courante.
+     */
+    private static function getDebutSaisonFederaleCourante(): \DateTimeImmutable
+    {
+        $moisDebutSaisonFederale = (int) ConfHelper::getValue('MoisDebutSaisonFederale');
+
+        $aujourdhui = new \DateTimeImmutable('today');
+        $annee = (int) $aujourdhui->format('Y');
+
+        if ((int) $aujourdhui->format('n') < $moisDebutSaisonFederale) {
+            $annee--;
+        }
+
+        return new \DateTimeImmutable(sprintf('%d-%02d-01', $annee, $moisDebutSaisonFederale));
     }
 
     /**
@@ -250,7 +310,11 @@ final class SouscriptionService
 
     /**
      * Résout un id_order manquant en interrogeant HelloAsso par username, et persiste
-     * le résultat dans #__gda_souscriptions si une commande est trouvée.
+     * le résultat dans #__gda_souscriptions si une commande est trouvée. Recherche toujours en
+     * direct (sans le cache de 30 minutes de HelloAssoService::getFormsOrders()) : l'adhérent
+     * consulte son statut d'adhésion ou son détail de paiement juste après avoir payé, et ne doit
+     * pas attendre le TTL du cache pour voir son paiement détecté (même motif que
+     * ReservationService::resolveIdOrder(), pour les réservations de campagne).
      *
      * Ne fait rien (retourne l'id_order tel quel) si l'id_order est déjà connu, si la
      * campagne n'a pas de formulaire HelloAsso configuré, ou si aucune commande n'est
@@ -274,7 +338,7 @@ final class SouscriptionService
         }
 
         try {
-            $foundOrder = (new HelloAssoService())->findOrderByUsername($saison->formType, $saison->formSlug, $username);
+            $foundOrder = (new HelloAssoService())->findOrderByUsername($saison->formType, $saison->formSlug, $username, true);
         } catch (\Throwable $e) {
             // Ne doit jamais casser l'affichage du statut d'adhésion (ex: HelloAsso indisponible
             // ou mal configuré) : on se contente de journaliser et de garder l'id_order tel quel.

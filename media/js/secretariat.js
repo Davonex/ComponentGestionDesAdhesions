@@ -92,17 +92,20 @@
   };
 
   /**
-   * Applique l'état (actif/désactivé) du bouton de validation du CACI d'une ligne.
+   * Applique l'état (actif/désactivé) du bouton de validation du CACI d'une ligne, ainsi que
+   * l'infobulle qui explique pourquoi (fichier manquant, date manquante, date insuffisante...).
    *
-   * La validité (CACI daté d'au moins 3 mois) est une règle métier calculée côté serveur
-   * (SouscriptionService::isCaciValidable), pour éviter toute divergence entre le rendu
-   * initial du tableau et une mise à jour en AJAX.
+   * La validité (fichier chargé + CACI daté d'au moins 9 mois à compter du 1er septembre de la
+   * saison) est une règle métier calculée côté serveur (SouscriptionService::isCaciValidable),
+   * pour éviter toute divergence entre le rendu initial du tableau et une mise à jour en AJAX.
    *
    * @param {HTMLElement} row La ligne du tableau contenant le bouton.
    * @param {boolean} canValidate Etat de validité renvoyé par le serveur.
+   * @param {string} [reasonText] Texte d'infobulle à afficher quand non valide (calculé par
+   *   l'appelant à partir des mêmes data-hint-* que le badge de date, pour rester synchronisé).
    * @returns {void}
    */
-  const setValidateCaciButtonState = function (row, canValidate) {
+  const setValidateCaciButtonState = function (row, canValidate, reasonText) {
     const button = row ? row.querySelector('.js-validate-caci') : null;
 
     if (!button) {
@@ -111,6 +114,17 @@
 
     button.disabled = !canValidate;
     button.setAttribute('aria-disabled', canValidate ? 'false' : 'true');
+
+    const tooltipWrapper = button.closest('.js-validate-caci-tooltip');
+    const newTitle = canValidate ? (tooltipWrapper?.dataset.labelValide || '') : (reasonText || '');
+
+    if (!tooltipWrapper || newTitle === '') {
+      return;
+    }
+
+    tooltipWrapper.setAttribute('title', newTitle);
+    tooltipWrapper.setAttribute('data-bs-title', newTitle);
+    initTooltips(row);
   };
 
 
@@ -544,10 +558,11 @@
       return;
     }
 
-    // Passer en mode édition
+    // Passer en mode édition. La valeur vient de data-current-date (pas du badge, dont le
+    // texte affiche "—" quand la date est vide, ce qui polluerait la saisie).
     display.classList.add('d-none');
     input.classList.remove('d-none');
-    input.value = display.textContent.trim();
+    input.value = editableCell.dataset.currentDate || '';
     input.focus();
     input.select();
   });
@@ -1244,11 +1259,36 @@
 
     if (typeof simpleCallAjax === 'function') {
       simpleCallAjax(ajaxData, function (response) {
-        // Callback de succès : mettre à jour l'affichage
+        // Callback de succès : mettre à jour le badge (texte, couleur, infobulle) sans
+        // toucher à l'icône fa-file-medical (display.textContent écraserait tout le badge).
         if (response.success) {
-          display.textContent = newDate;
+          const isCaciValidable = Boolean(response.data?.is_caci_validable);
+          const dateValue = display.querySelector('.date-value');
+          // Le fichier CACI n'est pas concerné par cette action (édition de la date seule) :
+          // son état, posé au rendu initial, reste la source de vérité pour la priorité de la raison.
+          const fichierManquant = editableCell.dataset.caciFichierManquant === '1';
+
+          let reasonText;
+          if (isCaciValidable) {
+            reasonText = editableCell.dataset.hintValid || '';
+          } else if (fichierManquant) {
+            reasonText = editableCell.dataset.hintFichierManquant || '';
+          } else if (newDate === '') {
+            reasonText = editableCell.dataset.hintMissing || '';
+          } else {
+            reasonText = editableCell.dataset.hintInvalid || '';
+          }
+
+          if (dateValue) {
+            dateValue.textContent = newDate !== '' ? newDate : '—';
+          }
+
+          display.classList.remove('bg-success', 'bg-danger');
+          display.classList.add(isCaciValidable ? 'bg-success' : 'bg-danger');
+          display.title = reasonText;
+
           editableCell.dataset.currentDate = newDate;
-          setValidateCaciButtonState(editableCell.closest('tr'), Boolean(response.data?.is_caci_validable));
+          setValidateCaciButtonState(editableCell.closest('tr'), isCaciValidable, reasonText);
         }
         // Retour à l'affichage
         input.dataset.isSaving = '0';

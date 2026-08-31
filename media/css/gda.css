@@ -14,70 +14,20 @@
     --logo-gauche: #3d6e79;
     --logo-droit: #94cec8;
 
-    /* --logo-droit est clair : illisible en texte/bordure sur fond blanc (btn-outline-primary).
-       Assombri uniquement pour cet usage ; la couleur pleine des boutons reste inchangee. */
-    --gda-color-primary-text: color-mix(in srgb, var(--logo-droit) 55%, black);
+    /* Vert "success" du composant : remplace le vert Bootstrap par defaut (#198754), trop proche
+       en teinte de --logo-gauche (le bleu canard) pour bien trancher avec lui. Voir plus bas pour
+       la surcharge des boutons/utilitaires Bootstrap qui l'utilisent. */
+    --vert-prairie: #177a38;
 }
 
-/* Boutons Primary/Secondary aux couleurs du logo, pour une identite visuelle coherente sur
-   toutes les pages du composant (notamment le wizard d'adhesion). Surcharge des variables
-   Bootstrap 5 plutot que des proprietes CSS directes : garde tous les comportements natifs
-   (focus ring, disabled, ...) intacts sans avoir a redefinir chaque etat a la main. */
-.btn-primary {
-    --bs-btn-color: #1a1a1a;
-    --bs-btn-bg: var(--logo-droit);
-    --bs-btn-border-color: var(--logo-droit);
-    --bs-btn-hover-color: #1a1a1a;
-    --bs-btn-hover-bg: color-mix(in srgb, var(--logo-droit) 85%, black);
-    --bs-btn-hover-border-color: color-mix(in srgb, var(--logo-droit) 80%, black);
-    --bs-btn-active-color: #1a1a1a;
-    --bs-btn-active-bg: color-mix(in srgb, var(--logo-droit) 75%, black);
-    --bs-btn-active-border-color: color-mix(in srgb, var(--logo-droit) 70%, black);
-    --bs-btn-disabled-color: #1a1a1a;
-    --bs-btn-disabled-bg: var(--logo-droit);
-    --bs-btn-disabled-border-color: var(--logo-droit);
-}
-
-.btn-outline-primary {
-    --bs-btn-color: var(--gda-color-primary-text);
-    --bs-btn-border-color: var(--gda-color-primary-text);
-    --bs-btn-hover-color: #fff;
-    --bs-btn-hover-bg: var(--gda-color-primary-text);
-    --bs-btn-hover-border-color: var(--gda-color-primary-text);
-    --bs-btn-active-color: #fff;
-    --bs-btn-active-bg: var(--gda-color-primary-text);
-    --bs-btn-active-border-color: var(--gda-color-primary-text);
-    --bs-btn-disabled-color: var(--gda-color-primary-text);
-    --bs-btn-disabled-border-color: var(--gda-color-primary-text);
-}
-
-.btn-secondary {
-    --bs-btn-color: #fff;
-    --bs-btn-bg: var(--logo-gauche);
-    --bs-btn-border-color: var(--logo-gauche);
-    --bs-btn-hover-color: #fff;
-    --bs-btn-hover-bg: color-mix(in srgb, var(--logo-gauche) 85%, black);
-    --bs-btn-hover-border-color: color-mix(in srgb, var(--logo-gauche) 80%, black);
-    --bs-btn-active-color: #fff;
-    --bs-btn-active-bg: color-mix(in srgb, var(--logo-gauche) 75%, black);
-    --bs-btn-active-border-color: color-mix(in srgb, var(--logo-gauche) 70%, black);
-    --bs-btn-disabled-color: #fff;
-    --bs-btn-disabled-bg: var(--logo-gauche);
-    --bs-btn-disabled-border-color: var(--logo-gauche);
-}
-
-.btn-outline-secondary {
-    --bs-btn-color: var(--logo-gauche);
-    --bs-btn-border-color: var(--logo-gauche);
-    --bs-btn-hover-color: #fff;
-    --bs-btn-hover-bg: var(--logo-gauche);
-    --bs-btn-hover-border-color: var(--logo-gauche);
-    --bs-btn-active-color: #fff;
-    --bs-btn-active-bg: var(--logo-gauche);
-    --bs-btn-active-border-color: var(--logo-gauche);
-    --bs-btn-disabled-color: var(--logo-gauche);
-    --bs-btn-disabled-border-color: var(--logo-gauche);
-}
+/* Boutons Primary/Secondary/Success aux couleurs du club : voir plus bas, bloc
+   `main .btn-*`/`btn-outline-*` (recherche "Toutes vues du composant"). Ancien emplacement de ces
+   regles jusqu'au 2026-08-29 : deplacees et corrigees plus bas, pour deux raisons - (1) le
+   Bootstrap compile par Cassiopeia lit des variables SANS le prefixe "bs-" (--btn-bg, pas
+   --bs-btn-bg), une surcharge qui ne pose que --bs-btn-* n'a donc aucun effet ; (2) une regle non
+   scopee ne gagne que par chance selon l'ordre de chargement, et `.com_gdadhesions` (essaye un
+   temps) est pose sur <body> donc deborde sur les modules affiches sur les memes pages (menu,
+   connexion, ...) - le scope correct est `main`, qui n'entoure que la sortie du composant. */
 
 .bg-gda-header {
     background-color: var(--cassiopeia-color-primary);
@@ -491,15 +441,89 @@ select.tomselected {
    (asset com_gdadhesions.trombinoscope), charge uniquement par la vue Trombinoscope. */
 
 /*
- * Toutes vues du composant : les boutons btn-outline-* utilisent le bleu/gris par defaut de
- * Bootstrap, qui ne suit pas la charte NCB (--logo-gauche / --logo-droit definis dans
- * media/templates/site/cassiopeia_ncb/css/user.css). Le Bootstrap compile par Cassiopeia
- * expose ses variables de composant SANS le prefixe "bs-" (ex: --btn-color, pas --bs-btn-color),
- * d'ou la double declaration ci-dessous pour rester compatible si le prefixe standard revient.
- * Scope sur `.com_gdadhesions` (classe posee sur <body> par le template pour ce composant)
- * pour s'appliquer a toutes les vues du composant sans deborder sur le reste du site.
+ * Toutes vues du composant : les boutons Bootstrap (pleins et outline) utilisent par defaut le
+ * bleu/gris/vert de Bootstrap, qui ne suit pas la charte NCB (--logo-gauche / --logo-droit /
+ * --vert-prairie). Le Bootstrap compile par Cassiopeia expose ses variables de composant SANS le
+ * prefixe "bs-" (ex: --btn-bg, --success-rgb, pas --bs-btn-bg / --bs-success-rgb) : le `.btn` /
+ * `.text-success` etc. de Cassiopeia ne lit QUE ces noms non prefixes, donc les poser seulement
+ * en --bs-btn-* ou --bs-success-rgb n'a aucun effet ici. Double declaration ci-dessous (prefixe
+ * et non prefixe) pour rester compatible si un Bootstrap standard (prefixe bs-) est utilise ailleurs.
+ * Scope sur `main` et non sur `.com_gdadhesions` (classe posee sur <body>, donc trop large) :
+ * `templates/cassiopeia/index.php` n'entoure de `<main>` QUE `<jdoc:include type="component" />`
+ * (ligne ~215), tous les modules (menu, connexion, ...) etant rendus en dehors - `.com_gdadhesions`
+ * capturait donc a tort les boutons .btn-primary/.btn-secondary/.btn-success de modules affiches
+ * sur les memes pages que le composant (bug corrige le 2026-08-29). `main .btn-success` (1 classe
+ * + 1 element) l'emporte quand meme sur le `.btn-success` de Cassiopeia (1 classe) grace au
+ * dernier niveau de la specificite CSS (nombre de selecteurs de type).
+ *
+ * Pas de bloc `.btn-primary` ici (volontaire) : Cassiopeia le marque a part (template.css ~13159,
+ * `.btn-primary { background-color: var(--cassiopeia-color-primary); border-color: ...; }` et son
+ * ':hover'/':focus' avec --cassiopeia-color-hover) - une regle EN PLUS de `.btn { background-color:
+ * var(--btn-bg); }`, avec la MEME specificite (1 classe) mais placee apres dans le fichier, donc
+ * elle gagne pour la propriete background-color quoi qu'on mette dans --btn-bg/--bs-btn-bg. Cette
+ * regle lit deja --cassiopeia-color-primary/-hover, que user.css fait pointer vers --logo-gauche/
+ * --logo-droit (le bleu canard du club) : .btn-primary est donc DEJA a la bonne couleur nativement.
+ * Un essai de surcharge ici (le 2026-08-29) n'avait pu changer que --btn-color (texte), pas le fond
+ * (toujours gagne par la regle Cassiopeia) : bouton fond canard + texte force en noir, illisible.
+ * Bug corrige le 2026-08-30 en supprimant purement et simplement ce bloc inutile et nuisible.
  */
-.com_gdadhesions .btn-outline-primary {
+main .btn-secondary {
+    --btn-color: #fff;
+    --btn-bg: var(--logo-gauche);
+    --btn-border-color: var(--logo-gauche);
+    --btn-hover-color: #fff;
+    --btn-hover-bg: color-mix(in srgb, var(--logo-gauche) 85%, black);
+    --btn-hover-border-color: color-mix(in srgb, var(--logo-gauche) 80%, black);
+    --btn-active-color: #fff;
+    --btn-active-bg: color-mix(in srgb, var(--logo-gauche) 75%, black);
+    --btn-active-border-color: color-mix(in srgb, var(--logo-gauche) 70%, black);
+    --btn-disabled-color: #fff;
+    --btn-disabled-bg: var(--logo-gauche);
+    --btn-disabled-border-color: var(--logo-gauche);
+
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--logo-gauche);
+    --bs-btn-border-color: var(--logo-gauche);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: color-mix(in srgb, var(--logo-gauche) 85%, black);
+    --bs-btn-hover-border-color: color-mix(in srgb, var(--logo-gauche) 80%, black);
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: color-mix(in srgb, var(--logo-gauche) 75%, black);
+    --bs-btn-active-border-color: color-mix(in srgb, var(--logo-gauche) 70%, black);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: var(--logo-gauche);
+    --bs-btn-disabled-border-color: var(--logo-gauche);
+}
+
+main .btn-success {
+    --btn-color: #fff;
+    --btn-bg: var(--vert-prairie);
+    --btn-border-color: var(--vert-prairie);
+    --btn-hover-color: #fff;
+    --btn-hover-bg: color-mix(in srgb, var(--vert-prairie) 85%, black);
+    --btn-hover-border-color: color-mix(in srgb, var(--vert-prairie) 80%, black);
+    --btn-active-color: #fff;
+    --btn-active-bg: color-mix(in srgb, var(--vert-prairie) 75%, black);
+    --btn-active-border-color: color-mix(in srgb, var(--vert-prairie) 70%, black);
+    --btn-disabled-color: #fff;
+    --btn-disabled-bg: var(--vert-prairie);
+    --btn-disabled-border-color: var(--vert-prairie);
+
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--vert-prairie);
+    --bs-btn-border-color: var(--vert-prairie);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: color-mix(in srgb, var(--vert-prairie) 85%, black);
+    --bs-btn-hover-border-color: color-mix(in srgb, var(--vert-prairie) 80%, black);
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: color-mix(in srgb, var(--vert-prairie) 75%, black);
+    --bs-btn-active-border-color: color-mix(in srgb, var(--vert-prairie) 70%, black);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: var(--vert-prairie);
+    --bs-btn-disabled-border-color: var(--vert-prairie);
+}
+
+main .btn-outline-primary {
     --btn-color: var(--cassiopeia-color-primary, #3d6e79);
     --btn-border-color: var(--cassiopeia-color-primary, #3d6e79);
     --btn-hover-color: var(--blanc, #fff);
@@ -521,7 +545,7 @@ select.tomselected {
     --bs-btn-focus-shadow-rgb: 61, 110, 121;
 }
 
-.com_gdadhesions .btn-outline-secondary {
+main .btn-outline-secondary {
     --btn-color: var(--cassiopeia-color-hover, #94cec8);
     --btn-border-color: var(--cassiopeia-color-hover, #94cec8);
     --btn-hover-color: var(--noir, #242021);
@@ -543,12 +567,52 @@ select.tomselected {
     --bs-btn-focus-shadow-rgb: 148, 206, 200;
 }
 
-.com_gdadhesions .form-check-input:checked {
+/* btn-outline-success : meme double declaration (--btn-* et --bs-btn-*) que btn-outline-primary
+   et btn-outline-secondary ci-dessus, pour la meme raison (compat Bootstrap compile par Cassiopeia). */
+main .btn-outline-success {
+    --btn-color: var(--vert-prairie);
+    --btn-border-color: var(--vert-prairie);
+    --btn-hover-color: var(--blanc, #fff);
+    --btn-hover-bg: var(--vert-prairie);
+    --btn-hover-border-color: var(--vert-prairie);
+    --btn-active-color: var(--blanc, #fff);
+    --btn-active-bg: var(--vert-prairie);
+    --btn-active-border-color: var(--vert-prairie);
+    --btn-focus-shadow-rgb: 23, 122, 56;
+
+    --bs-btn-color: var(--vert-prairie);
+    --bs-btn-border-color: var(--vert-prairie);
+    --bs-btn-hover-color: var(--blanc, #fff);
+    --bs-btn-hover-bg: var(--vert-prairie);
+    --bs-btn-hover-border-color: var(--vert-prairie);
+    --bs-btn-active-color: var(--blanc, #fff);
+    --bs-btn-active-bg: var(--vert-prairie);
+    --bs-btn-active-border-color: var(--vert-prairie);
+    --bs-btn-focus-shadow-rgb: 23, 122, 56;
+}
+
+/* Utilitaires Bootstrap derives de --success(-rgb) : text-success, bg-success (badges CACI/
+   licence, ex: layouts/secretariat/step_one.php, adhesions.js), border-success. Contrairement aux
+   boutons (couleurs figees a la compilation, d'ou les surcharges dediees ci-dessus), ces
+   utilitaires lisent la variable a l'execution : une seule surcharge suffit pour tous. Meme
+   remarque que plus haut sur le prefixe "bs-" absent du Bootstrap compile par Cassiopeia
+   (.text-success y lit --success-rgb, pas --bs-success-rgb) : double declaration ci-dessous.
+   Scope sur `main`, pas `.com_gdadhesions` (classe <body>, trop large) - meme raison que le bloc
+   boutons ci-dessus : ne pas deborder sur les modules affiches sur les memes pages. */
+main {
+    --success: var(--vert-prairie);
+    --success-rgb: 23, 122, 56;
+
+    --bs-success: var(--vert-prairie);
+    --bs-success-rgb: 23, 122, 56;
+}
+
+main .form-check-input:checked {
     background-color: var(--cassiopeia-color-primary, #3d6e79);
     border-color: var(--cassiopeia-color-primary, #3d6e79);
 }
 
-.com_gdadhesions .form-check-input:focus {
+main .form-check-input:focus {
     border-color: var(--cassiopeia-color-primary, #3d6e79);
     box-shadow: 0 0 0 .25rem rgba(61, 110, 121, .25);
 }

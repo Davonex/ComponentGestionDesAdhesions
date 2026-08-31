@@ -1,4 +1,18 @@
 # Component com_gadhesions
+
+## Version 0.9.12
+  - 📰 Nouveautés
+
+  - 📈 Améliorations
+    - Nouvelle clé de config `MoisDebutSaisonFederale` (`#__gda_conf`) : centralise le mois de début de saison fédérale FFESSM (septembre).
+    - Secrétariat : le CACI  doit désormais être valide au moins 9 mois à compter du 1er septembre de la saison en cours, ET le fichier CACI doit être chargé (sinon rouge, quelle que soit la date). L'infobulle du badge de date et celle du bouton "Valider" affichent désormais systématiquement la même raison (fichier manquant / date manquante / date insuffisante / valide).
+    - Adhesions: Ajouts des controle sur le date de fin de validité du CACI et des messages associées et du mail de validation. 
+
+  - 🪲 Bugs
+    - Mise da jour des messages et etiquettes
+    - Protection de smethodes
+    
+
 ## Version 0.9.11
   - 🪲 Bugs
     - Installation/mise à jour : `sql/updates/mysql/0.9.10.sql` échouait sur un environnement neuf (`erreur SQL 42S02, 1146, La table '...#__gda_reservation_places' n'existe pas`) — le marqueur `#__` n'est jamais substitué par Joomla lorsqu'il apparaît à l'intérieur d'une chaîne entre guillemets simples, et les instructions `PREPARE`/`EXECUTE` dynamiques utilisées pour rendre la migration idempotente ne sont pas exécutables par le pilote `mysqli` de l'installeur réel. Migration idempotente réécrite avec le marqueur standard `/** CAN FAIL **/` (déjà utilisé par Joomla core dans ses propres fichiers de mise à jour), sans SQL dynamique. Renommé en `0.9.11.sql` : `0.9.10` ayant déjà été publié, la correction est livrée comme nouvelle version plutôt que de réécrire une version déjà diffusée.

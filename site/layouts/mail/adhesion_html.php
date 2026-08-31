@@ -30,6 +30,7 @@ $profileUrl = Uri::root() . ltrim(Route::_('index.php?option=com_gdadhesions&vie
 $titleKey = $mode === 'create' ? 'COM_GDA_EMAIL_PROFILE_CREATE_TITLE' : 'COM_GDA_EMAIL_PROFILE_UPDATE_TITLE';
 $bodyKey = $mode === 'create' ? 'COM_GDA_EMAIL_PROFILE_CREATE_BODY' : 'COM_GDA_EMAIL_PROFILE_UPDATE_BODY';
 $urlHelloAsso = ConfHelper::getSaisonService()->getSaisonOuverte()->url ?? '#';
+$isCaciValidable = (bool) ($displayData->caci_validable ?? true);
 ?>
 
 <html><body>
@@ -54,6 +55,18 @@ $urlHelloAsso = ConfHelper::getSaisonService()->getSaisonOuverte()->url ?? '#';
           <?= $this->escape(Text::_('COM_GDA_EMAIL_PROFILE_LIFECYCLE_LINK_LABEL')) ?>
         </a>
   </p>
+  <?php endif; ?>
+
+  <?php if (!$isCaciValidable) : ?>
+    <!-- Rappel CACI (memes textes que la popup de confirmation, adhesion.popup) -->
+    <div style="margin: 20px 0; padding: 16px; background-color: #fff8e6; border: 1px solid #f5deb3; border-radius: 6px;">
+      <p style="margin: 0 0 8px; font-weight: 600;"><?= $this->escape(Text::_('COM_GDA_ADHESION_POPUP_CACI_TITLE')) ?></p>
+      <p style="margin: 0 0 8px; color: #6b7280; font-size: 14px;"><?= $this->escape(Text::_('COM_GDA_ADHESION_POPUP_CACI_L1')) ?></p>
+      <ul style="margin: 0; padding-left: 20px; color: #6b7280; font-size: 14px;">
+        <li style="margin-bottom: 6px;"><?= $this->escape(Text::_('COM_GDA_ADHESION_POPUP_CACI_L2')) ?></li>
+        <li><?= $this->escape(Text::_('COM_GDA_ADHESION_POPUP_CACI_L3')) ?></li>
+      </ul>
+    </div>
   <?php endif; ?>
 
   <?php if ($helloasso === '0') : ?>

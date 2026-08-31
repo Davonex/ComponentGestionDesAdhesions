@@ -55,6 +55,11 @@ Text::script('COM_GDA_ADHESION_RECAP_AUCUN_BREVET');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_CHARGE');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_NON_CHARGE');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_NON_RENSEIGNE');
+// Statut "Absent" du contrôle de validité de la date CACI (voir renderCaciFieldStatus() dans
+// adhesions.js) : seul état affichable sans appel serveur, les autres (Insuffisant/Valide)
+// dépendent de la règle métier SouscriptionService::isDateCaciValidable() (AJAX form.checkCaci).
+Text::script('COM_GDA_ADHESION_CACI_DATE_MISSING_SHORT');
+Text::script('COM_GDA_ADHESION_CACI_DATE_MISSING_MESSAGE');
 
 // Message de confirmation du scan de la carte licence (construit côté JS avec le porteur et le
 // nombre de brevets renvoyés par l'ajax ; le reste des popups - alerte, âge minimum, réduction
@@ -310,7 +315,11 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
             ?>
           </div>
           <div class="col-sm-12 col-md-6">
-            <?= AdhesionHelper::renderField($this->form->getField('date_caci'));  ?>
+            <?= AdhesionHelper::renderField(
+              $this->form->getField('date_caci'),
+              null,
+              '<span id="caciDateValidityMessage" class="align-self-center ms-2 small fw-semibold"></span>'
+            );  ?>
             <?= AdhesionHelper::renderField($this->form->getField('nbr_plongee'));  ?>
             <?= AdhesionHelper::renderField($this->form->getField('nbr_plongee_35'));  ?>
             <?= AdhesionHelper::renderField($this->form->getField('nbr_plongee_auto'));  ?>

@@ -1,57 +1,21 @@
-/* Formulaire Adhesion */ 
+/* Formulaire Adhesion */
 
-
-
-span.input-group-text {
-  background-color: var(--label-input-group-bg);
-  color:  var(--label-input-group-color);
-  min-width: 30%;
-}
-
-/* span.input-group-text:hover {
-  background-color: var(--gray-600);
-  color:  var(--gray-200);
-} */
+/* Le style de base (placeholder, autofill, tooltip, .input-group-text) vient du template
+   (media/templates/site/cassiopeia_ncb/css/user.css) : ne pas le redupliquer ici, seulement le
+   delta reellement specifique a ce formulaire. Nettoyage 2026-08-30 - voir git blame pour les
+   blocs retires (copies conformes de user.css : .gda-tooltip, l'autofill Chrome, la couleur des
+   champs, span.input-group-text avec des variables jamais definies). */
 
 .form-control::placeholder {
-  font-style: italic;
-  opacity: 0.4;
   font-weight: normal;
 }
 
 input.form-control, .form-select {
-  color: var(--cassiopeia-color-primary) !important;      /* Couleur du texte saisi */
-  font-size: var(--body-font-size);  
+  font-size: var(--body-font-size);
   font-weight: bold;
 }
 
-input.form-control:-webkit-autofill {
-    -webkit-text-fill-color: var(--cassiopeia-color-primary) !important;
-    transition: background-color 5000s ease-in-out 0s;
-}
-
-.gda-tooltip {
-  --bs-tooltip-bg: var(--bs-primary) ;
-}
-
-/* Supprimer complètement le style autofill */
-input:-webkit-autofill,
-textarea:-webkit-autofill,
-select:-webkit-autofill {
-    -webkit-box-shadow: 0 0 0px 1000px white inset !important;
-    -webkit-text-fill-color: #000 !important;
-    background-image: none !important;
-    background-color: white !important;
-    transition: background-color 5000s ease-in-out 0s; /* hack pour chrome */
-}
-/* seules tes classes Bootstrap (is-valid / is-invalid) gèrent les icônes */
-input:-webkit-autofill:is(.is-valid, .is-invalid) {
-    background-image: none !important;
-}
-  
-  
-  
-  .brevet-item {
+.brevet-item {
     transition: all 0.3s ease;
     opacity: 0;
     transform: translateY(-10px);

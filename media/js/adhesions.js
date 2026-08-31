@@ -1,3 +1,91 @@
+/**
+ * Contrôle de validité d'une date de CACI (règle métier : SouscriptionService::isDateCaciValidable(),
+ * validité minimale de 9 mois à compter du 1er jour du mois de début de saison fédérale), via
+ * l'AJAX form.checkCaci. Résultat mis en cache par date (évite de reposer la même question au
+ * serveur entre le contrôle du champ au blur et le récapitulatif de l'étape suivante).
+ *
+ * @param {string} dateCaci Date au format d/m/Y, ou chaîne vide.
+ * @param {Function} onResult Callback appelé avec {valid, label, message}, ou null si dateCaci est vide.
+ */
+const caciDateCheckCache = new Map();
+function checkCaciDate(dateCaci, onResult) {
+    if (!dateCaci) {
+        onResult(null);
+        return;
+    }
+    if (caciDateCheckCache.has(dateCaci)) {
+        onResult(caciDateCheckCache.get(dateCaci));
+        return;
+    }
+    simpleCallAjax(
+        { task: 'form.checkCaci', dateCaci: dateCaci },
+        (response) => {
+            caciDateCheckCache.set(dateCaci, response.data);
+            onResult(response.data);
+        },
+        false
+    );
+}
+
+/**
+ * Affiche la date de fin de validité du CACI dans `targetEl` sous forme de badge coloré (même
+ * gabarit que layouts/secretariat/step_one.php), avec un tooltip Bootstrap expliquant le statut.
+ * Utilisé par le récapitulatif de l'étape 3 (#recap_caci).
+ *
+ * @param {HTMLElement|null} targetEl Élément dans lequel injecter le badge (vidé au préalable).
+ * @param {string} dateCaci Date au format d/m/Y, ou chaîne vide.
+ */
+function updateCaciDateBadge(targetEl, dateCaci) {
+    if (!targetEl) {
+        return;
+    }
+
+    if (!dateCaci) {
+        targetEl.textContent = Joomla.Text._('COM_GDA_ADHESION_RECAP_CACI_NON_RENSEIGNE');
+        return;
+    }
+
+    checkCaciDate(dateCaci, (result) => {
+        const valid = result?.valid || false;
+        const message = result?.message || '';
+
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (valid ? 'bg-success' : 'bg-danger');
+        badge.setAttribute('data-bs-toggle', 'tooltip');
+        badge.setAttribute('title', message);
+        badge.innerHTML = '<i class="fa-solid fa-file-medical me-1" aria-hidden="true"></i>';
+        badge.append(dateCaci);
+
+        targetEl.replaceChildren(badge);
+        new bootstrap.Tooltip(badge);
+    });
+}
+
+/**
+ * Affiche le statut court (icône + libellé, ex: "Absent"/"Insuffisant"/"Valide") du champ Date CACI
+ * (#caciDateValidityMessage), avec l'explication complète en tooltip. Le message tient volontairement
+ * en un mot pour ne pas déformer la mise en page (cf. le badge du récapitulatif pour l'explication
+ * longue affichée ailleurs).
+ *
+ * @param {HTMLElement} el Élément #caciDateValidityMessage.
+ * @param {boolean} valid
+ * @param {string} label Libellé court déjà traduit.
+ * @param {string} message Explication complète, affichée en tooltip.
+ */
+function renderCaciFieldStatus(el, valid, label, message) {
+    const icon = valid ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-exclamation';
+
+    el.innerHTML = '<i class="' + icon + '" aria-hidden="true"></i> ' + label;
+    el.classList.toggle('text-success', valid);
+    el.classList.toggle('text-danger', !valid);
+
+    // Le contenu du tooltip change à chaque appel : on détruit puis recrée l'instance Bootstrap
+    // plutôt que de tenter une mise à jour in-place.
+    bootstrap.Tooltip.getInstance(el)?.dispose();
+    el.setAttribute('title', message);
+    new bootstrap.Tooltip(el);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     //   document.addEventListener('DOMContentLoaded', function() {
 
@@ -129,13 +217,17 @@ document.addEventListener('DOMContentLoaded', function () {
         let txtValidite = validite ? '<span class="fst-italic"> (' + validite + ')</span>' : "";
         document.querySelector("#recap_licence").textContent = licence + txtValidite || Joomla.Text._('COM_GDADHESIONS_PAS_DE_LICENCE');
 
-        // recap CACI
+        // recap CACI : statut du fichier chargé (texte) + badge de validité de la date (couleur +
+        // tooltip, même règle et même gabarit que le badge du secrétariat).
         const caci = document.querySelector("#caciFlag")?.value || "";
         const date_caci = getValue("jform_date_caci") || "";
-        let Str1 = caci === "1" ? Joomla.Text._('COM_GDA_ADHESION_RECAP_CACI_CHARGE') : Joomla.Text._('COM_GDA_ADHESION_RECAP_CACI_NON_CHARGE');
-        let Str2 = date_caci ? ' <span class="fst-italic"> (' + date_caci + ')</span>' : Joomla.Text._('COM_GDA_ADHESION_RECAP_CACI_NON_RENSEIGNE');
+        const strFichier = caci === "1" ? Joomla.Text._('COM_GDA_ADHESION_RECAP_CACI_CHARGE') : Joomla.Text._('COM_GDA_ADHESION_RECAP_CACI_NON_CHARGE');
 
-        document.querySelector("#recap_caci").innerHTML = Str1 + ' ' + Str2;
+        const recapCaci = document.querySelector("#recap_caci");
+        recapCaci.textContent = strFichier + ' ';
+        const recapCaciDate = document.createElement('span');
+        recapCaci.append(recapCaciDate);
+        updateCaciDateBadge(recapCaciDate, date_caci);
         // recap plongees
         document.querySelector("#recap_nbr_plongee").textContent = getValue("jform_nbr_plongee") || "0";
         document.querySelector("#recap_nbr_plongee_35").textContent = getValue("jform_nbr_plongee_35") || "0";
@@ -408,6 +500,46 @@ document.addEventListener("DOMContentLoaded", function () {
     ServerSideValidation('jform_email', 'checkEmail');
     ServerSideValidation('jform_username', 'checkUserName');
     ClientSideValidation('step-0')
+});
+
+/**
+ * Validation en temps réel de la date de fin de validité du CACI (onglet "Informations
+ * Plongeur") : la règle métier (validité minimale de 9 mois à compter du 1er jour du mois de
+ * début de saison fédérale) vit dans SouscriptionService::isDateCaciValidable(), contrôlée ici
+ * côté serveur via l'AJAX form.checkCaci pour ne pas la dupliquer en JS.
+ */
+document.addEventListener("DOMContentLoaded", function () {
+    const dateCaciInput = document.getElementById('jform_date_caci');
+    const dateCaciMessage = document.getElementById('caciDateValidityMessage');
+
+    if (!dateCaciInput || !dateCaciMessage) {
+        return;
+    }
+
+    const checkDateCaci = function () {
+        const dateCaci = dateCaciInput.value;
+
+        if (!dateCaci) {
+            renderCaciFieldStatus(
+                dateCaciMessage,
+                false,
+                Joomla.Text._('COM_GDA_ADHESION_CACI_DATE_MISSING_SHORT'),
+                Joomla.Text._('COM_GDA_ADHESION_CACI_DATE_MISSING_MESSAGE')
+            );
+            return;
+        }
+
+        checkCaciDate(dateCaci, (result) => {
+            renderCaciFieldStatus(dateCaciMessage, result.valid, result.label, result.message);
+        });
+    };
+
+    dateCaciInput.addEventListener('blur', checkDateCaci);
+    dateCaciInput.addEventListener('change', checkDateCaci);
+
+    if (dateCaciInput.value) {
+        checkDateCaci();
+    }
 });
 
 

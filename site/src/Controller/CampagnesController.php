@@ -12,6 +12,7 @@ use Joomla\CMS\Layout\LayoutHelper;
 // Gda
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
+use NCB\Component\Gda\Site\Helper\UsersHelper;
 
 
 class CampagnesController extends BaseController
@@ -24,6 +25,23 @@ class CampagnesController extends BaseController
     // \Joomla\CMS\Factory::getApplication()->enqueueMessage('Tâches connues : ' . implode(', ', array_keys($this->taskMap)));
     // return parent::execute($task);
     // }
+
+    /**
+     * Vérifie que l'utilisateur connecté peut gérer les campagnes (Bureau ou Responsable de
+     * Groupe, même condition que View/Campagnes/HtmlView.php::display()) : contrairement à
+     * l'affichage de la vue, les tâches ajax de ce contrôleur n'étaient jusqu'ici protégées par
+     * aucun contrôle d'accès (seul le jeton CSRF), permettant à n'importe quel adhérent connecté
+     * de créer/modifier/supprimer une campagne ou de consulter le suivi des inscriptions.
+     *
+     * @return void
+     * @throws \RuntimeException Si l'utilisateur connecté n'est ni Bureau ni Responsable de Groupe.
+     */
+    private function guardGestionnaireCampagnes(): void
+    {
+        if (!UsersHelper::isBureauMember() && !UsersHelper::isResponsableGroupe()) {
+            throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
+        }
+    }
 
     /**
      * Les campagnes de type Saison sont exclusivement gérées par la vue Saisons (ouverture,
@@ -52,7 +70,7 @@ class CampagnesController extends BaseController
         $app   = Factory::getApplication();
         try {
             $this->checkToken();
-
+            $this->guardGestionnaireCampagnes();
 
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');
@@ -109,6 +127,7 @@ class CampagnesController extends BaseController
         $app   = Factory::getApplication();
         try {
             $this->checkToken();
+            $this->guardGestionnaireCampagnes();
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');
             $form = $model->getForm(null, false);
@@ -184,7 +203,7 @@ class CampagnesController extends BaseController
         $app   = Factory::getApplication();
         try {
             $this->checkToken();
-
+            $this->guardGestionnaireCampagnes();
 
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');
@@ -245,7 +264,7 @@ class CampagnesController extends BaseController
         $app   = Factory::getApplication();
         try {
             $this->checkToken();
-
+            $this->guardGestionnaireCampagnes();
 
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');
@@ -295,7 +314,7 @@ class CampagnesController extends BaseController
         $app = Factory::getApplication();
         try {
             $this->checkToken();
-
+            $this->guardGestionnaireCampagnes();
 
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');
@@ -337,7 +356,7 @@ class CampagnesController extends BaseController
         $app   = Factory::getApplication();
         try {
             $this->checkToken();
-
+            $this->guardGestionnaireCampagnes();
 
             /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
             $model = $this->getModel('campagnes', 'site');

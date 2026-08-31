@@ -10,91 +10,91 @@
       "name": "com_gdadhesions.gda",
       "type": "style",
       "uri": "com_gdadhesions/gda.css",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.gda",
       "type": "script",
       "uri": "com_gdadhesions/gda.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.file_upload",
       "type": "style",
       "uri": "com_gdadhesions/file_upload.css",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.file_upload",
       "type": "script",
       "uri": "com_gdadhesions/file_upload.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.spinner",
       "type": "script",
       "uri": "com_gdadhesions/spinner.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.spinner",
       "type": "style",
       "uri": "com_gdadhesions/spinner.css",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.form_modal",
       "type": "script",
       "uri": "com_gdadhesions/form_modal.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.tom-select",
       "type": "script",
       "uri": "com_gdadhesions/tom-select.complete.min.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.tom-select",
       "type": "style",
       "uri": "com_gdadhesions/tom-select.css",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.html5-qrcode",
       "type": "script",
       "uri": "com_gdadhesions/html5-qrcode.min.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.html5-qrcode",
       "type": "style",
       "uri": "com_gdadhesions/html5-qrcode.css",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.scrap-ffessm",
       "type": "script",
       "uri": "com_gdadhesions/scrap-ffessm.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.form-validator",
       "type": "script",
       "uri": "com_gdadhesions/form-validator.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.brevets",
       "type": "script",
       "uri": "com_gdadhesions/brevets.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.qr_scanner",
       "type": "script",
       "uri": "com_gdadhesions/qr_scanner.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.dialog",
@@ -103,37 +103,37 @@
       "dependencies": [
         "joomla.dialog"
       ],
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.profil_brevets",
       "type": "script",
       "uri": "com_gdadhesions/profil_brevets.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.adhesions",
       "type": "style",
       "uri": "com_gdadhesions/adhesions-override.css",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.adhesions",
       "type": "script",
       "uri": "com_gdadhesions/adhesions.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "simple-datatables",
       "type": "style",
       "uri": "com_gdadhesions/simple-datatables.css",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "simple-datatables",
       "type": "script",
       "uri": "com_gdadhesions/simple-datatables.min.js",
-      "version": "0.9.11",
+      "version": "0.9.12",
       "attributes": {
         "defer": true
       }
@@ -142,13 +142,13 @@
       "name": "com_gdadhesions.row_list",
       "type": "script",
       "uri": "com_gdadhesions/row_list.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.campagne",
       "type": "script",
       "uri": "com_gdadhesions/campagne.js",
-      "version": "0.9.11",
+      "version": "0.9.12",
       "dependencies": [
         "simple-datatables"
       ]
@@ -157,13 +157,13 @@
       "name": "com_gdadhesions.secretariat",
       "type": "script",
       "uri": "com_gdadhesions/secretariat.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.groupes",
       "type": "script",
       "uri": "com_gdadhesions/groupes.js",
-      "version": "0.9.11",
+      "version": "0.9.12",
       "dependencies": [
         "simple-datatables"
       ]
@@ -172,7 +172,7 @@
       "name": "com_gdadhesions.utilisateurs",
       "type": "script",
       "uri": "com_gdadhesions/utilisateurs.js",
-      "version": "0.9.11",
+      "version": "0.9.12",
       "dependencies": [
         "simple-datatables"
       ]
@@ -181,13 +181,13 @@
       "name": "com_gdadhesions.brevets_mgt",
       "type": "style",
       "uri": "com_gdadhesions/brevets_mgt.css",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.brevets_mgt",
       "type": "script",
       "uri": "com_gdadhesions/brevets_mgt.js",
-      "version": "0.9.11",
+      "version": "0.9.12",
       "dependencies": [
         "simple-datatables"
       ]
@@ -196,31 +196,31 @@
       "name": "com_gdadhesions.saisons",
       "type": "style",
       "uri": "com_gdadhesions/saisons-override.css",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.saisons",
       "type": "script",
       "uri": "com_gdadhesions/saisons.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.reservation",
       "type": "script",
       "uri": "com_gdadhesions/reservation.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.trombinoscope",
       "type": "style",
       "uri": "com_gdadhesions/trombinoscope.css",
-      "version": "0.9.11"
+      "version": "0.9.12"
     },
     {
       "name": "com_gdadhesions.trombinoscope",
       "type": "script",
       "uri": "com_gdadhesions/trombinoscope.js",
-      "version": "0.9.11"
+      "version": "0.9.12"
     }
   ]
 }

@@ -24,7 +24,6 @@ use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Service\CotisationService;
 use NCB\Component\Gda\Site\Service\HelloAssoService;
 use NCB\Component\Gda\Site\Service\NotificationMailService;
-use NCB\Component\Gda\Site\Service\SaisonService;
 use NCB\Component\Gda\Site\Service\SouscriptionService;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
 
@@ -149,7 +148,7 @@ class SecretariatModel extends ListModel
         $item->date_caci = ToolsHelper::from_sqldate($item->date_caci);
         $item->last_update = ToolsHelper::from_sqldate($item->last_update);
         $item->groupes = [];
-        $item->is_caci_validable = $souscriptionService->isCaciValidable($item->date_caci);
+        $item->is_caci_validable = $souscriptionService->isCaciValidable($item->date_caci, $item->caci);
       }
 
 
@@ -408,6 +407,38 @@ class SecretariatModel extends ListModel
     }
 
     return true;
+  }
+
+  /**
+   * Récupère le nom du fichier CACI d'un profil (colonne #__gda_profils.caci).
+   *
+   * Utilisé par SecretariatController::updateDateCaci() pour transmettre le fichier à
+   * SouscriptionService::isCaciValidable() : l'endpoint AJAX ne reçoit que la nouvelle date, pas
+   * le fichier (inchangé par cette action), il doit donc le relire pour appliquer la règle
+   * complète (date + fichier chargé).
+   *
+   * @param int $idProfil Identifiant du profil.
+   * @return string|null Nom du fichier CACI, ou null si absent/profil introuvable.
+   * @throws \RuntimeException Si la requête échoue.
+   */
+  public function getCaciFile(int $idProfil): ?string
+  {
+    $db = $this->getDatabase();
+    $query = $db->getQuery(true)
+      ->select($db->quoteName('caci'))
+      ->from($db->quoteName('#__gda_profils'))
+      ->where($db->quoteName('id_profil') . ' = :id_profil')
+      ->bind(':id_profil', $idProfil);
+
+    $db->setQuery($query);
+
+    try {
+      $caci = $db->loadResult();
+    } catch (\RuntimeException $e) {
+      throw new \RuntimeException($e->getMessage(), 500, $e);
+    }
+
+    return $caci !== null && $caci !== '' ? (string) $caci : null;
   }
 
   /**
@@ -816,25 +847,13 @@ class SecretariatModel extends ListModel
       throw new \RuntimeException('Adhérent ou souscription introuvable.');
     }
 
-    // Si l'id_order n'est pas encore connu, on tente de le trouver dans HelloAsso
+    // Si l'id_order n'est pas encore connu, on tente de le trouver dans HelloAsso (recherche
+    // toujours en direct et persistée si trouvée, voir SouscriptionService::resolveIdOrder()) :
+    // point d'extension unique, plus de logique de résolution dupliquée ici.
+    $idOrder = (new SouscriptionService($this->getDatabase()))->resolveIdOrder($idProfil, $idCampagne, $idOrder, $adherent->username);
+
     if ($idOrder === '0' || $idOrder === '') {
-      $saison = SaisonService::getSaison($idCampagne);
-
-      if ($saison === null || empty($saison->formType) || empty($saison->formSlug)) {
-        return $this->buildPaymentReport(null, [], $adherent);
-      }
-
-      $foundOrder = $this->getHelloAsso()->findOrderByUsername($saison->formType, $saison->formSlug, $adherent->username, false);
-
-      if ($foundOrder === null) {
-        return $this->buildPaymentReport(null, [], $adherent);
-      }
-
-      // On mémorise l'id_order pour ne plus refaire cette recherche
-      $souscription = new SouscriptionService($this->getDatabase());
-      $souscription->updateIdOrder($idProfil, $idCampagne, $foundOrder);
-
-      $idOrder = $foundOrder;
+      return $this->buildPaymentReport(null, [], $adherent);
     }
 
     // Récupère le détail complet de la commande HelloAsso (une commande peut regrouper plusieurs

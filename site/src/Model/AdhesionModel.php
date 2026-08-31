@@ -574,9 +574,13 @@ class AdhesionModel extends FormModel
     }
 
     /**
-     * Mettre à jour le profil d’un utilisateur existant
-     * 
-     * @return  mixed
+     * Mettre à jour le profil d'un utilisateur existant. La cible est résolue côté serveur via
+     * getProfil() (utilisateur connecté, ou clé de ré-édition validée en session) et jamais
+     * depuis $data['id'] : ce dernier vient du formulaire posté par le client et pourrait être
+     * falsifié pour écraser le profil de n'importe quel autre adhérent.
+     *
+     * @return bool Résultat de l'exécution de la requête.
+     * @throws \Exception Si aucune identité cible ne peut être résolue côté serveur (403).
      */
     function  UpdateProfil(): bool
     {
@@ -584,8 +588,11 @@ class AdhesionModel extends FormModel
 
         $data = $app->getUserState('adhesion.save');
 
-        // if id_profil not empty
+        $idProfilCible = (int) ($this->getProfil()->id ?? 0);
 
+        if ($idProfilCible <= 0) {
+            throw new \Exception(Text::_('COM_GDA_ERROR_UNAUTHORIZED'), 403);
+        }
 
         $db = $this->getDatabase();
         $query = $db->getQuery(true);
@@ -620,7 +627,7 @@ class AdhesionModel extends FormModel
         $query->update($db->quoteName('#__gda_profils'))
             ->set($fields)
             ->where($conditions)
-            ->bind(':value_id',  $data['id'])
+            ->bind(':value_id',  $idProfilCible)
             ->bind(':value_civilite',  $data['civilite'])
             ->bind(':value_nom',  $data['nom'])
             ->bind(':value_prenom',  $data['prenom'])
@@ -663,32 +670,39 @@ class AdhesionModel extends FormModel
 
 
     /**
-     * Mettre à jour l'utilisateur Joomla
-     * 
-     * @return  true
+     * Mettre à jour l'utilisateur Joomla. La cible est résolue côté serveur via getProfil()
+     * (utilisateur connecté, ou clé de ré-édition validée en session) plutôt que depuis
+     * $data['username']/$data['id'] postés par le client, falsifiables pour écraser le compte
+     * de n'importe quel autre adhérent — même principe que UpdateProfil().
+     *
+     * @return bool Toujours true (échec de sauvegarde Joomla remonté par exception).
+     * @throws \Exception Si la sauvegarde de l'utilisateur connecté échoue (getError() de User::save()).
      */
     function UpdateUser()
     {
         $app = $this->getApp();
         $data = $app->getUserState('adhesion.save');
-        $Currentuser = $app->getIdentity();
-        $UserData = array('name' => trim($data['prenom'] . ' ' . $data['nom']), 'email' => $data['email']);
+        $currentUser = $app->getIdentity();
+        $userData = array('name' => trim($data['prenom'] . ' ' . $data['nom']), 'email' => $data['email']);
 
-        // si le username =! vide et que le username connecter === au username fourni par le formulaire  
-        if (!empty($data['username']) && $data['username'] === $Currentuser->username) {
-            $Currentuser->bind($UserData);
-            $Currentuser->save();
-            if ($Currentuser->getError()) {
-                throw new \Exception($Currentuser->getError(), 500);
+        $idProfilCible = (int) ($this->getProfil()->id ?? 0);
+
+        if ($idProfilCible > 0 && $idProfilCible === (int) $currentUser->id) {
+            $currentUser->bind($userData);
+            $currentUser->save();
+            if ($currentUser->getError()) {
+                throw new \Exception($currentUser->getError(), 500);
             }
-        } else {
+        } elseif ($idProfilCible > 0) {
+            // Cas ré-édition via clé, adhérent non connecté : getProfil() n'a pu résoudre cette
+            // identité que si la clé fournie a été validée en session (voir getKey()).
             $userFactory = Factory::getContainer()->get(UserFactoryInterface::class);
-            $User = $userFactory->loadUserByUsername($data['username']) ?: null;
-            if ($User->id === (int)$data['id']) {
-                $User->bind($UserData);
-                $User->save();
+            $user = $userFactory->loadUserById($idProfilCible);
+
+            if ($user !== null && (int) $user->id > 0) {
+                $user->bind($userData);
+                $user->save();
             }
-            ## User on behalf
         }
 
         return true;

@@ -18,7 +18,9 @@ use NCB\Component\Gda\Site\Helper\FileHelper;
 use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\Database\DatabaseInterface;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
+use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Service\CotisationService;
+use NCB\Component\Gda\Site\Service\SouscriptionService;
 
 
 
@@ -199,8 +201,22 @@ class AdhesionController extends BaseController
 
             /* Met à jour la session pour que les changement soient visible immédiatement */
             $data = $app->getUserState('adhesion.save');
+
+            // Rappel CACI dans la popup de confirmation : même règle que le secrétariat
+            // (SouscriptionService::isCaciValidable() - fichier présent ET date valide au moins
+            // NB_MOIS_VALIDITE_CACI_MIN mois à compter du 1er jour du mois de début de saison
+            // fédérale). date_caci est stockée au format SQL (Y-m-d) par fixdata(), reconvertie en
+            // d/m/Y (format attendu par le service) via ToolsHelper::from_sqldate().
+            $souscriptionService = new SouscriptionService(Factory::getContainer()->get(DatabaseInterface::class));
+            $dateCaciFr = ToolsHelper::from_sqldate($data['date_caci'] ?? null);
+            $isCaciValidable = $souscriptionService->isCaciValidable($dateCaciFr, $data['caci'] ?? null);
+
             /* setter le popucontent pour la popup de confirmation d'adhésion */
-            $data['popupcontent'] = LayoutHelper::render('adhesion.popup', ['item' => $app->getUserState('adhesion.save')]) ?? "";
+            $data['popupcontent'] = LayoutHelper::render('adhesion.popup', [
+                'item' => $app->getUserState('adhesion.save'),
+                'caci_validable' => $isCaciValidable,
+                'caci_date_fr' => $dateCaciFr,
+            ]) ?? "";
 
             $Response->data =  base64_encode(json_encode($data));
             $Response->success = true;

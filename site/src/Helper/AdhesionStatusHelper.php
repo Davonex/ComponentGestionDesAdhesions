@@ -48,12 +48,6 @@ class AdhesionStatusHelper
     const STATUS_LICENCE_MISSING = 'LICENCE_MISSING';
 
     /**
-     * Premier mois de la saison fédérale FFESSM : à partir de septembre, la licence délivrée
-     * couvre la saison suivante (fin de validité au 31/12 de l'année N+1).
-     */
-    const MOIS_DEBUT_SAISON_LICENCE = 9;
-
-    /**
      * Détermine le statut d'adhésion en fonction de la souscription.
      * Logique prioritaire : pas de souscription → CACI → Paiement → Licence → Complété
      *
@@ -209,7 +203,9 @@ class AdhesionStatusHelper
      * Calcule la date de fin de validité de la licence FFESSM à partir de la date d'enregistrement
      * de la licence (finalisation par le secrétariat).
      *
-     * Règle fédérale : la saison démarre en septembre et se termine le 31/12 de l'année suivante.
+     * Règle fédérale : la saison démarre au mois FFESSM de début de saison (clé de config
+     * `MoisDebutSaisonFederale`, valeur officielle 9 = septembre) et se termine le 31/12 de
+     * l'année suivante.
      *  - enregistrement en septembre-décembre N  → fin de validité au 31/12 de l'année N+1
      *  - enregistrement en janvier-août N        → fin de validité au 31/12 de l'année N
      *    (la saison ouverte en septembre N-1 est toujours en cours)
@@ -223,8 +219,9 @@ class AdhesionStatusHelper
 
         $annee = (int) $reference->format('Y', true);
         $mois  = (int) $reference->format('n', true);
+        $moisDebutSaisonFederale = (int) ConfHelper::getValue('MoisDebutSaisonFederale');
 
-        if ($mois >= self::MOIS_DEBUT_SAISON_LICENCE) {
+        if ($mois >= $moisDebutSaisonFederale) {
             $annee++;
         }
 

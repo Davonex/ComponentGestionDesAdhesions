@@ -6,14 +6,19 @@ defined('_JEXEC') or die;
 
 /**
  * @var array $displayData
- * - $displayData['alerts'] : array de ['title' => string, 'message' => string]
+ * - $displayData['alerts'] : array de ['title' => string, 'message' => string, 'html' => bool]
  *
  * Rendu unique pour les popups de contrôle métier de la vue Adhésion (remplace GdaDialog.alert()) :
  * scan de licence introuvable/déjà connue, âge minimum non atteint, réduction Famille invalide.
  * Contenu complet d'une .modal-content, injecté par le JS dans #adhesionAlertModalContent.
+ *
+ * Par défaut, 'message' est échappé (texte brut) : c'est la seule protection contre l'injection
+ * HTML pour ce layout. Un appelant peut opter pour du HTML (ex: une liste à puces) en passant
+ * 'html' => true - à ne faire QUE pour un message statique écrit en dur/via une clé de langue,
+ * jamais pour une valeur qui contient, même indirectement, de la saisie utilisateur.
  */
 
-/** @var array<int, array{title: string, message: string}> $alerts */
+/** @var array<int, array{title: string, message: string, html?: bool}> $alerts */
 $alerts = $displayData['alerts'] ?? [];
 $title = count($alerts) === 1 ? $alerts[0]['title'] : Text::_('COM_GDA_ADHESION_ALERT_TITLE');
 ?>
@@ -30,7 +35,7 @@ $title = count($alerts) === 1 ? $alerts[0]['title'] : Text::_('COM_GDA_ADHESION_
     <?php if (count($alerts) > 1) : ?>
       <h6 class="fw-semibold"><?= $this->escape($alert['title']) ?></h6>
     <?php endif; ?>
-    <p class="mb-0"><?= $this->escape($alert['message']) ?></p>
+    <p class="mb-0"><?= !empty($alert['html']) ? $alert['message'] : $this->escape($alert['message']) ?></p>
   <?php endforeach; ?>
 </div>
 <div class="modal-footer border-0">

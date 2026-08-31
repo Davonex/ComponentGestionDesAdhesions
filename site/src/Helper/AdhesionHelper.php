@@ -18,10 +18,13 @@ class AdhesionHelper
     /**
      * Rend un champ de formulaire avec le style et les info-bulles appropriés.
       *
-      * @param   object  $field  L'objet du champ de formulaire contenant les attributs et le HTML d'entrée.
-      * @param   string|null  $label  Un label optionnel pour le champ (non utilisé dans l'implémentation actuelle). 
+      * @param   object  $field      L'objet du champ de formulaire contenant les attributs et le HTML d'entrée.
+      * @param   string|null  $label  Un label optionnel pour le champ (non utilisé dans l'implémentation actuelle).
+      * @param   string  $extraHtml  HTML optionnel affiché juste à droite du champ (même ligne, à
+      *                              l'intérieur du groupe), par exemple un message de validation
+      *                              rempli dynamiquement en JS. Ignoré pour les champs de type "switch".
      */
-    public static function renderField($field, $label = null): string
+    public static function renderField($field, $label = null, string $extraHtml = ''): string
     {
         /* ajoute µ pour les champs requis et les tooltips */
         $required = "";
@@ -56,6 +59,7 @@ class AdhesionHelper
             // $result .=      '<span class="input-group-text" data-bs-toggle="tooltip" data-bs-placement="top" title="Description détaillée du champ">?</span>';
             $result .=      '<span class="input-group-text" ' . $tooltips . '>' . Text::_($field->getAttribute('label')) . $required . '</span>';
             $result .=      $fieldInput;
+            $result .=      $extraHtml;
             $result .= '</div>';
         }
         return $result;
@@ -85,15 +89,29 @@ class AdhesionHelper
 
 
     /**
+     * Hôtes autorisés pour scrap() : les cartes de licence FFESSM sont accessibles via ce
+     * raccourcisseur de lien officiel (voir les QR codes scannés, ex: https://l.ffessm.fr/c.asp?id=...).
+     * Restreint volontairement l'hôte INITIAL de la requête (le raccourcisseur redirige ensuite
+     * vers la page réelle de la carte, redirection suivie via follow_location) : sans ce filtre,
+     * scrap() ferait exécuter par le serveur une requête HTTP vers n'importe quelle URL fournie
+     * par l'appelant (SSRF), y compris le réseau interne.
+     */
+    private const HOTES_AUTORISES = ['l.ffessm.fr'];
+
+    /**
      * Scrapes data from the given URL.
      *
      * @param   string  $url  The URL to scrape.
      * @return  array  The scraped data.
-     * @throws  \Exception  If the HTTP request fails.
-
+     * @throws  \Exception  Si l'hôte de l'URL n'est pas dans HOTES_AUTORISES, ou si la requête HTTP échoue.
      */
     public static function scrap($url)
     {
+        $host = parse_url($url, PHP_URL_HOST);
+
+        if ($host === null || $host === false || !in_array(strtolower($host), self::HOTES_AUTORISES, true)) {
+            throw new \Exception(Text::_('COM_GDA_ADHESION_SCAN_INVALID_HOST'));
+        }
 
         $data = array();
         $context = stream_context_create([
