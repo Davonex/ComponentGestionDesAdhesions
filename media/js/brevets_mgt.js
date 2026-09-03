@@ -303,6 +303,21 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   registerInlineEdit({
+    cellSelector: '.js-editable-label-affichage',
+    displaySelector: '.label-affichage-display',
+    inputSelector: '.label-affichage-input',
+    datasetKey: 'currentLabelAffichage',
+    buildData: function (valeur, cell) {
+      const ajaxData = buildAjaxData('brevets.updateMappingChamp');
+      ajaxData.id_mapping = cell.closest('.js-mapping-row').dataset.idMapping;
+      ajaxData.champ = 'label_affichage';
+      ajaxData.valeur = valeur;
+
+      return ajaxData;
+    }
+  });
+
+  registerInlineEdit({
     cellSelector: '.js-editable-nom-brevet',
     displaySelector: '.nom-brevet-display',
     inputSelector: '.nom-brevet-input',

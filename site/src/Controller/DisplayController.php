@@ -129,12 +129,16 @@ class DisplayController extends BaseController
                 $view->display();
             }
             // page autres
-        } else if (in_array($this->Registred, $levels)) {
+        } else if ($viewName === 'trombinoscope' || in_array($this->Registred, $levels)) {
+            // Le trombinoscope du Bureau est une vue publique, en lecture seule.
             $view->display();
         } else {
-            //$app->enqueueMessage(Text::_('COM_GDA_CAMPAGNE_ERR01_OPEN'), 'warning');
-            $this->setRedirect(Route::_('index.php', false));
-            //$this->setRedirect(Route::_('index.php', false));
+            // Redirection explicite vers l'Itemid de la page d'accueil : sans Itemid précisé,
+            // le routeur Joomla retombe sur l'Itemid courant de la requête (celui de la vue
+            // refusée), ce qui provoque une boucle de redirection infinie.
+            $default = $app->getMenu()->getDefault();
+            $redirectUrl = 'index.php' . ($default ? '?Itemid=' . $default->id : '');
+            $this->setRedirect(Route::_($redirectUrl, false));
         }
     }
 }

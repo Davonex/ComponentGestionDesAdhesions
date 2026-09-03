@@ -89,7 +89,7 @@ $showReservationStatut = $displayData['showReservationStatut'] ?? false;
                             <span class="text-muted"><?= Text::_('COM_GDA_GROUPES_TABLE_BREVETS_NONE') ?></span>
                         <?php else : ?>
                             <?php foreach ($shortlist as $brevet) : ?>
-                                <span class="badge me-1 bg-<?= $this->escape($brevet->role ?? 'pratiquant') ?>" title="<?= $this->escape($brevet->label_ffessm ?? '') ?>"><?= $this->escape($brevet->code ?? '') ?></span>
+                                <span class="badge me-1 bg-<?= $this->escape($brevet->role ?? 'pratiquant') ?>" title="<?= $this->escape($brevet->label_affichage ?? '') ?>"><?= $this->escape($brevet->code ?? '') ?></span>
                             <?php endforeach; ?>
                         <?php endif; ?>
                         <br>

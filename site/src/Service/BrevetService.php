@@ -212,8 +212,12 @@ final class BrevetService
      * @param  int[]    $idProfils
      * @param  string[] $activites Filtre optionnel, voir getBrevetsImportants().
      * @return array<int, object[]> brevets importants indexés par id_profil (objets {activite,
-     *                               role, code, label_ffessm, poids}) ; un id_profil sans aucun
-     *                               brevet reconnu n'apparaît pas dans le tableau retourné.
+     *                               role, code, label_ffessm, label_affichage, poids}) ; un
+     *                               id_profil sans aucun brevet reconnu n'apparaît pas dans le
+     *                               tableau retourné. `label_affichage` est toujours renseigné
+     *                               (retombe sur `label_ffessm` si le référentiel ne porte pas de
+     *                               libellé d'affichage dédié) : c'est lui qu'il faut afficher à
+     *                               un adhérent, `label_ffessm` restant le libellé officiel brut.
      */
     public function getBrevetsShortListProfils(array $idProfils, array $activites = []): array
     {
@@ -227,6 +231,10 @@ final class BrevetService
             ->select($this->db->quoteName([
                 'b.id_profil', 'm.code', 'm.activite', 'm.role', 'm.label_ffessm', 'm.poids',
             ]))
+            ->select(
+                'COALESCE(NULLIF(' . $this->db->quoteName('m.label_affichage') . ", '')," . $this->db->quoteName('m.label_ffessm')
+                . ') AS ' . $this->db->quoteName('label_affichage')
+            )
             ->from($this->db->quoteName('#__gda_brevets', 'b'))
             ->innerJoin(
                 $this->db->quoteName('#__gda_mapping_brevets', 'm')
@@ -285,6 +293,36 @@ final class BrevetService
         return $this->db->loadColumn() ?: [];
     }
 
+    /**
+     * Identifiants des profils titulaires d'au moins un brevet reconnu pour une activité et un
+     * rôle donnés (ex : activité "Technique", rôle "encadrant" → les encadrants plongée du
+     * trombinoscope). Ne renvoie que les identifiants : combiner avec getBrevetsShortListProfils()
+     * pour obtenir le meilleur brevet de chacun, sans dupliquer cette réduction.
+     *
+     * @param string $activite Activité du référentiel (ex : "Technique", "Apnée").
+     * @param string $role     "pratiquant" ou "encadrant".
+     *
+     * @return int[] id_profil, sans doublon.
+     */
+    public function getIdProfilsAvecBrevet(string $activite, string $role): array
+    {
+        $query = $this->db->getQuery(true)
+            ->select('DISTINCT ' . $this->db->quoteName('b.id_profil'))
+            ->from($this->db->quoteName('#__gda_brevets', 'b'))
+            ->innerJoin(
+                $this->db->quoteName('#__gda_mapping_brevets', 'm')
+                . ' ON ' . $this->db->quoteName('m.id') . ' = ' . $this->db->quoteName('b.id_mapping')
+            )
+            ->where($this->db->quoteName('m.activite') . ' = :activite')
+            ->where($this->db->quoteName('m.role') . ' = :role')
+            ->bind(':activite', $activite)
+            ->bind(':role', $role);
+
+        $this->db->setQuery($query);
+
+        return array_map('intval', $this->db->loadColumn() ?: []);
+    }
+
     // ---------------------------------------------------------------------------------------
     // Vue « Brevets » (Bureau) : administration du référentiel FFESSM et rattachement manuel
     // des brevets saisis par les adhérents. Regroupé ici et non dans un service dédié pour que
@@ -294,12 +332,15 @@ final class BrevetService
     /**
      * Référentiel complet, pour l'onglet « Référentiel FFESSM » de la vue Brevets.
      *
-     * @return object[] objets {id, code, activite, role, label_ffessm, poids}
+     * @return object[] objets {id, code, activite, role, label_ffessm, label_affichage, poids}
+     *                   `label_affichage` est ici le override brut tel que saisi (peut être
+     *                   `null` si aucun n'est défini), pas la version coalescée sur le libellé
+     *                   officiel — la vue Brevets doit voir si le champ est vide ou renseigné.
      */
     public function getMappings(): array
     {
         $query = $this->db->getQuery(true)
-            ->select($this->db->quoteName(['id', 'code', 'activite', 'role', 'label_ffessm', 'poids']))
+            ->select($this->db->quoteName(['id', 'code', 'activite', 'role', 'label_ffessm', 'label_affichage', 'poids']))
             ->from($this->db->quoteName('#__gda_mapping_brevets'))
             ->order([
                 $this->db->quoteName('activite') . ' ASC',
@@ -318,7 +359,7 @@ final class BrevetService
      * replaceBrevets() pour le rapprochement — c'est ce qui garantit qu'un libellé ajouté ici
      * sera effectivement reconnu lors du prochain enregistrement de brevets.
      *
-     * @param array{label_ffessm?: mixed, activite?: mixed, role?: mixed, code?: mixed, poids?: mixed} $donnees
+     * @param array{label_ffessm?: mixed, activite?: mixed, role?: mixed, code?: mixed, poids?: mixed, label_affichage?: mixed} $donnees
      *
      * @return object la ligne créée
      */
@@ -329,6 +370,8 @@ final class BrevetService
         $role = (string) ($donnees['role'] ?? '');
         $code = trim((string) ($donnees['code'] ?? ''));
         $poids = (int) ($donnees['poids'] ?? 0);
+        $labelAffichage = trim((string) ($donnees['label_affichage'] ?? ''));
+        $labelAffichage = $labelAffichage !== '' ? $labelAffichage : null;
 
         if ($label === '' || $code === '') {
             throw new \InvalidArgumentException(Text::_('COM_GDA_BREVETS_MAPPING_ERR_REQUIRED'));
@@ -352,37 +395,39 @@ final class BrevetService
 
         $query = $this->db->getQuery(true)
             ->insert($this->db->quoteName('#__gda_mapping_brevets'))
-            ->columns($this->db->quoteName(['code', 'activite', 'role', 'label_ffessm', 'label_ffessm_norm', 'poids']))
-            ->values(':code, :activite, :role, :label, :label_norm, :poids')
+            ->columns($this->db->quoteName(['code', 'activite', 'role', 'label_ffessm', 'label_ffessm_norm', 'label_affichage', 'poids']))
+            ->values(':code, :activite, :role, :label, :label_norm, :label_affichage, :poids')
             ->bind(':code', $code)
             ->bind(':activite', $activite)
             ->bind(':role', $role)
             ->bind(':label', $label)
             ->bind(':label_norm', $labelNorm)
+            ->bind(':label_affichage', $labelAffichage, $labelAffichage === null ? ParameterType::NULL : ParameterType::STRING)
             ->bind(':poids', $poids, ParameterType::INTEGER);
 
         $this->db->setQuery($query);
         $this->db->execute();
 
         return (object) [
-            'id'           => (int) $this->db->insertid(),
-            'code'         => $code,
-            'activite'     => $activite,
-            'role'         => $role,
-            'label_ffessm' => $label,
-            'poids'        => $poids,
+            'id'              => (int) $this->db->insertid(),
+            'code'            => $code,
+            'activite'        => $activite,
+            'role'            => $role,
+            'label_ffessm'    => $label,
+            'label_affichage' => $labelAffichage,
+            'poids'           => $poids,
         ];
     }
 
     /**
-     * Édition inline d'une case du référentiel. Seuls `code` et `poids` sont modifiables : le
-     * libellé officiel et son couple (activité, rôle) définissent l'identité de la ligne, les
-     * changer reviendrait à créer une autre correspondance — et invaliderait `label_ffessm_norm`
-     * ainsi que les `#__gda_brevets.id_mapping` déjà résolus.
+     * Édition inline d'une case du référentiel. Seuls `code`, `poids` et `label_affichage` sont
+     * modifiables : le libellé officiel et son couple (activité, rôle) définissent l'identité de
+     * la ligne, les changer reviendrait à créer une autre correspondance — et invaliderait
+     * `label_ffessm_norm` ainsi que les `#__gda_brevets.id_mapping` déjà résolus.
      */
     public function updateMappingChamp(int $idMapping, string $champ, string $valeur): void
     {
-        if ($idMapping <= 0 || !\in_array($champ, ['code', 'poids'], true)) {
+        if ($idMapping <= 0 || !\in_array($champ, ['code', 'poids', 'label_affichage'], true)) {
             throw new \InvalidArgumentException(Text::_('COM_GDA_BREVETS_MAPPING_ERR_FIELD'));
         }
 
@@ -395,6 +440,14 @@ final class BrevetService
             $poids = max(0, (int) $valeur);
             $query->set($this->db->quoteName('poids') . ' = :poids')
                 ->bind(':poids', $poids, ParameterType::INTEGER);
+        } elseif ($champ === 'label_affichage') {
+            // Chaîne vide = pas d'override : retombe sur le libellé officiel (label_ffessm) à la
+            // lecture, voir COALESCE(NULLIF(...)) dans getBrevetsShortListProfils().
+            $labelAffichage = trim($valeur);
+            $labelAffichage = $labelAffichage !== '' ? $labelAffichage : null;
+
+            $query->set($this->db->quoteName('label_affichage') . ' = :label_affichage')
+                ->bind(':label_affichage', $labelAffichage, $labelAffichage === null ? ParameterType::NULL : ParameterType::STRING);
         } else {
             $code = trim($valeur);
 

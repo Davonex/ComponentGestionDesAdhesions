@@ -110,7 +110,7 @@ $brevetsShortlist = $utilisateur->brevets_shortlist ?? [];
             <span class="text-muted"><?= Text::_('COM_GDA_GROUPES_TABLE_BREVETS_NONE') ?></span>
         <?php else : ?>
             <?php foreach ($brevetsShortlist as $brevet) : ?>
-                <span class="badge me-1 bg-<?= $this->escape($brevet->role ?? 'pratiquant') ?>" title="<?= $this->escape($brevet->label_ffessm ?? '') ?>"><?= $this->escape($brevet->code ?? '') ?></span>
+                <span class="badge me-1 bg-<?= $this->escape($brevet->role ?? 'pratiquant') ?>" title="<?= $this->escape($brevet->label_affichage ?? '') ?>"><?= $this->escape($brevet->code ?? '') ?></span>
             <?php endforeach; ?>
         <?php endif; ?>
         <br>

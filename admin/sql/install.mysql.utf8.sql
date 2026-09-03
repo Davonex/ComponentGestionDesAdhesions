@@ -338,6 +338,7 @@ CREATE TABLE IF NOT EXISTS `#__gda_mapping_brevets` (
   `role` ENUM('pratiquant','encadrant') NOT NULL,
   `label_ffessm` VARCHAR(150) NOT NULL,
   `label_ffessm_norm` VARCHAR(150) NOT NULL,
+  `label_affichage` VARCHAR(150) NULL DEFAULT NULL,
   `poids` TINYINT UNSIGNED NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_code_label_norm` (`code`, `label_ffessm_norm`),
@@ -430,6 +431,14 @@ INSERT IGNORE INTO `#__gda_mapping_brevets` (`code`, `activite`, `role`, `label_
 ('RCFAP', 'Plongée technique / Recycleur', 'pratiquant', 'Plongeur Recycleur Circuit Fermé AP-Diving Inspiration diluant Air', 'PLONGEUR RECYCLEUR CIRCUIT FERME AP-DIVING INSPIRATION DILUANT AIR', 1),
 ('PSOUT1', 'Plongée souterraine', 'pratiquant', 'Plongeur souterrain Niveau 1', 'PLONGEUR SOUTERRAIN NIVEAU 1', 1),
 ('PSOUT2', 'Plongée souterraine', 'pratiquant', 'Plongeur souterrain Niveau 2', 'PLONGEUR SOUTERRAIN NIVEAU 2', 2);
+
+--
+-- Libellé d'affichage : le libellé officiel FFESSM de "E3 (TSI)" ("Tuteur de stage initiateur")
+-- ne dit rien du grade réel de la personne à un public non initié.
+--
+UPDATE `#__gda_mapping_brevets`
+  SET `label_affichage` = 'E3 - MF1 (TSI)'
+  WHERE `label_ffessm_norm` = 'TUTEUR DE STAGE INITIATEUR' AND `activite` = 'Technique' AND `role` = 'encadrant';
 
 
 

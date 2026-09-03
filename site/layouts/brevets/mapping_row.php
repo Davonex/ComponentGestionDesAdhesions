@@ -7,7 +7,7 @@
  * remplacer la ligne de saisie après un ajout — d'où l'isolement dans son propre layout.
  *
  * @var array $displayData
- * - $displayData['mapping'] : object {id, code, activite, role, label_ffessm, poids}
+ * - $displayData['mapping'] : object {id, code, activite, role, label_ffessm, label_affichage, poids}
  */
 
 defined('_JEXEC') or die;
@@ -23,6 +23,13 @@ $roleLabel = $mapping->role === 'encadrant'
 ?>
 <tr class="js-mapping-row" data-id-mapping="<?= (int) $mapping->id ?>">
     <td><?= $this->escape($mapping->label_ffessm) ?></td>
+    <td class="js-editable-label-affichage" title="<?= $this->escape(Text::_('COM_GDA_BREVETS_EDIT_HINT')) ?>">
+        <span class="label-affichage-display"><?= $this->escape((string) ($mapping->label_affichage ?? '')) ?></span>
+        <input type="text" class="form-control form-control-sm label-affichage-input d-none"
+            maxlength="150"
+            value="<?= $this->escape((string) ($mapping->label_affichage ?? '')) ?>"
+            data-current-label-affichage="<?= $this->escape((string) ($mapping->label_affichage ?? '')) ?>">
+    </td>
     <td><?= $this->escape($mapping->activite) ?></td>
     <td>
         <?php // Mêmes couleurs de rôle que les badges de brevets de la vue Utilisateurs. ?>

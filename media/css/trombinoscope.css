@@ -18,6 +18,10 @@
     --gda-trombi-surface-hover: rgba(255, 255, 255, .19);
     --gda-trombi-border: rgba(255, 255, 255, .30);
     --gda-trombi-text-soft: rgba(255, 255, 255, .78);
+    /* Grille a 5 cartes par ligne (row-cols-lg-5) : carte plus etroite, meme motif que
+       --menu-font-size (user.css) pour que le texte suive la largeur disponible plutot
+       que de rester fixe et deborder/tronquer sur les libelles de brevets les plus longs. */
+    --gda-trombi-card-text-size: clamp(.78rem, 1.3vw, 1rem);
 
     color: var(--noir);
     border: 1px solid var(--gda-trombi-border);
@@ -75,6 +79,14 @@
 }
 
 /* ----------------------------------------------------------------------- Carte adherent */
+
+/* La regle globale ".card { padding: 1rem }" (gda.css, pensee pour les cartes de la vue
+   Saisons) est chargee sur toutes les vues et deborde donc sur .gda-trombi-card : neutralisee
+   ici uniquement pour le trombinoscope, la photo et le corps de carte gerant deja leur propre
+   espacement (.gda-trombi-photo-wrap, .card-body.px-3.py-3). */
+.gda-trombinoscope .card {
+    padding: 0;
+}
 
 .gda-trombi-card {
     overflow: hidden;
@@ -149,14 +161,14 @@
 }
 
 .gda-trombi-name {
-    font-size: 1rem;
+    font-size: var(--gda-trombi-card-text-size);
     font-weight: 700;
     line-height: 1.15;
     letter-spacing: .02em;
 }
 
 .gda-trombi-role {
-    font-size: 1rem;
+    font-size: var(--gda-trombi-card-text-size);
     color: var(--logo-gauche-900);
 }
 
@@ -186,4 +198,23 @@
     .gda-trombi-card:hover {
         transform: none;
     }
+}
+
+/* ------------------------------------------------------------- Filigrane "encadrants plongee" */
+
+/* .carousel-item (Bootstrap) est deja position:relative, necessaire pour le ::before absolu. */
+.gda-trombi-pane--manta::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("../images/raie-manta.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: min(65%, 560px);
+    opacity: .07;
+    pointer-events: none;
+}
+
+.gda-trombi-pane--manta > * {
+    position: relative;
 }

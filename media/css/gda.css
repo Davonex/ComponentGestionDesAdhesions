@@ -41,6 +41,10 @@
     color: var(--body-bg);
 }
 
+.text-white {
+    color: var(--blanc);
+}
+
 /* Le CSS coeur du switch Joomla (media/system/css/fields/switcher.css) ne prévoit pas
    d'état visuel désactivé ; on l'ajoute pour les switchs forcés par JS (ex: nature
    "Formation" du formulaire de campagne, toujours 1 place). */

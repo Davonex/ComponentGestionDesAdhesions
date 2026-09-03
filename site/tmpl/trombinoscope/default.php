@@ -19,6 +19,10 @@ $wa->useScript('com_gdadhesions.trombinoscope');
 
 /** @var array $membresBureau */
 $membresBureau = $this->membresBureau;
+/** @var array $encadrantsPlongee */
+$encadrantsPlongee = $this->encadrantsPlongee;
+/** @var array $encadrantsApnee */
+$encadrantsApnee = $this->encadrantsApnee;
 ?>
 
 <div id="trombinoscopeCarousel" class="carousel slide gda-trombinoscope card shadow-lg p-4">
@@ -45,12 +49,12 @@ $membresBureau = $this->membresBureau;
             <?= LayoutHelper::render('trombinoscope.bureau', ['membres' => $membresBureau]) ?>
         </div>
 
-        <div class="carousel-item" id="trombinoscope-encadrants-plongee">
-            <?= LayoutHelper::render('trombinoscope.comingsoon') ?>
+        <div class="carousel-item gda-trombi-pane--manta" id="trombinoscope-encadrants-plongee">
+            <?= LayoutHelper::render('trombinoscope.encadrants_plongee', ['membres' => $encadrantsPlongee]) ?>
         </div>
 
         <div class="carousel-item" id="trombinoscope-encadrants-apnee">
-            <?= LayoutHelper::render('trombinoscope.comingsoon') ?>
+            <?= LayoutHelper::render('trombinoscope.encadrants_apnee', ['membres' => $encadrantsApnee]) ?>
         </div>
 
     </div>

@@ -76,6 +76,10 @@ $optionsActivite = array_map(
         <thead>
             <tr>
                 <th><?= Text::_('COM_GDA_BREVETS_TABLE_HEADER_LABEL') ?></th>
+                <th title="<?= $this->escape(Text::_('COM_GDA_BREVETS_TABLE_HEADER_LABEL_AFFICHAGE_TOOLTIP')) ?>">
+                    <?= Text::_('COM_GDA_BREVETS_TABLE_HEADER_LABEL_AFFICHAGE') ?>
+                    <i class="fa-solid fa-circle-info text-muted small" aria-hidden="true"></i>
+                </th>
                 <th><?= Text::_('COM_GDA_BREVETS_TABLE_HEADER_ACTIVITE') ?></th>
                 <th><?= Text::_('COM_GDA_BREVETS_TABLE_HEADER_ROLE') ?></th>
                 <th title="<?= $this->escape(Text::_('COM_GDA_BREVETS_TABLE_HEADER_CODE_TOOLTIP')) ?>">

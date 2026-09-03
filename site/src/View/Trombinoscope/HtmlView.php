@@ -14,6 +14,8 @@ class HtmlView extends BaseHtmlView
         /** @var TrombinoscopeModel $model */
         $model = $this->getModel();
         $this->membresBureau = $model->getMembresBureau();
+        $this->encadrantsPlongee = $model->getEncadrantsPlongee();
+        $this->encadrantsApnee = $model->getEncadrantsApnee();
 
         parent::display($tpl);
     }

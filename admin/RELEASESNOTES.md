@@ -1,5 +1,16 @@
 # Component com_gadhesions
 
+## Version 0.9.13
+  - 📰 Nouveautés
+
+  - 📈 Améliorations
+    - Ajoute d'un Label-affichage dans "Gestion des Brevets" pour améliorer l'affichage de certains libellés comme "TUTEUR DE STAGE INITIATEUR" => "E3 - MF1 (TSI)"
+    - Ajoute du Trombinoscope Encadrant Plongée et Encadrant Apnée.
+
+
+  - 🪲 Bugs
+    - Trombinoscope - exigeait le niveau d'accès "Registred"
+
 ## Version 0.9.12
   - 📰 Nouveautés
 
