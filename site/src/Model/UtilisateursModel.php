@@ -402,6 +402,9 @@ class UtilisateursModel extends ListModel
      *
      * @return bool
      *
+     * @throws \InvalidArgumentException Si l'identifiant est invalide ou la fonction dépasse 100 caractères.
+     * @throws \RuntimeException Si aucun profil ne correspond à cet identifiant.
+     *
      * @since  1.0.0
      */
     public function updateUserFonction(int $userId, string $fonction): bool
@@ -417,6 +420,9 @@ class UtilisateursModel extends ListModel
         }
 
         $db = $this->getDatabase();
+
+        $this->assertProfilExiste($userId);
+
         $query = $db->getQuery(true)
             ->update($db->quoteName('#__gda_profils'))
             ->where($db->quoteName('id_profil') . ' = :id_profil')
@@ -431,10 +437,6 @@ class UtilisateursModel extends ListModel
 
         $db->setQuery($query);
         $db->execute();
-
-        if ((int) $db->getAffectedRows() === 0) {
-            throw new \RuntimeException('Aucun profil trouvé pour cet utilisateur.');
-        }
 
         GdaLogger::info(
             '[' . $this->getActingUserName() . '] Fonction mise à jour (id=' . $userId . '): "' . $fonction . '"'
@@ -452,6 +454,9 @@ class UtilisateursModel extends ListModel
      *
      * @return bool
      *
+     * @throws \InvalidArgumentException Si l'identifiant ou l'ordre est invalide.
+     * @throws \RuntimeException Si aucun profil ne correspond à cet identifiant.
+     *
      * @since  1.0.0
      */
     public function updateOrdreBureau(int $userId, ?int $ordre): bool
@@ -465,6 +470,9 @@ class UtilisateursModel extends ListModel
         }
 
         $db = $this->getDatabase();
+
+        $this->assertProfilExiste($userId);
+
         $query = $db->getQuery(true)
             ->update($db->quoteName('#__gda_profils'))
             ->where($db->quoteName('id_profil') . ' = :id_profil')
@@ -480,15 +488,44 @@ class UtilisateursModel extends ListModel
         $db->setQuery($query);
         $db->execute();
 
-        if ((int) $db->getAffectedRows() === 0) {
-            throw new \RuntimeException('Aucun profil trouvé pour cet utilisateur.');
-        }
-
         GdaLogger::info(
             '[' . $this->getActingUserName() . '] Ordre bureau mis à jour (id=' . $userId . '): ' . ($ordre ?? 'NULL')
         );
 
         return true;
+    }
+
+    /**
+     * Vérifie qu'un profil existe avant une mise à jour, indépendamment du résultat de l'UPDATE
+     * lui-même : le pilote mysqli de Joomla compte les lignes réellement *modifiées*, pas les
+     * lignes *trouvées* — une valeur ré-enregistrée à l'identique (ex: même ordre de tri qu'un
+     * autre membre) donne 0 ligne affectée alors que le profil existe bel et bien. Vérifier
+     * l'existence en amont, plutôt que de lire `getAffectedRows()` après coup, est donc la seule
+     * façon fiable de distinguer "profil introuvable" d'une mise à jour sans changement réel.
+     *
+     * @param int $idProfil Identifiant du profil (id_profil).
+     *
+     * @return void
+     *
+     * @throws \RuntimeException Si aucun profil ne correspond à cet identifiant.
+     *
+     * @since  1.2.0
+     */
+    private function assertProfilExiste(int $idProfil): void
+    {
+        $db = $this->getDatabase();
+
+        $query = $db->getQuery(true)
+            ->select('1')
+            ->from($db->quoteName('#__gda_profils'))
+            ->where($db->quoteName('id_profil') . ' = :id_profil')
+            ->bind(':id_profil', $idProfil, ParameterType::INTEGER);
+
+        $db->setQuery($query);
+
+        if (!$db->loadResult()) {
+            throw new \RuntimeException('Aucun profil trouvé pour cet utilisateur.');
+        }
     }
 
     /**

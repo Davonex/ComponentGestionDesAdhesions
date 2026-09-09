@@ -23,6 +23,8 @@ $membresBureau = $this->membresBureau;
 $encadrantsPlongee = $this->encadrantsPlongee;
 /** @var array $encadrantsApnee */
 $encadrantsApnee = $this->encadrantsApnee;
+/** @var array $encadrantsHandisub */
+$encadrantsHandisub = $this->encadrantsHandisub;
 ?>
 
 <div id="trombinoscopeCarousel" class="carousel slide gda-trombinoscope card shadow-lg p-4">
@@ -41,6 +43,10 @@ $encadrantsApnee = $this->encadrantsApnee;
             <i class="fa-solid fa-person-swimming me-1" aria-hidden="true"></i>
             <?= Text::_('COM_GDA_TROMBINOSCOPE_TAB_ENCADRANTS_APNEE') ?>
         </button>
+        <button type="button" class="nav-link" data-bs-target="#trombinoscopeCarousel" data-bs-slide-to="3">
+            <i class="fa-solid fa-universal-access me-1" aria-hidden="true"></i>
+            <?= Text::_('COM_GDA_TROMBINOSCOPE_TAB_ENCADRANTS_HANDISUB') ?>
+        </button>
     </nav>
 
     <div class="carousel-inner">
@@ -55,6 +61,10 @@ $encadrantsApnee = $this->encadrantsApnee;
 
         <div class="carousel-item" id="trombinoscope-encadrants-apnee">
             <?= LayoutHelper::render('trombinoscope.encadrants_apnee', ['membres' => $encadrantsApnee]) ?>
+        </div>
+
+        <div class="carousel-item" id="trombinoscope-encadrants-handisub">
+            <?= LayoutHelper::render('trombinoscope.encadrants_handisub', ['membres' => $encadrantsHandisub]) ?>
         </div>
 
     </div>

@@ -111,6 +111,20 @@ class TrombinoscopeModel extends ListModel
     }
 
     /**
+     * Récupère les moniteurs Handisub : les adhérents titulaires d'au moins un brevet reconnu du
+     * référentiel FFESSM pour l'activité "Handisub" et le rôle "encadrant" (EH1, EH2, MFEH1,
+     * MHPC...), avec leur meilleur brevet comme fonction affichée.
+     *
+     * @return array<int, object> objets {id_profil, civilite, nom, prenom, photo, fonction, poids}
+     *
+     * @since  1.3.0
+     */
+    public function getEncadrantsHandisub(): array
+    {
+        return $this->getEncadrantsParActivite('Handisub');
+    }
+
+    /**
      * Adhérents titulaires d'au moins un brevet reconnu du référentiel FFESSM pour une activité et
      * le rôle "encadrant" donnés, avec leur meilleur brevet comme fonction affichée. Triés par
      * meilleur brevet décroissant (les plus qualifiés en premier), puis par nom/prénom en repli.

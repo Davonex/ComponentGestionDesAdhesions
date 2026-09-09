@@ -61,7 +61,7 @@
 		<option value="0">COM_GDA_REDUCTION_CHOIX_0</option>
 		<option value="1">COM_GDA_REDUCTION_CHOIX_1</option>
 		<option value="2">COM_GDA_REDUCTION_CHOIX_2</option>
-		<option value="3">COM_GDA_REDUCTION_CHOIX_3</option>
+		<!-- <option value="3">COM_GDA_REDUCTION_CHOIX_3</option> -->
 		<option value="4">COM_GDA_REDUCTION_CHOIX_4</option>
 	</field>
 

@@ -1,5 +1,17 @@
 # Component com_gadhesions
 
+
+## Version 0.9.14
+  - 📰 Nouveautés
+    - Trombinoscope Handi
+
+  - 📈 Améliorations
+    - Suppression Tarif etudiant
+
+  - 🪲 Bugs
+    - Odre de tri pour les membres du bureau
+  
+
 ## Version 0.9.13
   - 📰 Nouveautés
 

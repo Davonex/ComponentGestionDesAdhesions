@@ -16,6 +16,7 @@ class HtmlView extends BaseHtmlView
         $this->membresBureau = $model->getMembresBureau();
         $this->encadrantsPlongee = $model->getEncadrantsPlongee();
         $this->encadrantsApnee = $model->getEncadrantsApnee();
+        $this->encadrantsHandisub = $model->getEncadrantsHandisub();
 
         parent::display($tpl);
     }
