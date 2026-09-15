@@ -11,18 +11,28 @@ use NCB\Component\Gda\Site\Helper\ToolsHelper;
 
 class UsersHelper
 {
-    /**<summary> Check if a user exists by username </summary> */
-    public static function userExists($username)
+    /**
+     * Vérifie si un utilisateur Joomla existe pour un nom d'utilisateur donné.
+     *
+     * @param string $username Le nom d'utilisateur à rechercher.
+     * @return bool Vrai si l'utilisateur existe, faux sinon.
+     */
+    public static function userExists(string $username)
     {
-        $user = User::getInstance($username);
+        $user = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserByUsername($username);
         return ($user && $user->id) ? true : false;
     }
 
-    /**<summary> Check if a user exists by email address </summary> */
-    public static function mailExists($usermail)
+    /**
+     * Vérifie si une adresse e-mail est déjà utilisée par un utilisateur Joomla existant (#__users).
+     *
+     * @param string $usermail L'adresse e-mail à rechercher.
+     * @return bool Vrai si un utilisateur possède déjà cet e-mail, faux sinon.
+     */
+    public static function mailExists(string $usermail)
     {
         $db = Factory::getContainer()->get('DatabaseDriver');
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
         $query->select('COUNT(*)')
             ->from($db->quoteName('#__users'))
@@ -96,8 +106,10 @@ class UsersHelper
     }
 
     /**
-     * <summary> Check if a user is blocked by username </summary>
-     * <param name="username">The username of the user to check</param>
+     * Vérifie si un utilisateur Joomla est bloqué, pour un nom d'utilisateur donné.
+     *
+     * @param string $username Le nom d'utilisateur à vérifier.
+     * @return bool Vrai si l'utilisateur existe et est bloqué, faux sinon.
      */
     public static function isBlocked($username)
     {
@@ -115,7 +127,7 @@ class UsersHelper
     private static function userHasViewLevel(string $viewLevelTitle): bool
     {
         $db = Factory::getContainer()->get('DatabaseDriver');
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select($db->quoteName('id'))
             ->from($db->quoteName('#__viewlevels'))
             ->where($db->quoteName('title') . ' = :title')
@@ -199,7 +211,7 @@ class UsersHelper
     private static function getGroupIdByTitle(string $groupTitle): ?int
     {
         $db = Factory::getContainer()->get('DatabaseDriver');
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select($db->quoteName('id'))
             ->from($db->quoteName('#__usergroups'))
             ->where($db->quoteName('title') . ' = :title')

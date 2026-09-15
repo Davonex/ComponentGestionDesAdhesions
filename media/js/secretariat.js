@@ -339,6 +339,77 @@
   };
 
   /**
+   * Initialise DataTable + tooltips pour le tableau de l'etape 5 (contenu charge en AJAX dans
+   * #step-orphelins-content).
+   * @returns {void}
+   */
+  const initStepOrphelinsView = function () {
+    const contentContainer = document.getElementById('step-orphelins-content');
+    const table5 = document.querySelector('#step-orphelins-content table');
+    const datatableApi = globalThis.simpleDatatables;
+
+    if (table5 && datatableApi && datatableApi.DataTable) {
+      new datatableApi.DataTable(table5, frenchDataTableOptions);
+    } else if (table5) {
+      console.error('simple-datatables n\'est pas chargee');
+    }
+
+    if (contentContainer) {
+      initTooltips(contentContainer);
+    }
+  };
+
+  /**
+   * Charge et remplace le contenu HTML de la step 5 (paiements HelloAsso orphelins).
+   * @param {boolean} [forceRefresh=false] Ignore le cache fichier HelloAsso de 30 min.
+   * @returns {void}
+   */
+  const loadStepOrphelins = function (forceRefresh = false) {
+    const contentContainer = document.getElementById('step-orphelins-content');
+
+    if (!contentContainer) {
+      return;
+    }
+
+    const ajaxData = { task: 'secretariat.stepOrphelins' };
+
+    if (forceRefresh) {
+      ajaxData.force_refresh = 1;
+    }
+
+    const csrfTokenName = Joomla.getOptions('csrf.token');
+    const hideOrphelinsLoader = function () {
+      if (window.GdaSpinner) {
+        window.GdaSpinner.hide(contentContainer);
+      }
+    };
+
+    if (csrfTokenName) {
+      ajaxData[csrfTokenName] = 1;
+    }
+
+    if (typeof simpleCallAjax === 'function') {
+      if (window.GdaSpinner) {
+        window.GdaSpinner.show(contentContainer, {
+          text: forceRefresh ? 'Actualisation depuis HelloAsso...' : 'Chargement des paiements orphelins...'
+        });
+      }
+
+      const orphelinsFallbackTimer = window.setTimeout(hideOrphelinsLoader, 15000);
+
+      simpleCallAjax(ajaxData, function (response) {
+        window.clearTimeout(orphelinsFallbackTimer);
+        hideOrphelinsLoader();
+
+        if (response.success) {
+          contentContainer.innerHTML = decodeURIComponent(escape(atob(response.data)));
+          initStepOrphelinsView();
+        }
+      }, false);
+    }
+  };
+
+  /**
    * Envoie la finalisation de l'inscription au serveur.
    * @param {number} idProfil
    * @param {number} idCampagne
@@ -493,6 +564,11 @@
       if (e.to === 3) {
         loadStepFour();
       }
+
+      // Chargement AJAX du contenu de l'etape 5 (paiements HelloAsso orphelins) systematiquement a chaque affiche.
+      if (e.to === 4) {
+        loadStepOrphelins();
+      }
     });
   }
 
@@ -588,6 +664,33 @@
     const currentCategorie = (editableCell.dataset.currentCategorie || '').toUpperCase();
     if (currentCategorie) {
       select.value = currentCategorie;
+    }
+
+    select.focus();
+  });
+
+  // Correction d'une association deja resolue (etape 5) au double-clic : meme motif que
+  // .js-editable-categorie ci-dessus.
+  document.addEventListener('dblclick', function (event) {
+    const editableCell = event.target.closest('.js-editable-adherent');
+
+    if (!editableCell) {
+      return;
+    }
+
+    const display = editableCell.querySelector('.adherent-display');
+    const select = editableCell.querySelector('.adherent-input');
+
+    if (!display || !select) {
+      return;
+    }
+
+    display.classList.add('d-none');
+    select.classList.remove('d-none');
+
+    const currentProfil = editableCell.dataset.currentProfil || '';
+    if (currentProfil) {
+      select.value = currentProfil;
     }
 
     select.focus();
@@ -1393,5 +1496,287 @@
   // Bouton HelloAsso (.js-show-payement) : géré par le handler délégué global de
   // media/com_gdadhesions/js/form_modal.js (chargé sur toutes les vues) - l'ancienne fonction
   // showPayement() ici faisait strictement doublon (double appel ajax à chaque clic).
+
+  /**
+   * Bouton "Rafraîchir" de l'etape 5 : force le contournement du cache HelloAsso de 30 minutes.
+   */
+  const btnRefreshOrphelins = document.getElementById('btnRefreshOrphelins');
+
+  if (btnRefreshOrphelins) {
+    btnRefreshOrphelins.addEventListener('click', function () {
+      if (btnRefreshOrphelins.dataset.isSaving === '1') {
+        return;
+      }
+
+      btnRefreshOrphelins.dataset.isSaving = '1';
+      loadStepOrphelins(true);
+
+      window.setTimeout(function () {
+        btnRefreshOrphelins.dataset.isSaving = '0';
+      }, 1000);
+    });
+  }
+
+  /**
+   * Active/desactive le bouton "Associer" (etape 5) selon la selection du candidat.
+   */
+  document.addEventListener('change', function (event) {
+    const select = event.target.closest('.js-orphelin-candidat');
+
+    if (!select) {
+      return;
+    }
+
+    const button = select.closest('.input-group')?.querySelector('.js-orphelin-associer');
+
+    if (button) {
+      button.disabled = select.value === '';
+    }
+  });
+
+  /**
+   * Association manuelle d'un paiement HelloAsso orphelin (etape 5).
+   */
+  document.addEventListener('click', function (event) {
+    const button = event.target.closest('.js-orphelin-associer');
+
+    if (!button || button.dataset.isSaving === '1') {
+      return;
+    }
+
+    const cell = button.closest('.js-orphelin-cell');
+    const select = cell?.querySelector('.js-orphelin-candidat');
+    const idProfil = parseInt(select?.value || '0', 10);
+    const idCampagne = parseInt(cell?.dataset.itemCampagne || '0', 10);
+    const idOrder = cell?.dataset.itemOrder || '';
+
+    if (idProfil <= 0 || idCampagne <= 0 || idOrder === '') {
+      Joomla.renderMessages({ error: ['Selection invalide pour associer ce paiement.'] });
+      return;
+    }
+
+    const ajaxData = {
+      task: 'secretariat.associerPaiementOrphelin',
+      id_profil: idProfil,
+      id_campagne: idCampagne,
+      id_order: idOrder
+    };
+
+    const csrfTokenName = Joomla.getOptions('csrf.token');
+
+    if (csrfTokenName) {
+      ajaxData[csrfTokenName] = 1;
+    }
+
+    button.dataset.isSaving = '1';
+
+    if (typeof simpleCallAjax === 'function') {
+      simpleCallAjax(ajaxData, function (response) {
+        button.dataset.isSaving = '0';
+
+        if (!response.success) {
+          return;
+        }
+
+        // Recharge toute la step : la ligne associee passe en lecture seule et le candidat
+        // choisi disparait de la liste deroulante des autres lignes orphelines.
+        loadStepOrphelins();
+      });
+    } else {
+      button.dataset.isSaving = '0';
+      console.error('simpleCallAjax n\'est pas disponible');
+    }
+  });
+
+  /**
+   * Correction (ou dissociation, option "Aucun") d'une association deja resolue (etape 5) : demande
+   * confirmation avant d'ecraser l'ancienne association, puis appelle
+   * secretariat.associerPaiementOrphelin (avec id_ancien_profil) ou secretariat.dissocierPaiementOrphelin.
+   * Appelee a la fois au changement de selection et a la perte de focus (voir listeners plus bas) :
+   * un double-clic qui n'aboutit a aucun changement doit pouvoir sortir du mode edition sans laisser
+   * le select ouvert indefiniment.
+   *
+   * @param {HTMLSelectElement} select
+   * @returns {void}
+   */
+  const handleAdherentInputCommit = function (select) {
+    const editableCell = select.closest('.js-editable-adherent');
+    const display = editableCell ? editableCell.querySelector('.adherent-display') : null;
+
+    if (!editableCell || !display) {
+      return;
+    }
+
+    const revenirEnLecture = function () {
+      display.classList.remove('d-none');
+      select.classList.add('d-none');
+    };
+
+    const idAncienProfil = parseInt(editableCell.dataset.currentProfil || '0', 10);
+    const idNouveauProfil = parseInt(select.value || '0', 10);
+    const idCampagne = parseInt(editableCell.dataset.itemCampagne || '0', 10);
+    const idOrder = editableCell.dataset.itemOrder || '';
+
+    // Aucun changement (valeur identique, ou select rouvert puis referme sans selection) : simple
+    // retour en lecture, sans appel serveur.
+    if (idNouveauProfil === idAncienProfil) {
+      revenirEnLecture();
+      return;
+    }
+
+    if (idCampagne <= 0 || idOrder === '') {
+      Joomla.renderMessages({ error: ['Selection invalide pour corriger cette association.'] });
+      select.value = idAncienProfil;
+      revenirEnLecture();
+      return;
+    }
+
+    // "Aucun" (valeur vide) : dissociation, pas de nouvel adherent a attribuer.
+    const estDissociation = idNouveauProfil <= 0;
+    const nouveauLabel = estDissociation ? '' : (select.options[select.selectedIndex]?.textContent?.trim() || '');
+
+    // Retour immediat en lecture (valeur precedente) : la confirmation porte sur la mutation en
+    // base, pas sur l'etat visuel du select. GdaDialog.confirm() n'expose pas de hook "annulation" ;
+    // en cas de confirmation, executerMutation() rechargera de toute facon toute la step au succes.
+    select.value = idAncienProfil;
+    revenirEnLecture();
+
+    const executerMutation = function () {
+      const ajaxData = estDissociation
+        ? {
+          task: 'secretariat.dissocierPaiementOrphelin',
+          id_profil: idAncienProfil,
+          id_campagne: idCampagne,
+          id_order: idOrder
+        }
+        : {
+          task: 'secretariat.associerPaiementOrphelin',
+          id_profil: idNouveauProfil,
+          id_campagne: idCampagne,
+          id_order: idOrder,
+          id_ancien_profil: idAncienProfil
+        };
+
+      const csrfTokenName = Joomla.getOptions('csrf.token');
+
+      if (csrfTokenName) {
+        ajaxData[csrfTokenName] = 1;
+      }
+
+      select.dataset.isSaving = '1';
+
+      if (typeof simpleCallAjax === 'function') {
+        simpleCallAjax(ajaxData, function (response) {
+          select.dataset.isSaving = '0';
+
+          if (!response.success) {
+            select.value = idAncienProfil;
+            revenirEnLecture();
+            return;
+          }
+
+          // Recharge toute la step : l'ancien profil redevient candidat libre sur les autres
+          // lignes orphelines, le nouveau (s'il y en a un) devient associe ici.
+          loadStepOrphelins();
+        });
+      } else {
+        select.dataset.isSaving = '0';
+        select.value = idAncienProfil;
+        revenirEnLecture();
+        console.error('simpleCallAjax n\'est pas disponible');
+      }
+    };
+
+    const confirmTitre = estDissociation
+      ? Joomla.Text._('COM_GDA_SECRETARIAT_ORPHELINS_DISSOCIATE_CONFIRM_TITRE')
+      : Joomla.Text._('COM_GDA_SECRETARIAT_ORPHELINS_CHANGE_CONFIRM_TITRE');
+    const confirmMessage = estDissociation
+      ? Joomla.Text._('COM_GDA_SECRETARIAT_ORPHELINS_DISSOCIATE_CONFIRM_MESSAGE')
+      : Joomla.Text._('COM_GDA_SECRETARIAT_ORPHELINS_CHANGE_CONFIRM_MESSAGE').replace('%s', nouveauLabel);
+
+    if (window.GdaDialog && typeof window.GdaDialog.confirm === 'function') {
+      window.GdaDialog.confirm(confirmTitre, confirmMessage, executerMutation);
+    } else {
+      executerMutation();
+    }
+  };
+
+  document.addEventListener('change', function (event) {
+    const select = event.target.closest('.adherent-input:not(.d-none)');
+
+    if (!select) {
+      return;
+    }
+
+    handleAdherentInputCommit(select);
+  });
+
+  // Sortie du mode edition a la perte de focus (clic ailleurs, y compris sur une autre cellule
+  // editable) meme sans changement de selection : sans ce listener, un double-clic suivi d'un clic
+  // ailleurs sans modifier le choix laissait le select ouvert indefiniment (aucun evenement 'change'
+  // ne se declenche si la valeur n'a pas change). Le listener 'change' ci-dessus a deja masque le
+  // select de facon synchrone avant tout appel asynchrone : le filtre ':not(.d-none)' evite donc un
+  // double traitement quand une vraie modification a eu lieu.
+  document.addEventListener('blur', function (event) {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    const select = event.target.closest('.adherent-input:not(.d-none)');
+
+    if (!select) {
+      return;
+    }
+
+    handleAdherentInputCommit(select);
+  }, true);
+
+  /**
+   * Detail simplifie d'une commande HelloAsso encore orpheline (etape 5), au clic sur son n°.
+   * Meme modale que .js-show-payement (form_modal.js) mais tache/donnees differentes : aucun
+   * id_profil connu ici, d'ou un handler dedie plutot que de brancher le handler global partage.
+   */
+  document.addEventListener('click', function (event) {
+    const trigger = event.target.closest('.js-show-commande-detail');
+
+    if (!trigger) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const modalEl = document.getElementById('payementModal');
+    const modalContent = document.getElementById('payementModalcontent');
+
+    if (!modalEl || !modalContent || !window.bootstrap) {
+      return;
+    }
+
+    modalContent.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-success" role="status"><span class="visually-hidden">Chargement...</span></div></div>';
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+    const ajaxData = {
+      task: 'secretariat.getDetailCommandeOrpheline',
+      id_order: trigger.dataset.itemOrder || ''
+    };
+
+    const csrfTokenName = Joomla.getOptions('csrf.token');
+
+    if (csrfTokenName) {
+      ajaxData[csrfTokenName] = 1;
+    }
+
+    if (typeof simpleCallAjax === 'function') {
+      simpleCallAjax(ajaxData, function (response) {
+        if (response.success) {
+          modalContent.innerHTML = decodeURIComponent(escape(atob(response.data)));
+        } else {
+          modalContent.innerHTML = '<div class="alert alert-danger">' + (response.message || 'Erreur inconnue') + '</div>';
+        }
+      }, false);
+    } else {
+      modalContent.innerHTML = '<div class="alert alert-danger">simpleCallAjax non disponible.</div>';
+    }
+  });
 
 });

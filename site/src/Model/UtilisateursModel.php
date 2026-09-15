@@ -57,7 +57,7 @@ class UtilisateursModel extends ListModel
         $db = $this->getDatabase();
         $superUsersGroupId = UsersHelper::getSuperUsersGroupId();
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select([
                 $db->quoteName('u.id'),
                 $db->quoteName('u.username'),
@@ -102,7 +102,7 @@ class UtilisateursModel extends ListModel
         $groupsByUser = [];
 
         if (!empty($clubGroupIds)) {
-            $groupsQuery = $db->getQuery(true)
+            $groupsQuery = $db->createQuery()
                 ->select([
                     $db->quoteName('m.user_id'),
                     $db->quoteName('g.id', 'id_groupe'),
@@ -202,7 +202,7 @@ class UtilisateursModel extends ListModel
         $db = $this->getDatabase();
         $idCampagne = (int) $saisonCourante->id_campagne;
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select([
                 $db->quoteName('s.id_campagne'),
                 $db->quoteName('s.id_profil'),
@@ -366,7 +366,7 @@ class UtilisateursModel extends ListModel
         }
 
         $db = $this->getDatabase();
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->update($db->quoteName('#__users'))
             ->set($db->quoteName('requireReset') . ' = 1')
             ->where($db->quoteName('id') . ' = :id')
@@ -423,7 +423,7 @@ class UtilisateursModel extends ListModel
 
         $this->assertProfilExiste($userId);
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->update($db->quoteName('#__gda_profils'))
             ->where($db->quoteName('id_profil') . ' = :id_profil')
             ->bind(':id_profil', $userId);
@@ -473,7 +473,7 @@ class UtilisateursModel extends ListModel
 
         $this->assertProfilExiste($userId);
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->update($db->quoteName('#__gda_profils'))
             ->where($db->quoteName('id_profil') . ' = :id_profil')
             ->bind(':id_profil', $userId);
@@ -515,7 +515,7 @@ class UtilisateursModel extends ListModel
     {
         $db = $this->getDatabase();
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('1')
             ->from($db->quoteName('#__gda_profils'))
             ->where($db->quoteName('id_profil') . ' = :id_profil')

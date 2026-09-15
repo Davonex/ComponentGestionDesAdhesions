@@ -20,7 +20,7 @@ class JFormFieldArticlesByTag extends ListField
     {
         // $db = $this->getDbo();
          $db    = Factory::getContainer()->get('DatabaseDriver');
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
         $query->select(['c.id', 'c.title'])
               ->from($db->quoteName('#__content', 'c'))

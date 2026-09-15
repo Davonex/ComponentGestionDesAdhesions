@@ -57,7 +57,7 @@ class AccueilModel extends ListModel
         $idTypeLoisir    = (int) ConfHelper::getValue('IdTypeLoisir');
 
         $db    = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
         $query->select('cp.*')
             ->select('tc.type_name, tc.type_image, tc.type_class')
@@ -197,7 +197,7 @@ class AccueilModel extends ListModel
         }
 
         $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
         $query->select([
             $db->quoteName('s.id_campagne'),

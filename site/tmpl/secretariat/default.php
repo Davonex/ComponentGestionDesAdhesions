@@ -30,10 +30,18 @@ $wa->useScript('com_gdadhesions.form_modal');
 $wa->useStyle('com_gdadhesions.spinner');
 $wa->useScript('com_gdadhesions.spinner');
 
+// Confirmation avant correction d'une association de paiement orpheline (onglet 5)
+$wa->useScript('com_gdadhesions.dialog');
+
 // Main Secretariat JS
 $wa->useScript('com_gdadhesions.secretariat');
 
-
+Text::script('COM_GDA_SECRETARIAT_ORPHELINS_CHANGE_CONFIRM_TITRE');
+Text::script('COM_GDA_SECRETARIAT_ORPHELINS_CHANGE_CONFIRM_MESSAGE');
+Text::script('COM_GDA_SECRETARIAT_ORPHELINS_DISSOCIATE_CONFIRM_TITRE');
+Text::script('COM_GDA_SECRETARIAT_ORPHELINS_DISSOCIATE_CONFIRM_MESSAGE');
+Text::script('COM_GDA_CANCEL');
+Text::script('COM_GDA_CONFIRM');
 
 ?>
 <div id="wizardSecretariat" class="carousel slide shadow-lg p-4">
@@ -60,6 +68,11 @@ $wa->useScript('com_gdadhesions.secretariat');
       <span class="wizard-step-full"><?= Text::_('COM_GDA_SECRETARIAT_STEP_4') ?? 'Adhesions finalisees' ?></span>
       <span class="wizard-step-short" aria-hidden="true">4</span>
     </button>
+    <button type="button" class="nav-link" data-bs-target="#wizardSecretariat" data-bs-slide-to="4">
+      <i class="fa-solid fa-money-bill-transfer me-1" aria-hidden="true"></i>
+      <span class="wizard-step-full"><?= Text::_('COM_GDA_SECRETARIAT_STEP_5') ?? 'Paiements orphelins' ?></span>
+      <span class="wizard-step-short" aria-hidden="true">5</span>
+    </button>
   </nav>
 
   <div class="carousel-inner">
@@ -83,6 +96,18 @@ $wa->useScript('com_gdadhesions.secretariat');
 
     <!-- STEP 3 Carousel  -->
     <div class="carousel-item" id="step-4">
+    </div>
+
+    <!-- STEP 4 Carousel (paiements HelloAsso orphelins) -->
+    <div class="carousel-item" id="step-orphelins">
+      <div class="d-flex justify-content-end mb-2">
+        <button type="button" id="btnRefreshOrphelins" class="btn btn-outline-secondary btn-sm"
+          data-bs-toggle="tooltip" data-bs-title="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_ORPHELINS_REFRESH_HINT')) ?>"
+          title="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_ORPHELINS_REFRESH_HINT')) ?>">
+          <i class="fa-solid fa-rotate me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_ORPHELINS_REFRESH') ?>
+        </button>
+      </div>
+      <div id="step-orphelins-content"></div>
     </div>
 
   </div>

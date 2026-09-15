@@ -40,7 +40,7 @@ class FormController extends BaseController
                     $adhesionKey = trim((string) $app->getUserState('adhesion.key'));
 
                     if ($adhesionKey !== '') {
-                        $profileQuery = $db->getQuery(true)
+                        $profileQuery = $db->createQuery()
                             ->select($db->quoteName('id_profil'))
                             ->from($db->quoteName('#__gda_profils'))
                             ->where($db->quoteName('key') . ' = :adhesion_key')
@@ -51,7 +51,7 @@ class FormController extends BaseController
                     }
                 }
 
-                $query = $db->getQuery(true)
+                $query = $db->createQuery()
                     ->select($db->quoteName('id'))
                     ->from($db->quoteName('#__users'))
                     ->where($db->quoteName('email') . ' = :email')
@@ -112,7 +112,7 @@ class FormController extends BaseController
                 $db = Factory::getContainer()->get('DatabaseDriver');
 
                 // $db = $app->getDatabase();
-                $query = $db->getQuery(true)
+                $query = $db->createQuery()
                     ->select('COUNT(*)')
                     ->from($db->quoteName('#__users'))
                     ->where($db->quoteName('username') . ' = ' . $db->quote($username));

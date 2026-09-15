@@ -245,7 +245,7 @@ final class CotisationService
             return;
         }
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('*')
             ->from($this->db->quoteName('#__gda_cotisation'));
 
@@ -282,7 +282,7 @@ final class CotisationService
             return self::$tableauStatic;
         }
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('*')
             ->from($db->quoteName('#__gda_cotisation'));
 

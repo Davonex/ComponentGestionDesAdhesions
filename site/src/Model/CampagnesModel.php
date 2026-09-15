@@ -33,7 +33,7 @@ class CampagnesModel extends ListModel
         } else {
             // get la campagne $id_campagne
              $db = $this->getDatabase();
-            $select = $db->getQuery(true);
+            $select = $db->createQuery();
 
             $select->select('c.*');
             $select->select('tc.*');
@@ -72,7 +72,7 @@ class CampagnesModel extends ListModel
         $db = $this->getDatabase();
         $id_type_saison = ConfHelper::getValue('IdTypeSaison');
 
-        $select = $db->getQuery(true);
+        $select = $db->createQuery();
 
         $select->select('c.*');
         $select->select('tc.*');
@@ -119,7 +119,7 @@ class CampagnesModel extends ListModel
         $db = $this->getDatabase();
         $id_type_saison = ConfHelper::getValue('IdTypeSaison');
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('*')
             ->from($db->quoteName('#__gda_type_de_campagne'))
             ->where($db->quoteName('id_type') . ' != :id_type_saison')
@@ -144,7 +144,7 @@ class CampagnesModel extends ListModel
     {
         $db = $this->getDatabase();
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select($db->quoteName(['id_type', 'roles']))
             ->from($db->quoteName('#__gda_role_de_campagne'));
 
@@ -181,7 +181,7 @@ class CampagnesModel extends ListModel
 
         $db = $this->getDatabase();
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select($db->quoteName(['cr.id_campagne', 'cr.role', 'cr.nbr_place', 'c.id_type']))
             ->from($db->quoteName('#__gda_campagne_roles', 'cr'))
             ->join('inner', $db->quoteName('#__gda_campagnes', 'c') . ' ON ' . $db->quoteName('c.id_campagne') . ' = ' . $db->quoteName('cr.id_campagne'))
@@ -225,7 +225,7 @@ class CampagnesModel extends ListModel
     {
         $db = $this->getDatabase();
 
-        $delete = $db->getQuery(true)
+        $delete = $db->createQuery()
             ->delete($db->quoteName('#__gda_campagne_roles'))
             ->where($db->quoteName('id_campagne') . ' = :id_campagne')
             ->bind(':id_campagne', $idCampagne, \Joomla\Database\ParameterType::INTEGER);
@@ -247,7 +247,7 @@ class CampagnesModel extends ListModel
         }
 
         foreach ($capacitesParRole as $role => $nbrPlace) {
-            $insert = $db->getQuery(true)
+            $insert = $db->createQuery()
                 ->insert($db->quoteName('#__gda_campagne_roles'))
                 ->columns($db->quoteName(['id_campagne', 'role', 'nbr_place']))
                 ->values(':id_campagne, :role, :nbr_place')
@@ -276,7 +276,7 @@ class CampagnesModel extends ListModel
         // son propre statut. Un adhérent avec 2 places confirmées + 1 en attente apparaît donc en
         // 3 lignes ici, chacune avec son rôle/statut propre — layout groupes.detail inchangé, il
         // affiche déjà un rôle/statut par ligne.
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select([
                 $db->quoteName('p.id_profil'),
                 $db->quoteName('p.civilite'),
@@ -403,7 +403,7 @@ class CampagnesModel extends ListModel
         $data = $app->getUserState('campagne.activer');
 
         $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
         $active_value =  intval($data['active']);
         $id_campagne_value = intval($data['id_campagne']);
@@ -446,7 +446,7 @@ class CampagnesModel extends ListModel
         $data = $app->getUserState('campagne.sauver');
 
         $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
      
         $value_id_groupes = ( isset($data['id_groupes'])) ? implode(',', $data['id_groupes']) : ''; 
 
@@ -540,7 +540,7 @@ class CampagnesModel extends ListModel
         $data = $app->getUserState('campagne.effacer');
  
         $db = $this->getDatabase();
-        $query = $db->getQuery(true); 
+        $query = $db->createQuery(); 
 
 
         $effacer_value =  1;
@@ -661,7 +661,7 @@ class CampagnesModel extends ListModel
         $statut_annulee = ReservationService::STATUT_ANNULEE;
         $statut_attente = ReservationService::STATUT_ATTENTE;
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select($db->quoteName([
                 'rp.id_place', 'rp.role', 'rp.statut', 'rp.date_rang',
                 'p.id_profil', 'p.nom', 'p.prenom', 'u.username',

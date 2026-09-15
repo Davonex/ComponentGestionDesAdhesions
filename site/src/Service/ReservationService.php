@@ -67,7 +67,7 @@ final class ReservationService
      */
     public function getReservation(int $idCampagne, int $idProfil): ?object
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('*')
             ->from($this->db->quoteName('#__gda_reservation'))
             ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -100,7 +100,7 @@ final class ReservationService
      */
     public function updateIdOrder(int $idCampagne, int $idProfil, string $idOrder): void
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->update($this->db->quoteName('#__gda_reservation'))
             ->set($this->db->quoteName('id_order') . ' = :id_order')
             ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -195,7 +195,7 @@ final class ReservationService
         $statutAnnulee = self::STATUT_ANNULEE;
         $statutAttente = self::STATUT_ATTENTE;
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName(['id_place', 'id_campagne', 'role', 'statut', 'date_rang', 'tri']))
             ->from($this->db->quoteName('#__gda_reservation_places'))
             ->where($this->db->quoteName('id_reservation') . ' = :id_reservation')
@@ -229,7 +229,7 @@ final class ReservationService
     {
         $statutConfirmee = self::STATUT_CONFIRMEE;
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('COUNT(*)')
             ->from($this->db->quoteName('#__gda_reservation_places'))
             ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -274,7 +274,7 @@ final class ReservationService
     {
         $statutConfirmee = self::STATUT_CONFIRMEE;
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('COUNT(*)')
             ->from($this->db->quoteName('#__gda_reservation_places'))
             ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -341,7 +341,7 @@ final class ReservationService
     {
         $idCampagne = (int) $campagne->id_campagne;
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('COALESCE(SUM(' . $this->db->quoteName('nbr_place') . '), 0)')
             ->from($this->db->quoteName('#__gda_campagne_roles'))
             ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -392,7 +392,7 @@ final class ReservationService
      */
     public function getCapacitesParRole(int $idCampagne): array
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName(['cr.role', 'cr.nbr_place', 'c.id_type']))
             ->from($this->db->quoteName('#__gda_campagne_roles', 'cr'))
             ->join('inner', $this->db->quoteName('#__gda_campagnes', 'c') . ' ON ' . $this->db->quoteName('c.id_campagne') . ' = ' . $this->db->quoteName('cr.id_campagne'))
@@ -424,7 +424,7 @@ final class ReservationService
      */
     private function getGabaritRoles(int $idType): array
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName('roles'))
             ->from($this->db->quoteName('#__gda_role_de_campagne'))
             ->where($this->db->quoteName('id_type') . ' = :id_type')
@@ -507,7 +507,7 @@ final class ReservationService
     {
         $statutAttente = self::STATUT_ATTENTE;
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('COUNT(*)')
             ->from($this->db->quoteName('#__gda_reservation_places'))
             ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -568,7 +568,7 @@ final class ReservationService
         $this->db->transactionStart();
 
         try {
-            $query = $this->db->getQuery(true)
+            $query = $this->db->createQuery()
                 ->select('*')
                 ->from($this->db->quoteName('#__gda_reservation'))
                 ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -582,7 +582,7 @@ final class ReservationService
             if ($enveloppe) {
                 $idReservation = (int) $enveloppe->id_reservation;
 
-                $update = $this->db->getQuery(true)
+                $update = $this->db->createQuery()
                     ->update($this->db->quoteName('#__gda_reservation'))
                     ->set($this->db->quoteName('annulee') . ' = 0')
                     ->set($this->db->quoteName('commentaire') . ' = :commentaire')
@@ -597,7 +597,7 @@ final class ReservationService
                 $this->db->setQuery($update);
                 $this->db->execute();
             } else {
-                $insert = $this->db->getQuery(true)
+                $insert = $this->db->createQuery()
                     ->insert($this->db->quoteName('#__gda_reservation'))
                     ->columns($this->db->quoteName([
                         'id_campagne', 'id_profil', 'date_reservation', 'commentaire', 'id_order', 'last_update',
@@ -617,7 +617,7 @@ final class ReservationService
             }
 
             // Places actives existantes, comptées par rôle.
-            $query = $this->db->getQuery(true)
+            $query = $this->db->createQuery()
                 ->select($this->db->quoteName('role'))
                 ->select('COUNT(*) AS nb')
                 ->from($this->db->quoteName('#__gda_reservation_places'))
@@ -633,7 +633,7 @@ final class ReservationService
                 $existantesParRole[$row->role] = (int) $row->nb;
             }
 
-            $query = $this->db->getQuery(true)
+            $query = $this->db->createQuery()
                 ->select('COALESCE(MAX(' . $this->db->quoteName('tri') . '), -1)')
                 ->from($this->db->quoteName('#__gda_reservation_places'))
                 ->where($this->db->quoteName('id_reservation') . ' = :id_reservation')
@@ -677,7 +677,7 @@ final class ReservationService
      */
     public function annuler(int $idCampagne, int $idProfil): void
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName('id_reservation'))
             ->from($this->db->quoteName('#__gda_reservation'))
             ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -700,7 +700,7 @@ final class ReservationService
 
         try {
             // Places confirmées à libérer, comptées par rôle (pour promouvoir la bonne file).
-            $query = $this->db->getQuery(true)
+            $query = $this->db->createQuery()
                 ->select($this->db->quoteName('role'))
                 ->select('COUNT(*) AS nb')
                 ->from($this->db->quoteName('#__gda_reservation_places'))
@@ -716,7 +716,7 @@ final class ReservationService
                 $placesLibereesParRole[$row->role] = (int) $row->nb;
             }
 
-            $update = $this->db->getQuery(true)
+            $update = $this->db->createQuery()
                 ->update($this->db->quoteName('#__gda_reservation'))
                 ->set($this->db->quoteName('annulee') . ' = 1')
                 ->set($this->db->quoteName('last_update') . ' = :last_update')
@@ -727,7 +727,7 @@ final class ReservationService
             $this->db->setQuery($update);
             $this->db->execute();
 
-            $updatePlaces = $this->db->getQuery(true)
+            $updatePlaces = $this->db->createQuery()
                 ->update($this->db->quoteName('#__gda_reservation_places'))
                 ->set($this->db->quoteName('statut') . ' = :statut_annulee')
                 ->where($this->db->quoteName('id_reservation') . ' = :id_reservation')
@@ -778,7 +778,7 @@ final class ReservationService
             $statut = $i < $confirmees ? self::STATUT_CONFIRMEE : self::STATUT_ATTENTE;
             $triCounter++;
 
-            $insert = $this->db->getQuery(true)
+            $insert = $this->db->createQuery()
                 ->insert($this->db->quoteName('#__gda_reservation_places'))
                 ->columns($this->db->quoteName(['id_reservation', 'id_campagne', 'role', 'statut', 'date_rang', 'tri']))
                 ->values(':id_reservation, :id_campagne, :role, :statut, :date_rang, :tri')
@@ -810,7 +810,7 @@ final class ReservationService
         $statutAnnulee   = self::STATUT_ANNULEE;
         $statutConfirmee = self::STATUT_CONFIRMEE;
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName(['id_place', 'statut']))
             ->from($this->db->quoteName('#__gda_reservation_places'))
             ->where($this->db->quoteName('id_reservation') . ' = :id_reservation')
@@ -832,7 +832,7 @@ final class ReservationService
         $idsPlaces            = array_map(static fn($p) => (int) $p->id_place, $aRetirer);
         $nbConfirmeesLiberees = count(array_filter($aRetirer, static fn($p) => $p->statut === $statutConfirmee));
 
-        $delete = $this->db->getQuery(true)
+        $delete = $this->db->createQuery()
             ->delete($this->db->quoteName('#__gda_reservation_places'))
             ->whereIn($this->db->quoteName('id_place'), $idsPlaces);
 
@@ -862,7 +862,7 @@ final class ReservationService
 
         $statutAttente = self::STATUT_ATTENTE;
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName('id_place'))
             ->from($this->db->quoteName('#__gda_reservation_places'))
             ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -883,7 +883,7 @@ final class ReservationService
 
         $statutConfirmee = self::STATUT_CONFIRMEE;
 
-        $update = $this->db->getQuery(true)
+        $update = $this->db->createQuery()
             ->update($this->db->quoteName('#__gda_reservation_places'))
             ->set($this->db->quoteName('statut') . ' = :statut_confirmee')
             ->whereIn($this->db->quoteName('id_place'), $idsAPromouvoir)

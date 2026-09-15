@@ -301,7 +301,7 @@ class NotificationMailService
    */
   private function getFinalizationMailData(int $idProfil, int $idCampagne): ?object
   {
-    $query = $this->db->getQuery(true)
+    $query = $this->db->createQuery()
       ->select([
         $this->db->quoteName('p.civilite'),
         $this->db->quoteName('p.nom'),
@@ -333,7 +333,7 @@ class NotificationMailService
    */
   private function getProfileMailData(int $idProfil): ?object
   {
-    $query = $this->db->getQuery(true)
+    $query = $this->db->createQuery()
       ->select([
         $this->db->quoteName('p.civilite'),
         $this->db->quoteName('p.nom'),

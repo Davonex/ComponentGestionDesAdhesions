@@ -330,6 +330,30 @@ final class HelloAssoService
         return $items[0];
     }
 
+    /**
+     * Extrait la réponse du champ personnalisé "Licence" d'un item de commande HelloAsso. Le nom
+     * exact de ce champ n'est pas garanti (paramétrable par formulaire côté back-office HelloAsso) :
+     * la recherche se fait sur le nom du champ (customFields[].name) contenant "licence", insensible
+     * à la casse et aux accents (ToolsHelper::removeAccentsAndUppercase()).
+     *
+     * @param array $item Item HelloAsso ('items[]' d'une commande, voir getFormsOrders()/getOrderDetails()).
+     * @return string|null Réponse trouvée (trim), ou null si aucun champ ne correspond.
+     */
+    public function extractLicenceAnswer(array $item): ?string
+    {
+        foreach (($item['customFields'] ?? []) as $field) {
+            $fieldName = ToolsHelper::removeAccentsAndUppercase((string) ($field['name'] ?? ''));
+
+            if (str_contains($fieldName, 'LICENCE')) {
+                $answer = trim((string) ($field['answer'] ?? ''));
+
+                return $answer !== '' ? $answer : null;
+            }
+        }
+
+        return null;
+    }
+
 
     /**
      *  Obtenir des informations détaillées sur une commande

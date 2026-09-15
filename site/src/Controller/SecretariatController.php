@@ -716,4 +716,189 @@ class SecretariatController extends BaseController
     echo $response;
     $app->close();
   }
+
+  /**
+   * Ajax: charge le contenu de l'etape "Paiements HelloAsso orphelins" de la campagne courante.
+   *
+   * @return void
+   */
+  public function stepOrphelins(): void
+  {
+    /** @var \Joomla\CMS\Application\SiteApplication $app */
+    $app = Factory::getApplication();
+
+    try {
+      $this->checkToken();
+      $this->guardBureauMember();
+
+      $saison = ConfHelper::getSaisonService()->getSaisonCourante();
+
+      if (!$saison) {
+        throw new \RuntimeException('Aucune saison courante définie.');
+      }
+
+      $forceRefresh = $app->input->getBool('force_refresh', false);
+
+      /** @var \NCB\Component\Gda\Site\Model\SecretariatModel $model */
+      $model = $this->getModel('secretariat', 'site');
+      $result = $model->getPaiementsOrphelins($saison, $forceRefresh);
+
+      $html = $this->renderLayoutOrFail('secretariat.paiements_orphelins', [
+        'lignes'      => $result['lignes'] ?? [],
+        'candidats'   => $result['candidats'] ?? [],
+        'id_campagne' => (int) $saison->id_campagne,
+      ]);
+
+      $response = new JsonResponse();
+      $response->success = true;
+      $response->data = base64_encode($html);
+      $response->message = '';
+    } catch (\Throwable $e) {
+      $response = new JsonResponse();
+      $response->success = false;
+      $response->message = 'Erreur: ' . $e->getMessage();
+    }
+
+    echo $response;
+    $app->close();
+  }
+
+  /**
+   * Ajax: associe manuellement une commande HelloAsso orpheline à un adhérent de la campagne courante.
+   *
+   * @return void
+   */
+  public function associerPaiementOrphelin(): void
+  {
+    /** @var \Joomla\CMS\Application\SiteApplication $app */
+    $app = Factory::getApplication();
+    $idProfil = 0;
+    $idCampagne = 0;
+    $idOrder = '';
+
+    try {
+      $this->checkToken();
+      $this->guardBureauMember();
+
+      $input = $app->input;
+      $idProfil = $input->getInt('id_profil', 0);
+      $idCampagne = $input->getInt('id_campagne', 0);
+      $idOrder = trim((string) $input->getString('id_order', ''));
+      $idAncienProfil = $input->getInt('id_ancien_profil', 0);
+
+      /** @var \NCB\Component\Gda\Site\Model\SecretariatModel $model */
+      $model = $this->getModel('secretariat', 'site');
+      $name = $model->associerPaiementOrphelin($idProfil, $idCampagne, $idOrder, $idAncienProfil > 0 ? $idAncienProfil : null);
+
+      $response = new JsonResponse();
+      $response->success = true;
+      $response->message = Text::sprintf('COM_GDA_SECRETARIAT_ORPHELINS_ASSOCIATE_SUCCESS', $idOrder, $name);
+
+      GdaLogger::info(
+        '[' . $this->getActingUserName() . '] ' .
+          "Paiement orphelin associé (id_order=$idOrder, id_profil=$idProfil, id_campagne=$idCampagne): $name"
+      );
+    } catch (\Throwable $e) {
+      $response = new JsonResponse();
+      $response->success = false;
+      $response->message = 'Erreur: ' . $e->getMessage();
+      GdaLogger::error(
+        '[' . $this->getActingUserName() . '] ' .
+          "Erreur lors de l'association d'un paiement orphelin (id_profil=$idProfil, id_campagne=$idCampagne, id_order=$idOrder): " . $e->getMessage()
+      );
+    }
+
+    echo $response;
+    $app->close();
+  }
+
+  /**
+   * Ajax: dissocie une commande HelloAsso d'un adhérent (option "Aucun" du sélecteur de correction),
+   * sans l'attribuer à personne d'autre.
+   *
+   * @return void
+   */
+  public function dissocierPaiementOrphelin(): void
+  {
+    /** @var \Joomla\CMS\Application\SiteApplication $app */
+    $app = Factory::getApplication();
+    $idProfil = 0;
+    $idCampagne = 0;
+    $idOrder = '';
+
+    try {
+      $this->checkToken();
+      $this->guardBureauMember();
+
+      $input = $app->input;
+      $idProfil = $input->getInt('id_profil', 0);
+      $idCampagne = $input->getInt('id_campagne', 0);
+      $idOrder = trim((string) $input->getString('id_order', ''));
+
+      /** @var \NCB\Component\Gda\Site\Model\SecretariatModel $model */
+      $model = $this->getModel('secretariat', 'site');
+      $name = $model->dissocierPaiementOrphelin($idProfil, $idCampagne, $idOrder);
+
+      $response = new JsonResponse();
+      $response->success = true;
+      $response->message = Text::sprintf('COM_GDA_SECRETARIAT_ORPHELINS_DISSOCIATE_SUCCESS', $idOrder, $name);
+
+      GdaLogger::info(
+        '[' . $this->getActingUserName() . '] ' .
+          "Paiement orphelin dissocié (id_order=$idOrder, id_profil=$idProfil, id_campagne=$idCampagne): $name"
+      );
+    } catch (\Throwable $e) {
+      $response = new JsonResponse();
+      $response->success = false;
+      $response->message = 'Erreur: ' . $e->getMessage();
+      GdaLogger::error(
+        '[' . $this->getActingUserName() . '] ' .
+          "Erreur lors de la dissociation d'un paiement orphelin (id_profil=$idProfil, id_campagne=$idCampagne, id_order=$idOrder): " . $e->getMessage()
+      );
+    }
+
+    echo $response;
+    $app->close();
+  }
+
+  /**
+   * Ajax: affiche le détail simplifié d'une commande HelloAsso encore orpheline (aucun adhérent
+   * connu, donc pas de comparaison avec une cotisation attendue - contrairement à getPayement()).
+   *
+   * @return void
+   */
+  public function getDetailCommandeOrpheline(): void
+  {
+    /** @var \Joomla\CMS\Application\SiteApplication $app */
+    $app = Factory::getApplication();
+
+    try {
+      $this->checkToken();
+      $this->guardBureauMember();
+
+      $idOrder = trim((string) $app->input->getString('id_order', ''));
+
+      if ($idOrder === '') {
+        throw new \InvalidArgumentException('Commande invalide.');
+      }
+
+      /** @var \NCB\Component\Gda\Site\Model\SecretariatModel $model */
+      $model = $this->getModel('secretariat', 'site');
+      $detail = $model->getDetailCommandeOrpheline($idOrder);
+
+      $html = $this->renderLayoutOrFail('secretariat.detail_commande', ['detail' => $detail]);
+
+      $response = new JsonResponse();
+      $response->success = true;
+      $response->data = base64_encode($html);
+      $response->message = '';
+    } catch (\Throwable $e) {
+      $response = new JsonResponse();
+      $response->success = false;
+      $response->message = 'Erreur: ' . $e->getMessage();
+    }
+
+    echo $response;
+    $app->close();
+  }
 }

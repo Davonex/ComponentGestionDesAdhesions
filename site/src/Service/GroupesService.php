@@ -47,7 +47,7 @@ final class GroupesService
      */
     public function getAllGroupes(): array
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName(['id_groupe', 'groupe_name', 'activite', 'groupe_tri', 'icon', 'published']))
             ->from($this->db->quoteName('#__gda_groupes'))
             ->order($this->db->quoteName('groupe_tri') . ' ASC');
@@ -90,7 +90,7 @@ final class GroupesService
             $icon = trim((string) ($groupe['icon'] ?? ''));
             $published = !empty($groupe['published']) ? 1 : 0;
 
-            $query = $this->db->getQuery(true);
+            $query = $this->db->createQuery();
 
             if ($idGroupe > 0) {
                 $query->update($this->db->quoteName('#__gda_groupes'))

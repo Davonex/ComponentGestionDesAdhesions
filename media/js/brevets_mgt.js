@@ -77,11 +77,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const queries = [];
 
     if (filterMappingActivite && filterMappingActivite.value) {
-      queries.push({ terms: [filterMappingActivite.value], columns: [1] });
+      queries.push({ terms: [filterMappingActivite.value], columns: [2] });
     }
 
     if (filterMappingRole && filterMappingRole.value) {
-      queries.push({ terms: [filterMappingRole.value], columns: [2] });
+      queries.push({ terms: [filterMappingRole.value], columns: [3] });
     }
 
     tableMapping.multiSearch(queries, 'brevets-mapping-filters');

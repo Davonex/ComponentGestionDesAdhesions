@@ -53,7 +53,7 @@ final class SaisonService
     {
         $id_type_saison = $this->config->getValue('IdTypeSaison');
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('*')
             ->from($this->db->quoteName('#__gda_campagnes'))
             ->where($this->db->quoteName('id_type') . ' = :id_type_saison')
@@ -93,7 +93,7 @@ final class SaisonService
     private function fermerSaisonExpiree(int $idCampagne): void
     {
         try {
-            $query = $this->db->getQuery(true)
+            $query = $this->db->createQuery()
                 ->update($this->db->quoteName('#__gda_campagnes'))
                 ->set($this->db->quoteName('active') . ' = 0')
                 ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -118,7 +118,7 @@ final class SaisonService
     {
         $id_type_saison = $this->config->getValue('IdTypeSaison');
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('*')
             ->from($this->db->quoteName('#__gda_campagnes'))
             ->where($this->db->quoteName('id_type') . ' = :id_type_saison')
@@ -165,7 +165,7 @@ final class SaisonService
         $id_type_saison = (int) $this->config->getValue('IdTypeSaison');
         $description = '';
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->insert($this->db->quoteName('#__gda_campagnes'))
             ->columns($this->db->quoteName(['titre', 'description', 'date_debut', 'date_fin', 'id_type', 'active', 'courante']))
             ->values(':titre, :description, :date_debut, :date_fin, :id_type, 0, 0')
@@ -212,7 +212,7 @@ final class SaisonService
         $eventHelloAsso = $data['event_helloasso'] ?? null;
         $id_type_saison = (int) $this->config->getValue('IdTypeSaison');
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->update($this->db->quoteName('#__gda_campagnes'))
             ->set([
                 $this->db->quoteName('titre') . ' = :titre',
@@ -264,7 +264,7 @@ final class SaisonService
 
         $activeValue = (int) $active;
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->update($this->db->quoteName('#__gda_campagnes'))
             ->set($this->db->quoteName('active') . ' = :active')
             ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -301,7 +301,7 @@ final class SaisonService
             if ($courante) {
                 // Ferme et retire le statut courant de l'ancienne saison courante (s'il y en avait
                 // une). Grâce à l'exclusivité déjà garantie, au plus une ligne est concernée.
-                $queryReset = $this->db->getQuery(true)
+                $queryReset = $this->db->createQuery()
                     ->update($this->db->quoteName('#__gda_campagnes'))
                     ->set([
                         $this->db->quoteName('courante') . ' = 0',
@@ -315,7 +315,7 @@ final class SaisonService
                 $this->db->setQuery($queryReset);
                 $this->db->execute();
 
-                $query = $this->db->getQuery(true)
+                $query = $this->db->createQuery()
                     ->update($this->db->quoteName('#__gda_campagnes'))
                     ->set($this->db->quoteName('courante') . ' = 1')
                     ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
@@ -323,7 +323,7 @@ final class SaisonService
             } else {
                 // Désactivation explicite : la saison n'est plus suivie, elle ne doit plus non
                 // plus rester ouverte aux adhésions.
-                $query = $this->db->getQuery(true)
+                $query = $this->db->createQuery()
                     ->update($this->db->quoteName('#__gda_campagnes'))
                     ->set([
                         $this->db->quoteName('courante') . ' = 0',
@@ -365,7 +365,7 @@ final class SaisonService
         $id_type_saison = ConfHelper::getConfigService()->getValue('IdTypeSaison');
         $db = \Joomla\CMS\Factory::getContainer()->get(DatabaseInterface::class);
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('*')
             ->from($db->quoteName('#__gda_campagnes'))
             ->where($db->quoteName('id_type') . ' = :id_type_saison')

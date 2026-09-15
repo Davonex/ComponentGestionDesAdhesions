@@ -513,7 +513,7 @@ class com_gdadhesionsInstallerScript
         // Vérifier si existe déjà
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('id')
             ->from('#__categories')
             ->where('title = ' . $db->quote('GestionDesAdhésions'))
@@ -558,7 +558,7 @@ class com_gdadhesionsInstallerScript
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
 
         // Vérifier si existe déjà
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('id')
             ->from('#__content')
             ->where('alias = ' . $db->quote('les-adhesions-sont-fermees'));
@@ -594,7 +594,7 @@ class com_gdadhesionsInstallerScript
      *  Récupérer l'ID du composant
      */
         $db = Factory::getContainer()->get(DatabaseInterface::class);
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('extension_id')
             ->from('#__extensions')
             ->where('element = ' . $db->quote('com_gdadhesions'));
@@ -615,7 +615,7 @@ class com_gdadhesionsInstallerScript
         $db = Factory::getContainer()->get(DatabaseInterface::class);
         try {
             // if exists, update, else insert
-            $query = $db->getQuery(true)
+            $query = $db->createQuery()
                 ->select('id')
                 ->from($db->quoteName('#__gda_conf'))
                 ->where($db->quoteName('key') . ' = ' . $db->quote('IdArticleAdhesionClos'));
@@ -624,7 +624,7 @@ class com_gdadhesionsInstallerScript
             $existingId = $db->loadResult();
 
             if ($existingId) {
-                $query = $db->getQuery(true)
+                $query = $db->createQuery()
                     ->update($db->quoteName('#__gda_conf'))
                     ->set($db->quoteName('value') . ' = ' . (int) $articleId)
                     ->where($db->quoteName('id') . ' = ' . (int) $existingId);
@@ -632,7 +632,7 @@ class com_gdadhesionsInstallerScript
                 $columns = ['key', 'value'];
                 $values  = [$db->quote('IdArticleAdhesionClos'), (int) $articleId];
 
-                $query = $db->getQuery(true)
+                $query = $db->createQuery()
                     ->insert($db->quoteName('#__gda_conf'))
                     ->columns($db->quoteName($columns))
                     ->values(implode(',', $values));
@@ -689,7 +689,7 @@ class com_gdadhesionsInstallerScript
     {
         $db = Factory::getContainer()->get(DatabaseInterface::class);
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select($db->quoteName('id'))
             ->from($db->quoteName('#__menu'))
             ->where($db->quoteName('menutype') . ' = ' . $db->quote('mainmenu'));
@@ -704,7 +704,7 @@ class com_gdadhesionsInstallerScript
     {
         $db = Factory::getContainer()->get(DatabaseInterface::class);
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select($db->quoteName('id'))
             ->from($db->quoteName('#__menu'))
             ->where($db->quoteName('alias') . ' = ' . $db->quote($alias));
@@ -726,7 +726,7 @@ class com_gdadhesionsInstallerScript
         /*
      * 1️⃣ Vérifier si déjà existant
      */
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('id')
             ->from('#__usergroups')
             ->where('title = ' . $db->quote($title));
@@ -775,7 +775,7 @@ class com_gdadhesionsInstallerScript
         /*
      * 1️⃣ Vérifier si déjà existant
      */
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('id')
             ->from('#__viewlevels')
             ->where('title = ' . $db->quote($title));
@@ -798,7 +798,7 @@ class com_gdadhesionsInstallerScript
             $db->quote(json_encode($groupIds))
         ];
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->insert('#__viewlevels')
             ->columns($db->quoteName($columns))
             ->values(implode(',', $values));
@@ -821,7 +821,7 @@ class com_gdadhesionsInstallerScript
     {
         $db = Factory::getContainer()->get(DatabaseInterface::class);
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('id')
             ->from('#__template_styles')
             ->where('client_id = 0')   // 0 = site
@@ -848,7 +848,7 @@ class com_gdadhesionsInstallerScript
         }
 
         $db = Factory::getContainer()->get(DatabaseInterface::class);
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select($db->quoteName('id'))
             ->from($db->quoteName('#__users'));
 

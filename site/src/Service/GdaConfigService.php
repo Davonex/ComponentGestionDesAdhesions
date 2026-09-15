@@ -43,7 +43,7 @@ final class GdaConfigService
     public function getAll(): array
     {
         if ($this->config === null) {
-            $query = $this->db->getQuery(true)
+            $query = $this->db->createQuery()
                 ->select($this->db->quoteName(['key', 'value']))
                 ->from($this->db->quoteName('#__gda_conf'));
 

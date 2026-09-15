@@ -56,7 +56,7 @@ final class SouscriptionService
         }   
 
         // Vérifie si la souscription existe déjà
-        $check = $this->db->getQuery(true);
+        $check = $this->db->createQuery();
         $check->select('COUNT(*)')
             ->from($this->db->quoteName('#__gda_souscriptions'))
             ->where($this->db->quoteName('id_campagne') . ' = :check_id_campagne')
@@ -67,7 +67,7 @@ final class SouscriptionService
         $this->db->setQuery($check);
         $exists = (int) $this->db->loadResult() > 0;
 
-        $query = $this->db->getQuery(true);
+        $query = $this->db->createQuery();
 
         if ($exists) {
             // Update de la souscription existante
@@ -145,7 +145,7 @@ final class SouscriptionService
             );
         }
 
-        $delete = $this->db->getQuery(true);
+        $delete = $this->db->createQuery();
 
         $delete->delete($this->db->quoteName('#__gda_souscriptions'));
         $delete->where($this->db->quoteName('id_campagne') . ' = :value_id_campagne');
@@ -171,7 +171,7 @@ final class SouscriptionService
      */
     public function getSouscription(int $idCampagne, int $idProfil): ?object
     {
-        $query = $this->db->getQuery(true);
+        $query = $this->db->createQuery();
         $query->select('*')
             ->from($this->db->quoteName('#__gda_souscriptions'))
             ->where($this->db->quoteName('id_campagne') . ' = :value_id_campagne')
@@ -290,7 +290,7 @@ final class SouscriptionService
      */
     public function updateIdOrder(int $idProfil, int $idCampagne, string $idOrder): void
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->update($this->db->quoteName('#__gda_souscriptions'))
             ->set($this->db->quoteName('id_order') . ' = :id_order')
             ->where($this->db->quoteName('id_profil') . ' = :id_profil')

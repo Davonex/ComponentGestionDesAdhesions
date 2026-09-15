@@ -46,7 +46,7 @@ class GroupesModel extends ListModel
     {
         $db = $this->getDatabase();
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select([
                 $db->quoteName('g.id_groupe'),
                 $db->quoteName('g.groupe_name'),

@@ -51,7 +51,7 @@ final class BrevetService
             return [];
         }
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName(['b.id', 'b.nom', 'b.obtention', 'b.lieu', 'b.id_mapping']))
             ->from($this->db->quoteName('#__gda_brevets', 'b'))
             ->where($this->db->quoteName('b.id_profil') . ' = :id_profil')
@@ -116,7 +116,7 @@ final class BrevetService
                     ));
                 }
 
-                $query = $this->db->getQuery(true)
+                $query = $this->db->createQuery()
                     ->insert($this->db->quoteName('#__gda_brevets'))
                     ->columns($this->db->quoteName(['nom', 'lieu', 'obtention', 'id_mapping', 'id_profil']))
                     ->values(':nom, :lieu, :obtention, :id_mapping, :id_profil')
@@ -157,7 +157,7 @@ final class BrevetService
             return false;
         }
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->update($this->db->quoteName('#__gda_profils'))
             ->set($this->db->quoteName('ffessm_token') . ' = :token')
             ->where($this->db->quoteName('id_profil') . ' = :id_profil')
@@ -173,7 +173,7 @@ final class BrevetService
 
     private function deleteForProfil(int $idProfil): void
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->delete($this->db->quoteName('#__gda_brevets'))
             ->where($this->db->quoteName('id_profil') . ' = :id_profil')
             ->bind(':id_profil', $idProfil, ParameterType::INTEGER);
@@ -227,7 +227,7 @@ final class BrevetService
             return [];
         }
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName([
                 'b.id_profil', 'm.code', 'm.activite', 'm.role', 'm.label_ffessm', 'm.poids',
             ]))
@@ -283,7 +283,7 @@ final class BrevetService
      */
     public function getActivitesReferentiel(): array
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('DISTINCT ' . $this->db->quoteName('activite'))
             ->from($this->db->quoteName('#__gda_mapping_brevets'))
             ->order($this->db->quoteName('activite') . ' ASC');
@@ -306,7 +306,7 @@ final class BrevetService
      */
     public function getIdProfilsAvecBrevet(string $activite, string $role): array
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('DISTINCT ' . $this->db->quoteName('b.id_profil'))
             ->from($this->db->quoteName('#__gda_brevets', 'b'))
             ->innerJoin(
@@ -339,7 +339,7 @@ final class BrevetService
      */
     public function getMappings(): array
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName(['id', 'code', 'activite', 'role', 'label_ffessm', 'label_affichage', 'poids']))
             ->from($this->db->quoteName('#__gda_mapping_brevets'))
             ->order([
@@ -393,7 +393,7 @@ final class BrevetService
             throw new \RuntimeException(Text::sprintf('COM_GDA_BREVETS_MAPPING_ERR_DUPLICATE', $label, $code));
         }
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->insert($this->db->quoteName('#__gda_mapping_brevets'))
             ->columns($this->db->quoteName(['code', 'activite', 'role', 'label_ffessm', 'label_ffessm_norm', 'label_affichage', 'poids']))
             ->values(':code, :activite, :role, :label, :label_norm, :label_affichage, :poids')
@@ -431,7 +431,7 @@ final class BrevetService
             throw new \InvalidArgumentException(Text::_('COM_GDA_BREVETS_MAPPING_ERR_FIELD'));
         }
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->update($this->db->quoteName('#__gda_mapping_brevets'))
             ->where($this->db->quoteName('id') . ' = :id')
             ->bind(':id', $idMapping, ParameterType::INTEGER);
@@ -484,7 +484,7 @@ final class BrevetService
             throw new \RuntimeException(Text::_('COM_GDA_BREVETS_ERR_MAPPING_INTROUVABLE'));
         }
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->delete($this->db->quoteName('#__gda_mapping_brevets'))
             ->where($this->db->quoteName('id') . ' = :id')
             ->bind(':id', $idMapping, ParameterType::INTEGER);
@@ -500,7 +500,7 @@ final class BrevetService
      */
     public function countBrevetsLies(int $idMapping): int
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('COUNT(*)')
             ->from($this->db->quoteName('#__gda_brevets'))
             ->where($this->db->quoteName('id_mapping') . ' = :id')
@@ -524,7 +524,7 @@ final class BrevetService
      */
     public function getBrevetsAvecMapping(): array
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select(
                 $this->db->quoteName(
                     [
@@ -579,7 +579,7 @@ final class BrevetService
             throw new \RuntimeException(Text::_('COM_GDA_BREVETS_ERR_BREVET_INTROUVABLE'));
         }
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->update($this->db->quoteName('#__gda_brevets'))
             ->set($this->db->quoteName('nom') . ' = :nom')
             ->where($this->db->quoteName('id') . ' = :id')
@@ -628,7 +628,7 @@ final class BrevetService
             throw new \RuntimeException(Text::_('COM_GDA_BREVETS_ERR_BREVET_INTROUVABLE'));
         }
 
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->update($this->db->quoteName('#__gda_brevets'))
             ->set([
                 $this->db->quoteName('id_mapping') . ' = :id_mapping',
@@ -657,7 +657,7 @@ final class BrevetService
      */
     private function getBrevetAvecAdherent(int $idBrevet): ?object
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select(
                 $this->db->quoteName(
                     ['b.nom', 'p.nom', 'p.prenom'],
@@ -690,7 +690,7 @@ final class BrevetService
      */
     private function getMapping(int $idMapping): ?object
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName(['id', 'code', 'activite', 'role', 'label_ffessm', 'poids']))
             ->from($this->db->quoteName('#__gda_mapping_brevets'))
             ->where($this->db->quoteName('id') . ' = :id')
@@ -706,7 +706,7 @@ final class BrevetService
      */
     private function mappingExiste(string $code, string $labelNorm): bool
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select('COUNT(*)')
             ->from($this->db->quoteName('#__gda_mapping_brevets'))
             ->where($this->db->quoteName('code') . ' = :code')
@@ -728,7 +728,7 @@ final class BrevetService
      */
     private function loadMappingByNormLabel(): array
     {
-        $query = $this->db->getQuery(true)
+        $query = $this->db->createQuery()
             ->select($this->db->quoteName([
                 'id', 'code', 'activite', 'role', 'label_ffessm', 'label_ffessm_norm', 'poids',
             ]))

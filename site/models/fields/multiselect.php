@@ -12,7 +12,7 @@ class JFormFieldMultiselect extends ListField
     protected function getOptions()
     {
         $db    = Factory::getContainer()->get('DatabaseDriver');
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
         try {
             $table      = (string) $this->element['table'];
             $keyField   = (string) $this->element['key_field'];

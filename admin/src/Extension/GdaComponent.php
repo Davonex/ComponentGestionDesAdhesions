@@ -24,7 +24,7 @@ class GdaComponent extends MVCComponent implements BootableExtensionInterface
         // === Création catégorie ===
         $categoryTable = Table::getInstance('Category');
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('id')
             ->from('#__categories')
             ->where('extension = ' . $db->quote('com_content'))
@@ -52,7 +52,7 @@ class GdaComponent extends MVCComponent implements BootableExtensionInterface
         // === Création article ===
         $articleTable = Table::getInstance('Content');
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('id')
             ->from('#__content')
             ->where('alias = ' . $db->quote('les-adhesions-sont-fermees'));
@@ -70,7 +70,9 @@ class GdaComponent extends MVCComponent implements BootableExtensionInterface
                 'state' => 1,
                 'access' => 1,
                 'language' => '*',
-                'created_by' => Factory::getUser()->id
+                // Identité de l'application plutôt que Factory::getUser() (déprécié en Joomla 6).
+                // Repli sur 0 : une installation hors contexte web (CLI) n'a pas d'utilisateur courant.
+                'created_by' => (int) ($app->getIdentity()?->id ?? 0)
             ];
 
             $articleTable->save($articleData);
@@ -78,7 +80,7 @@ class GdaComponent extends MVCComponent implements BootableExtensionInterface
         }
 
         // === Insert config ===
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->insert('#__gda_conf')
             ->columns(['id_conf', 'cle', 'valeur', 'description'])
             ->values('6, ' . $db->quote('IdAdhesionClos') . ', ' . (int)$articleId . ', NULL');

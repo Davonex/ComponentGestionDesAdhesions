@@ -24,6 +24,7 @@ use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Service\CotisationService;
 use NCB\Component\Gda\Site\Service\HelloAssoService;
 use NCB\Component\Gda\Site\Service\NotificationMailService;
+use NCB\Component\Gda\Site\Service\RapprochementPaiementService;
 use NCB\Component\Gda\Site\Service\SouscriptionService;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
 
@@ -86,6 +87,80 @@ class SecretariatModel extends ListModel
     );
   }
 
+  /**
+   * Propriété privée pour stocker l'instance de RapprochementPaiementService
+   */
+  private ?RapprochementPaiementService $rapprochementPaiement = null;
+
+  /**
+   * Getter pour obtenir l'instance de RapprochementPaiementService (lazy loading, non partagé par
+   * le conteneur DI, même motif que getHelloAsso() ci-dessus).
+   */
+  private function getRapprochementPaiementService(): RapprochementPaiementService
+  {
+    if ($this->rapprochementPaiement === null) {
+      $this->rapprochementPaiement = new RapprochementPaiementService($this->getDatabase());
+    }
+    return $this->rapprochementPaiement;
+  }
+
+  /**
+   * Façade sur RapprochementPaiementService::getPaiementsOrphelins() pour la campagne courante.
+   *
+   * @param object $saison       Campagne courante décorée (ConfHelper::getSaisonService()->getSaisonCourante()).
+   * @param bool   $forceRefresh true = contourne le cache fichier HelloAsso de 30 min.
+   * @return array{lignes: array<int, object>, candidats: array<int, object>}
+   * @throws \RuntimeException Voir RapprochementPaiementService::getPaiementsOrphelins().
+   */
+  public function getPaiementsOrphelins(object $saison, bool $forceRefresh = false): array
+  {
+    return $this->getRapprochementPaiementService()->getPaiementsOrphelins($saison, $forceRefresh);
+  }
+
+  /**
+   * Façade sur RapprochementPaiementService::associerPaiementOrphelin().
+   *
+   * @param int      $idProfil       Identifiant du profil candidat (nouvelle association).
+   * @param int      $idCampagne     Identifiant de la campagne.
+   * @param string   $idOrder        Identifiant de la commande HelloAsso à associer.
+   * @param int|null $idAncienProfil Identifiant du profil actuellement associé, si l'appel corrige
+   *                                 une association existante ; null pour un simple orphelin.
+   * @return string Nom d'affichage de l'adhérent associé.
+   * @throws \InvalidArgumentException Si les identifiants sont invalides.
+   * @throws \RuntimeException Voir RapprochementPaiementService::associerPaiementOrphelin().
+   */
+  public function associerPaiementOrphelin(int $idProfil, int $idCampagne, string $idOrder, ?int $idAncienProfil = null): string
+  {
+    return $this->getRapprochementPaiementService()->associerPaiementOrphelin($idProfil, $idCampagne, $idOrder, $idAncienProfil);
+  }
+
+  /**
+   * Façade sur RapprochementPaiementService::dissocierPaiementOrphelin().
+   *
+   * @param int    $idProfil   Identifiant du profil à dissocier.
+   * @param int    $idCampagne Identifiant de la campagne.
+   * @param string $idOrder    Identifiant de la commande HelloAsso à dissocier.
+   * @return string Nom d'affichage de l'adhérent dissocié.
+   * @throws \InvalidArgumentException Si les identifiants sont invalides.
+   * @throws \RuntimeException Voir RapprochementPaiementService::dissocierPaiementOrphelin().
+   */
+  public function dissocierPaiementOrphelin(int $idProfil, int $idCampagne, string $idOrder): string
+  {
+    return $this->getRapprochementPaiementService()->dissocierPaiementOrphelin($idProfil, $idCampagne, $idOrder);
+  }
+
+  /**
+   * Façade sur RapprochementPaiementService::getDetailCommandeOrpheline().
+   *
+   * @param string $idOrder Identifiant de la commande HelloAsso.
+   * @return object {id_order, date, payeur_nom, payeur_email, montant_total, items}
+   * @throws \RuntimeException Voir RapprochementPaiementService::getDetailCommandeOrpheline().
+   */
+  public function getDetailCommandeOrpheline(string $idOrder): object
+  {
+    return $this->getRapprochementPaiementService()->getDetailCommandeOrpheline($idOrder);
+  }
+
 
   /**
    * Méthode pour obtenir une liste d’objets qui doivent être validés par le secrétariat.
@@ -108,7 +183,7 @@ class SecretariatModel extends ListModel
     // jointure avec la table _profils et souscriptions et users pour recuperer tous les infos pour alimenter la vue scretariat
     $db = $this->getDatabase();
 
-    $query = $db->getQuery(true);
+    $query = $db->createQuery();
     $selection = array(
       $db->quoteName('s.id_campagne'),
       $db->quoteName('s.date_souscription'),
@@ -164,7 +239,7 @@ class SecretariatModel extends ListModel
         if (!empty($profilIds)) {
           $inProfilIds = implode(',', $profilIds);
 
-          $groupesQuery = $db->getQuery(true)
+          $groupesQuery = $db->createQuery()
             ->select([
               $db->quoteName('cg.id_profil'),
               $db->quoteName('cg.id_groupe'),
@@ -237,7 +312,7 @@ class SecretariatModel extends ListModel
 
     $db = $this->getDatabase();
 
-    $queryUser = $db->getQuery(true)
+    $queryUser = $db->createQuery()
       ->select([
         $db->quoteName('u.id'),
         $db->quoteName('u.username'),
@@ -266,7 +341,7 @@ class SecretariatModel extends ListModel
       $db->transactionStart();
 
       try {
-        $deleteSouscriptions = $db->getQuery(true)
+        $deleteSouscriptions = $db->createQuery()
           ->delete($db->quoteName('#__gda_souscriptions'))
           ->where($db->quoteName('id_profil') . ' = :id_profil')
           ->bind(':id_profil', $idProfil);
@@ -278,7 +353,7 @@ class SecretariatModel extends ListModel
       }
 
       try {
-        $deleteCompositionGroupes = $db->getQuery(true)
+        $deleteCompositionGroupes = $db->createQuery()
           ->delete($db->quoteName('#__gda_composition_groupes'))
           ->where($db->quoteName('id_profil') . ' = :id_profil')
           ->bind(':id_profil', $idProfil);
@@ -291,7 +366,7 @@ class SecretariatModel extends ListModel
 
       // Le schema comporte aussi une FK #__gda_brevets -> #__gda_profils.
       try {
-        $deleteBrevets = $db->getQuery(true)
+        $deleteBrevets = $db->createQuery()
           ->delete($db->quoteName('#__gda_brevets'))
           ->where($db->quoteName('id_profil') . ' = :id_profil')
           ->bind(':id_profil', $idProfil);
@@ -307,7 +382,7 @@ class SecretariatModel extends ListModel
         // absent pour ce user.id (compte cree/importe sans profil metier, ou profil deja
         // supprime lors d'une manipulation precedente). L'objectif ici reste la suppression
         // complete du compte Joomla, qui se fait plus bas quel que soit ce cas.
-        $deleteProfil = $db->getQuery(true)
+        $deleteProfil = $db->createQuery()
           ->delete($db->quoteName('#__gda_profils'))
           ->where($db->quoteName('id_profil') . ' = :id_profil')
           ->bind(':id_profil', $idProfil);
@@ -374,7 +449,7 @@ class SecretariatModel extends ListModel
     $dateCaci = trim($dateCaci);
 
     $db = $this->getDatabase();
-    $query = $db->getQuery(true)
+    $query = $db->createQuery()
       ->update($db->quoteName('#__gda_profils'))
       ->where($db->quoteName('id_profil') . ' = :id_profil')
       ->bind(':id_profil', $idProfil);
@@ -424,7 +499,7 @@ class SecretariatModel extends ListModel
   public function getCaciFile(int $idProfil): ?string
   {
     $db = $this->getDatabase();
-    $query = $db->getQuery(true)
+    $query = $db->createQuery()
       ->select($db->quoteName('caci'))
       ->from($db->quoteName('#__gda_profils'))
       ->where($db->quoteName('id_profil') . ' = :id_profil')
@@ -466,7 +541,7 @@ class SecretariatModel extends ListModel
     $db = $this->getDatabase();
     $now = Factory::getDate()->toSql();
 
-    $query = $db->getQuery(true)
+    $query = $db->createQuery()
       ->update($db->quoteName('#__gda_souscriptions'))
       ->set($db->quoteName('categorie') . ' = :categorie')
       ->set($db->quoteName('last_update') . ' = :last_update')
@@ -504,7 +579,7 @@ class SecretariatModel extends ListModel
     $db = $this->getDatabase();
     $now = Factory::getDate()->toSql();
 
-    $query = $db->getQuery(true)
+    $query = $db->createQuery()
       ->update($db->quoteName('#__gda_souscriptions'))
       ->set($db->quoteName('caci_check') . ' = 0')
       ->set($db->quoteName('date_caci_check') . ' = NULL')
@@ -542,7 +617,7 @@ class SecretariatModel extends ListModel
     $db = $this->getDatabase();
     $now = Factory::getDate()->toSql();
 
-    $query = $db->getQuery(true)
+    $query = $db->createQuery()
       ->update($db->quoteName('#__gda_souscriptions'))
       ->set($db->quoteName('caci_check') . ' = 1')
       ->set($db->quoteName('last_update') . ' = :last_update')
@@ -581,7 +656,7 @@ class SecretariatModel extends ListModel
     $db = $this->getDatabase();
     $now = Factory::getDate()->toSql();
 
-    $query = $db->getQuery(true)
+    $query = $db->createQuery()
       ->update($db->quoteName('#__gda_souscriptions'))
       ->set($db->quoteName('cotisation_check') . ' = 1')
       ->set($db->quoteName('last_update') . ' = :last_update')
@@ -620,7 +695,7 @@ class SecretariatModel extends ListModel
     $db = $this->getDatabase();
     $now = Factory::getDate()->toSql();
 
-    $query = $db->getQuery(true)
+    $query = $db->createQuery()
       ->update($db->quoteName('#__gda_souscriptions'))
       ->set($db->quoteName('cotisation_check') . ' = 0')
       ->set($db->quoteName('licence_check') . ' = 0')
@@ -660,7 +735,7 @@ class SecretariatModel extends ListModel
     $now = Factory::getDate()->toSql();
 
 
-    $userQuery = $db->getQuery(true)
+    $userQuery = $db->createQuery()
       ->select($db->quoteName(['id', 'username']))
       ->from($db->quoteName('#__users'))
       ->where($db->quoteName('id') . ' = :id_profil')
@@ -692,7 +767,7 @@ class SecretariatModel extends ListModel
       $db->transactionStart();
       if ($currentPrefix === 'N') {
         //change la licence [username] de l'adherent
-        $updateUserQuery = $db->getQuery(true)
+        $updateUserQuery = $db->createQuery()
           ->update($db->quoteName('#__users'))
           ->set($db->quoteName('username') . ' = :username')
           ->where($db->quoteName('id') . ' = :user_id')
@@ -722,7 +797,7 @@ class SecretariatModel extends ListModel
       /** 
        *  met a jour la souscription pour finaliser l'inscription (cotisation_check, caci_check, licence_check)
        */
-      $query = $db->getQuery(true)
+      $query = $db->createQuery()
         ->update($db->quoteName('#__gda_souscriptions'))
         ->set($db->quoteName('cotisation_check') . ' = 1')
         ->set($db->quoteName('caci_check') . ' = 1')
@@ -750,7 +825,7 @@ class SecretariatModel extends ListModel
        */
       $dateFinLicence = AdhesionStatusHelper::computeDateFinValiditeLicence($now);
 
-      $profilQuery = $db->getQuery(true)
+      $profilQuery = $db->createQuery()
         ->update($db->quoteName('#__gda_profils'))
         ->set($db->quoteName('date_licence') . ' = :date_licence')
         ->where($db->quoteName('id_profil') . ' = :id_profil')
@@ -806,7 +881,7 @@ class SecretariatModel extends ListModel
     $db = $this->getDatabase();
     $now = Factory::getDate()->toSql();
 
-    $query = $db->getQuery(true)
+    $query = $db->createQuery()
       ->update($db->quoteName('#__gda_souscriptions'))
       ->set($db->quoteName('licence_check') . ' = 0')
       ->set($db->quoteName('date_licence_check') . ' = NULL')
@@ -886,7 +961,7 @@ class SecretariatModel extends ListModel
     }
 
     $db = $this->getDatabase();
-    $query = $db->getQuery(true)
+    $query = $db->createQuery()
       ->select([
         $db->quoteName('s.cotisation_code'),
         $db->quoteName('p.nom'),

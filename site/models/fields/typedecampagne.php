@@ -22,7 +22,7 @@ class JFormFieldTypeDeCampagne extends ListField
         // $db = $this->getDbo();
          $db    = Factory::getContainer()->get('DatabaseDriver');
         $id_type_saison = (int) ConfHelper::getValue('IdTypeSaison');
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
         $query->select('*')
               ->from($db->quoteName('#__gda_type_de_campagne', 't'))

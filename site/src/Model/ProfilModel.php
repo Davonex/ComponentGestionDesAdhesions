@@ -69,7 +69,7 @@ class ProfilModel extends ListModel
         if ($username) {
             // lister le Profil $Username = licence
             $db = $this->getDatabase();
-            $query = $db->getQuery(true);
+            $query = $db->createQuery();
 
             //$query->select('profils.id_profil')
             $query->select($this->getSelectItemFields($db));
@@ -103,7 +103,7 @@ class ProfilModel extends ListModel
     function getProfilById(int $idProfil): ?object
     {
         $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
         $query->select($this->getSelectItemFields($db));
         $query->from($db->quoteName('#__users', 'u'));
@@ -183,7 +183,7 @@ class ProfilModel extends ListModel
         if ($username) {
             // lister le Profil $Username = licence
             $db = $this->getDatabase();
-            $query = $db->getQuery(true);
+            $query = $db->createQuery();
 
             $query->select(
                 $db->quoteName([
@@ -310,7 +310,7 @@ class ProfilModel extends ListModel
         }
 
         // $db = $this->getDatabase();
-        // $query = $db->getQuery(true);
+        // $query = $db->createQuery();
         // $query->select('*');
         // $query->from($db->quoteName('#__gda_profils', 'profils'));
         // $query->where($db->quoteName('profils.id_profil') . ' = :id_profil')
@@ -374,7 +374,7 @@ class ProfilModel extends ListModel
 
         $db = $this->getDatabase();
 
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
         $query->update($db->quoteName('#__gda_profils'))
             ->set($db->quoteName('caci') . ' = :value_caci')
             ->set($db->quoteName('date_caci') . ' = :value_date_caci')
@@ -410,7 +410,7 @@ class ProfilModel extends ListModel
         $data['nom'] = strtoupper($data['nom']);
         $data['ville'] = strtoupper($data['ville']);
 
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
         $exists = (bool) $this->existingProfil();
 
         if ($exists) {
@@ -568,7 +568,7 @@ class ProfilModel extends ListModel
 
         $conditions = array($db->quoteName('id_profil') . ' = :value_id_profil');
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('id_profil')
             ->from($db->quoteName('#__gda_profils'))
             ->where($conditions)

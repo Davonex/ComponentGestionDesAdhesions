@@ -106,7 +106,16 @@ class AdhesionModel extends FormModel
 
 
     /**
-     * Getter pour obtenir la key (lazy loading)
+     * Getter pour obtenir la key (lazy loading).
+     *
+     * La clé peut arriver soit en paramètre racine de la requête (affichage initial via l'URL
+     * `?key=...`), soit dans `jform[key]` (soumission ajax de save() : submitform() poste vers
+     * une URL fixe sans requête, la clé ne voyage alors que dans les données du formulaire, déjà
+     * préremplies par loadFormData() à partir de ce même profil résolu par clé). Dans les deux
+     * cas, la clé reçue doit correspondre à celle validée en session par
+     * DisplayController::display() - une clé simplement présente dans la requête ne suffit pas.
+     *
+     * @return string|null La clé validée, ou null si absente/invalide.
      */
     private function getKey()
     {
@@ -114,8 +123,14 @@ class AdhesionModel extends FormModel
             $this->app = Factory::getApplication();
         }
 
-        // Garde-fou: sans key explicite dans l'URL, on interdit toute réédition invitée.
+        // Garde-fou: sans key explicite dans la requête (racine ou jform[key]), on interdit
+        // toute réédition invitée.
         $requestKey = trim((string) $this->app->getInput()->getString('key', ''));
+
+        if ($requestKey === '') {
+            $jform = $this->app->getInput()->get('jform', [], 'ARRAY');
+            $requestKey = trim((string) ($jform['key'] ?? ''));
+        }
 
         if ($requestKey === '') {
             return null;
@@ -143,7 +158,7 @@ class AdhesionModel extends FormModel
 
         $db = $this->getDatabase();
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select('1')
             ->from($db->quoteName('#__gda_profils'))
             ->where($db->quoteName('key') . ' = :adhesion_key')
@@ -289,7 +304,7 @@ class AdhesionModel extends FormModel
         $session = $this->getApp()->getUserState('session');
 
         $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
         if (empty($session) || !$session['username']) {
 
@@ -372,7 +387,7 @@ class AdhesionModel extends FormModel
 
         // $db = $this->getDbo(); // deprecated
         $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
         if (empty($session) || !$session['username']) {
             if (is_null($this->getKey())) {
@@ -433,7 +448,7 @@ class AdhesionModel extends FormModel
         $saison = $this->getSaisonService()->getSaisonOuverte();
 
         $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
 
         if (empty($session) || !$session['username']) {
@@ -494,7 +509,7 @@ class AdhesionModel extends FormModel
         // }
 
         $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
         $query->select('*');
         $query->from($db->quoteName('#__gda_profils', 'profils'));
         $query->where($db->quoteName('profils.id_profil') . ' = :id')
@@ -519,7 +534,7 @@ class AdhesionModel extends FormModel
 
         if (!is_null($this->getKey())) { // Pas de token 
             $db = $this->getDatabase();
-            $query = $db->getQuery(true);
+            $query = $db->createQuery();
             $value_key = $this->getKey();
 
             $query->select('*');
@@ -595,7 +610,7 @@ class AdhesionModel extends FormModel
         }
 
         $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
 
         $fields = array(
@@ -774,7 +789,7 @@ class AdhesionModel extends FormModel
         }
 
         $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $query = $db->createQuery();
 
         $columns = array(
             $db->quoteName('id_profil'),
@@ -888,7 +903,7 @@ class AdhesionModel extends FormModel
 
         try {
             // Supprimer les anciens groupes pour l'utilisateur $adhesion['id']
-            $query = $db->getQuery(true);
+            $query = $db->createQuery();
             $query->delete($db->quoteName('#__gda_composition_groupes'))
                 ->where($db->quoteName('id_profil') . ' = :id_profil' .  ' AND ' . $db->quoteName('id_campagne') . ' = :id_campagne')
                 ->bind(':id_profil', $adhesion['id'])
@@ -896,7 +911,7 @@ class AdhesionModel extends FormModel
             $db->setQuery($query);
             $db->execute();
             foreach ($adhesion['id_groupes'] as $id_groupe) {
-                $query = $db->getQuery(true);
+                $query = $db->createQuery();
                 $columns = array(
                     $db->quoteName('id_profil'),
                     $db->quoteName('id_groupe'),

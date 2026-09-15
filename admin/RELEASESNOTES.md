@@ -1,5 +1,14 @@
 # Component com_gadhesions
 
+## Version 0.9.15
+  - 📰 Nouveautés
+    - Nouvel onglet dans la vue `Secrétariat` pour  vérifier les associations entre Hello Asso et les adhérents.
+
+  - 📈 Améliorations
+
+  - 🪲 Bugs
+    - Les filtres sur la vue `Gestion Brevets` sont maintenant efficaces 
+    - Réédition de la fiche d'adhésion : Vous n'êtes pas autorisé à effectuer cette action
 
 ## Version 0.9.14
   - 📰 Nouveautés

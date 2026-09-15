@@ -97,7 +97,18 @@ class ConfigurationModel extends FormModel
         return implode("\n", array_slice(explode("\n", $buffer), -$maxLines));
     }
 
-    public function saveConfiguration(array $data): bool
+    /**
+     * Enregistrer la configuration métier (HelloAsso, surcharge d'e-mail de développement) dans #__gda_conf.
+     *
+     * Les erreurs sont signalées par exception plutôt que par setError()/getError() sur le modèle,
+     * pattern déprécié en Joomla 6.
+     *
+     * @param array $data Les données brutes du formulaire (tableau jform).
+     * @return void
+     * @throws \InvalidArgumentException Si un champ obligatoire (client id, URL de base, slug d'organisation) est vide.
+     * @throws \RuntimeException Si une requête de lecture ou d'écriture sur #__gda_conf échoue.
+     */
+    public function saveConfiguration(array $data): void
     {
         $db = $this->getDatabase();
 
@@ -108,8 +119,7 @@ class ConfigurationModel extends FormModel
         $devMailOverride = trim((string) ($data['devmailoverride'] ?? ''));
 
         if ($clientId === '' || $baseUrl === '' || $organizationSlug === '') {
-            $this->setError(Text::_('COM_GDA_HELLOASSO_VALIDATION_ERROR'));
-            return false;
+            throw new \InvalidArgumentException(Text::_('COM_GDA_HELLOASSO_VALIDATION_ERROR'));
         }
 
         $valuesToSave = [
@@ -124,42 +134,36 @@ class ConfigurationModel extends FormModel
             $valuesToSave['HelloAssoClientSecret'] = CryptoHelper::encrypt(trim($clientSecret));
         }
 
-        try {
-            foreach ($valuesToSave as $key => $value) {
-                $query = $db->getQuery(true)
-                    ->select($db->quoteName('id'))
-                    ->from($db->quoteName('#__gda_conf'))
-                    ->where($db->quoteName('key') . ' = :key')
-                    ->bind(':key', $key);
+        // Une erreur SQL lève une \RuntimeException, propagée telle quelle jusqu'au contrôleur.
+        foreach ($valuesToSave as $key => $value) {
+            $query = $db->createQuery()
+                ->select($db->quoteName('id'))
+                ->from($db->quoteName('#__gda_conf'))
+                ->where($db->quoteName('key') . ' = :key')
+                ->bind(':key', $key);
 
-                $db->setQuery($query);
-                $id = (int) $db->loadResult();
+            $db->setQuery($query);
+            $id = (int) $db->loadResult();
 
-                if ($id > 0) {
-                    $query = $db->getQuery(true)
-                        ->update($db->quoteName('#__gda_conf'))
-                        ->set($db->quoteName('value') . ' = :value')
-                        ->where($db->quoteName('id') . ' = :id')
-                        ->bind(':value', $value)
-                        ->bind(':id', $id);
-                } else {
-                    $columns = [$db->quoteName('key'), $db->quoteName('value')];
-                    $query = $db->getQuery(true)
-                        ->insert($db->quoteName('#__gda_conf'))
-                        ->columns($columns)
-                        ->values(':key, :value')
-                        ->bind(':key', $key)
-                        ->bind(':value', $value);
-                }
-
-                $db->setQuery($query);
-                $db->execute();
+            if ($id > 0) {
+                $query = $db->createQuery()
+                    ->update($db->quoteName('#__gda_conf'))
+                    ->set($db->quoteName('value') . ' = :value')
+                    ->where($db->quoteName('id') . ' = :id')
+                    ->bind(':value', $value)
+                    ->bind(':id', $id);
+            } else {
+                $columns = [$db->quoteName('key'), $db->quoteName('value')];
+                $query = $db->createQuery()
+                    ->insert($db->quoteName('#__gda_conf'))
+                    ->columns($columns)
+                    ->values(':key, :value')
+                    ->bind(':key', $key)
+                    ->bind(':value', $value);
             }
-        } catch (\RuntimeException $e) {
-            $this->setError($e->getMessage());
-            return false;
-        }
 
-        return true;
+            $db->setQuery($query);
+            $db->execute();
+        }
     }
 }

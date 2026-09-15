@@ -11,6 +11,13 @@ use Joomla\CMS\Router\Route;
 
 class ConfigurationController extends BaseController
 {
+    /**
+     * Enregistrer la configuration métier du composant, après contrôle du jeton CSRF et du droit core.options.
+     *
+     * Toute erreur de validation ou d'écriture est affichée en message, puis l'utilisateur est renvoyé sur la vue Configuration.
+     *
+     * @return void
+     */
     public function save(): void
     {
         $app = Factory::getApplication();
@@ -31,8 +38,10 @@ class ConfigurationController extends BaseController
         $model = $this->getModel('Configuration', 'Administrator');
         $data = $this->input->post->get('jform', [], 'array');
 
-        if (!$model->saveConfiguration($data)) {
-            $app->enqueueMessage(Text::sprintf('COM_GDA_CONFIGURATION_SAVE_ERROR', $model->getError()), 'error');
+        try {
+            $model->saveConfiguration($data);
+        } catch (\InvalidArgumentException | \RuntimeException $e) {
+            $app->enqueueMessage(Text::sprintf('COM_GDA_CONFIGURATION_SAVE_ERROR', $e->getMessage()), 'error');
             $this->setRedirect(Route::_('index.php?option=com_gdadhesions&view=configuration', false));
             return;
         }

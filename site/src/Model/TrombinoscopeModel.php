@@ -57,7 +57,7 @@ class TrombinoscopeModel extends ListModel
 
         $db = $this->getDatabase();
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select([
                 $db->quoteName('p.id_profil'),
                 $db->quoteName('p.civilite'),
@@ -154,7 +154,7 @@ class TrombinoscopeModel extends ListModel
 
         $db = $this->getDatabase();
 
-        $query = $db->getQuery(true)
+        $query = $db->createQuery()
             ->select($db->quoteName(['p.id_profil', 'p.civilite', 'p.nom', 'p.prenom', 'p.photo']))
             ->from($db->quoteName('#__gda_profils', 'p'))
             ->whereIn($db->quoteName('p.id_profil'), $idProfils, ParameterType::INTEGER);
