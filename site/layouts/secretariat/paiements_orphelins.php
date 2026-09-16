@@ -13,17 +13,32 @@ use Joomla\CMS\Language\Text;
  * graphique `--logo-droit-500` (défini dans le template `cassiopeia_ncb`), pour les distinguer
  * visuellement l'une de l'autre.
  *
+ * Chaque `<tr>` porte un attribut `data-resolved` ("1"/"0", reflet de `$ligne->resolved`) : le
+ * filtre Tous/Non associés/Associés (#orphelinsFilter, media/com_gdadhesions/js/secretariat.js)
+ * s'appuie dessus pour retirer les lignes non voulues du DOM avant l'initialisation de
+ * simple-datatables, purement côté client (pas de nouvel appel ajax par changement de filtre).
+ *
+ * La colonne Payeur affiche "Payé par X pour Y (licence)" : X est le payeur réel de la commande
+ * (order.payer), Y (licence) le bénéficiaire déclaré dans HelloAsso pour cette place (item.user +
+ * sa licence saisie) — à comparer avec la colonne Adhérent associé pour vérifier qu'une association
+ * (automatique ou manuelle) est correcte.
+ *
+ * Message récapitulatif en tête (nombre de lignes encore orphelines), même motif que l'onglet
+ * « Brevets des adhérents » (layouts/brevets/adherents_table.php, HtmlView::$nbNonRattaches).
+ *
  * @var array $displayData
- * - $displayData['lignes']      : array<object> {id_order, date, payeur_nom, payeur_licence,
- *                                  resolved(bool), adherent_id_profil(?int), adherent_nom(?string),
- *                                  adherent_licence(?string)}
- * - $displayData['candidats']   : array<object> {id_profil, label} - candidats libres de la campagne
- * - $displayData['id_campagne'] : int
+ * - $displayData['lignes']          : array<object> {id_order, date, payeur_nom, beneficiaire_nom,
+ *                                      beneficiaire_licence, resolved(bool), adherent_id_profil(?int),
+ *                                      adherent_nom(?string), adherent_licence(?string)}
+ * - $displayData['candidats']       : array<object> {id_profil, label} - candidats libres de la campagne
+ * - $displayData['id_campagne']     : int
+ * - $displayData['nb_non_associes'] : int nombre de lignes encore orphelines
  */
 
 $lignes = $displayData['lignes'] ?? [];
 $candidats = $displayData['candidats'] ?? [];
 $idCampagne = (int) ($displayData['id_campagne'] ?? 0);
+$nbNonAssocies = (int) ($displayData['nb_non_associes'] ?? 0);
 ?>
 
 <div class="card mb-3">
@@ -31,6 +46,18 @@ $idCampagne = (int) ($displayData['id_campagne'] ?? 0);
     <?php if (empty($lignes)) : ?>
       <p class="text-muted"><?= Text::_('COM_GDA_SECRETARIAT_STEP5_EMPTY') ?></p>
     <?php else : ?>
+      <?php if ($nbNonAssocies > 0) : ?>
+        <div class="alert alert-warning d-flex align-items-center gap-2" role="status">
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+          <span><?= Text::plural('COM_GDA_SECRETARIAT_ORPHELINS_COUNT_NON_ASSOCIES', $nbNonAssocies) ?></span>
+        </div>
+      <?php else : ?>
+        <div class="alert alert-success d-flex align-items-center gap-2" role="status">
+          <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+          <span><?= Text::_('COM_GDA_SECRETARIAT_ORPHELINS_COUNT_TOUS_ASSOCIES') ?></span>
+        </div>
+      <?php endif; ?>
+
       <table class="table table-bordered table-striped secretariat-table">
         <thead>
           <tr>
@@ -42,7 +69,7 @@ $idCampagne = (int) ($displayData['id_campagne'] ?? 0);
         </thead>
         <tbody>
           <?php foreach ($lignes as $ligne) : ?>
-            <tr>
+            <tr data-resolved="<?= !empty($ligne->resolved) ? '1' : '0' ?>">
               <td class="bg-success-subtle text-center">
                 <?php if (!empty($ligne->resolved)) : ?>
                   <a
@@ -69,8 +96,12 @@ $idCampagne = (int) ($displayData['id_campagne'] ?? 0);
               </td>
               <td class="bg-success-subtle text-center"><?= $this->escape((string) $ligne->date) ?></td>
               <td class="bg-success-subtle">
-                <?= $this->escape((string) $ligne->payeur_nom) ?>
-                (<?= $ligne->payeur_licence ? $this->escape($ligne->payeur_licence) : Text::_('COM_GDA_SECRETARIAT_ORPHELINS_LICENCE_INCONNUE') ?>)
+                <?= $this->escape(Text::sprintf(
+                  'COM_GDA_SECRETARIAT_PAYEMENT_PAYEUR',
+                  (string) $ligne->payeur_nom,
+                  (string) $ligne->beneficiaire_nom,
+                  $ligne->beneficiaire_licence ? $ligne->beneficiaire_licence : Text::_('COM_GDA_SECRETARIAT_ORPHELINS_LICENCE_INCONNUE')
+                )) ?>
               </td>
               <td
                 class="js-orphelin-cell"

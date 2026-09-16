@@ -100,7 +100,15 @@ Text::script('COM_GDA_CONFIRM');
 
     <!-- STEP 4 Carousel (paiements HelloAsso orphelins) -->
     <div class="carousel-item" id="step-orphelins">
-      <div class="d-flex justify-content-end mb-2">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="d-flex align-items-center gap-2">
+          <label for="orphelinsFilter" class="form-label mb-0"><?= Text::_('COM_GDA_SECRETARIAT_ORPHELINS_FILTER_LABEL') ?></label>
+          <select id="orphelinsFilter" class="form-select form-select-sm w-auto">
+            <option value="non_associes" selected><?= Text::_('COM_GDA_SECRETARIAT_ORPHELINS_FILTER_NON_ASSOCIES') ?></option>
+            <option value="associes"><?= Text::_('COM_GDA_SECRETARIAT_ORPHELINS_FILTER_ASSOCIES') ?></option>
+            <option value="tous"><?= Text::_('COM_GDA_SECRETARIAT_ORPHELINS_FILTER_TOUS') ?></option>
+          </select>
+        </div>
         <button type="button" id="btnRefreshOrphelins" class="btn btn-outline-secondary btn-sm"
           data-bs-toggle="tooltip" data-bs-title="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_ORPHELINS_REFRESH_HINT')) ?>"
           title="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_ORPHELINS_REFRESH_HINT')) ?>">

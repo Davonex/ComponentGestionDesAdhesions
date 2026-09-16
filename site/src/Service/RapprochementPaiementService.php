@@ -54,9 +54,11 @@ final class RapprochementPaiementService
      * @param object $saison       Campagne décorée (ConfHelper::getSaisonService()->getSaisonCourante()),
      *                              doit exposer ->id_campagne, ->formType, ->formSlug.
      * @param bool   $forceRefresh true = contourne le cache fichier HelloAsso de 30 min (bouton "Rafraîchir").
-     * @return array{lignes: array<int, object>, candidats: array<int, object>}
-     *   - lignes[]: {id_order, date, payeur_nom, payeur_licence, resolved(bool), adherent_id_profil(?int), adherent_nom(?string), adherent_licence(?string)}
+     * @return array{lignes: array<int, object>, candidats: array<int, object>, nb_non_associes: int}
+     *   - lignes[]: {id_order, date, payeur_nom, beneficiaire_nom, beneficiaire_licence, resolved(bool), adherent_id_profil(?int), adherent_nom(?string), adherent_licence(?string)}
      *   - candidats[]: {id_profil, label} — adhérents de la campagne dont id_order est encore vide.
+     *   - nb_non_associes : nombre de lignes encore orphelines (resolved = false), pour le message
+     *     récapitulatif en tête de l'onglet (même motif que Brevets::nbNonRattaches).
      * @throws \RuntimeException Si la campagne n'a pas de formulaire HelloAsso configuré, si l'appel
      *                           API échoue, ou si une requête SQL échoue.
      */
@@ -71,21 +73,24 @@ final class RapprochementPaiementService
         $orders = $this->getHelloAsso()->getFormsOrders($saison->formType, $saison->formSlug, 'true', $forceRefresh);
         $items = $this->flattenHelloAssoItems($orders);
         $resolus = $this->getSouscriptionsResolues($idCampagne);
+        $lignes = $this->resoudreItemsParAdherent($items, $resolus);
 
         return [
-            'lignes'    => $this->resoudreItemsParAdherent($items, $resolus),
-            'candidats' => $this->getCandidatsSansPaiement($idCampagne),
+            'lignes'          => $lignes,
+            'candidats'       => $this->getCandidatsSansPaiement($idCampagne),
+            'nb_non_associes' => count(array_filter($lignes, static fn (object $ligne): bool => empty($ligne->resolved))),
         ];
     }
 
     /**
      * Aplatit les commandes HelloAsso (getFormsOrders(..., withDetails='true')) en une liste d'items,
-     * chaque item conservant l'identifiant de sa commande parente ('_id_order') et sa date
-     * ('_date'). Une commande peut contenir plusieurs items (paiement groupé pour plusieurs
-     * adhérents) : contrairement à une simplification sur items[0], tous les items sont conservés.
+     * chaque item conservant l'identifiant de sa commande parente ('_id_order'), sa date ('_date')
+     * et le payeur de la commande ('_payer', order.payer — distinct de item.user : sur un paiement
+     * groupé, le payeur peut différer du bénéficiaire de chaque item). Une commande peut contenir
+     * plusieurs items : contrairement à une simplification sur items[0], tous sont conservés.
      *
      * @param array $orders Tableau brut retourné par HelloAssoService::getFormsOrders().
-     * @return array<int, array> Items enrichis des clés internes '_id_order' et '_date'.
+     * @return array<int, array> Items enrichis des clés internes '_id_order', '_date' et '_payer'.
      */
     private function flattenHelloAssoItems(array $orders): array
     {
@@ -94,10 +99,12 @@ final class RapprochementPaiementService
         foreach ($orders as $order) {
             $idOrder = (string) ($order['id'] ?? '');
             $date = (string) ($order['date'] ?? '');
+            $payer = $order['payer'] ?? [];
 
             foreach (($order['items'] ?? []) as $item) {
                 $item['_id_order'] = $idOrder;
                 $item['_date'] = $date;
+                $item['_payer'] = $payer;
                 $items[] = $item;
             }
         }
@@ -160,7 +167,7 @@ final class RapprochementPaiementService
      *
      * @param array<int, array>                 $items   Items aplatis (flattenHelloAssoItems()).
      * @param array<string, array<int, object>> $resolus id_order => profils, voir getSouscriptionsResolues().
-     * @return array<int, object> Lignes {id_order, date, payeur_nom, payeur_licence, resolved, adherent_id_profil, adherent_nom}.
+     * @return array<int, object> Lignes {id_order, date, payeur_nom, beneficiaire_nom, beneficiaire_licence, resolved, adherent_id_profil, adherent_nom, adherent_licence}.
      */
     private function resoudreItemsParAdherent(array $items, array $resolus): array
     {
@@ -280,25 +287,36 @@ final class RapprochementPaiementService
     }
 
     /**
-     * Construit une ligne d'affichage normalisée à partir d'un item HelloAsso.
+     * Construit une ligne d'affichage normalisée à partir d'un item HelloAsso. Distingue le payeur
+     * réel de la commande (order.payer — celui qui a réglé) du bénéficiaire de cet item (item.user —
+     * la personne pour laquelle cette adhésion a été prise, avec sa licence telle que saisie dans
+     * HelloAsso) : sur un paiement groupé, les deux peuvent différer, et c'est justement le
+     * rapprochement entre le bénéficiaire déclaré et l'adhérent réellement associé qui permet à la
+     * secrétaire de vérifier qu'une association est correcte.
      *
      * @param string      $idOrder  Identifiant de la commande HelloAsso.
      * @param array       $item     Item HelloAsso (aplati, voir flattenHelloAssoItems()).
      * @param bool        $resolved true si un adhérent est déjà associé à cet item.
      * @param object|null $profil   Profil associé {id_profil, civilite, nom, prenom, username}, si $resolved.
-     * @return object Ligne {id_order, date, payeur_nom, payeur_licence, resolved, adherent_id_profil, adherent_nom, adherent_licence}.
+     * @return object Ligne {id_order, date, payeur_nom, beneficiaire_nom, beneficiaire_licence, resolved, adherent_id_profil, adherent_nom, adherent_licence}.
      */
     private function construireLigne(string $idOrder, array $item, bool $resolved, ?object $profil): object
     {
+        $payeurNom = trim(($item['_payer']['firstName'] ?? '') . ' ' . ($item['_payer']['lastName'] ?? ''));
+        $beneficiaireNom = trim(($item['user']['firstName'] ?? '') . ' ' . ($item['user']['lastName'] ?? ''));
+
         return (object) [
-            'id_order'           => $idOrder,
-            'date'               => $this->formatDate($item['_date'] ?? null),
-            'payeur_nom'         => trim(($item['user']['firstName'] ?? '') . ' ' . ($item['user']['lastName'] ?? '')),
-            'payeur_licence'     => $this->getHelloAsso()->extractLicenceAnswer($item),
-            'resolved'           => $resolved,
-            'adherent_id_profil' => $profil !== null ? (int) $profil->id_profil : null,
-            'adherent_nom'       => $profil !== null ? $this->formaterNomComplet($profil) : null,
-            'adherent_licence'   => $profil !== null ? $profil->username : null,
+            'id_order'             => $idOrder,
+            'date'                 => $this->formatDate($item['_date'] ?? null),
+            // Repli sur le bénéficiaire si le payeur n'est pas renseigné (ne devrait pas arriver,
+            // mais un objet 'payer' vide ne doit pas afficher une ligne "Payé par" sans nom).
+            'payeur_nom'           => $payeurNom !== '' ? $payeurNom : $beneficiaireNom,
+            'beneficiaire_nom'     => $beneficiaireNom,
+            'beneficiaire_licence' => $this->getHelloAsso()->extractLicenceAnswer($item),
+            'resolved'             => $resolved,
+            'adherent_id_profil'   => $profil !== null ? (int) $profil->id_profil : null,
+            'adherent_nom'         => $profil !== null ? $this->formaterNomComplet($profil) : null,
+            'adherent_licence'     => $profil !== null ? $profil->username : null,
         ];
     }
 
@@ -342,7 +360,8 @@ final class RapprochementPaiementService
      * association manuelle (liste déroulante de l'onglet Paiements orphelins).
      *
      * @param int $idCampagne Identifiant de la campagne.
-     * @return array<int, object> Candidats {id_profil, label} triés par nom/prénom.
+     * @return array<int, object> Candidats {id_profil, label} triés par ordre alphabétique du
+     *                             libellé affiché (prénom puis nom, voir formaterNomComplet()).
      * @throws \RuntimeException Si la requête échoue.
      */
     private function getCandidatsSansPaiement(int $idCampagne): array
@@ -362,8 +381,10 @@ final class RapprochementPaiementService
             ->join('INNER', $db->quoteName('#__users', 'u') . ' ON ' . $db->quoteName('u.id') . ' = ' . $db->quoteName('s.id_profil'))
             ->where($db->quoteName('s.id_campagne') . ' = :id_campagne')
             ->where('(' . $db->quoteName('s.id_order') . ' IS NULL OR ' . $db->quoteName('s.id_order') . " = '' OR " . $db->quoteName('s.id_order') . " = '0')")
-            ->order($db->quoteName('p.nom') . ' ASC')
+            // Trié par prénom puis nom : le libellé affiché (formaterNomComplet()) commence par le
+            // prénom, trier par nom en premier donnerait une liste visuellement dans le désordre.
             ->order($db->quoteName('p.prenom') . ' ASC')
+            ->order($db->quoteName('p.nom') . ' ASC')
             ->bind(':id_campagne', $idCampagne);
 
         $db->setQuery($query);

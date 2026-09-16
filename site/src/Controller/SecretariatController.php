@@ -744,9 +744,10 @@ class SecretariatController extends BaseController
       $result = $model->getPaiementsOrphelins($saison, $forceRefresh);
 
       $html = $this->renderLayoutOrFail('secretariat.paiements_orphelins', [
-        'lignes'      => $result['lignes'] ?? [],
-        'candidats'   => $result['candidats'] ?? [],
-        'id_campagne' => (int) $saison->id_campagne,
+        'lignes'          => $result['lignes'] ?? [],
+        'candidats'       => $result['candidats'] ?? [],
+        'id_campagne'     => (int) $saison->id_campagne,
+        'nb_non_associes' => (int) ($result['nb_non_associes'] ?? 0),
       ]);
 
       $response = new JsonResponse();

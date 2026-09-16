@@ -359,6 +359,42 @@
     }
   };
 
+  // Dernier HTML brut (non filtre) recu du serveur pour l'etape 5, et filtre actuellement
+  // selectionne : conserves pour pouvoir re-filtrer cote client (#orphelinsFilter) sans
+  // repartir en ajax a chaque changement, cf. renderStepOrphelins() ci-dessous.
+  let lastOrphelinsHtml = '';
+  let currentOrphelinsFilter = 'non_associes';
+
+  /**
+   * (Re)affiche le contenu de l'etape 5 a partir du dernier HTML recu du serveur
+   * (lastOrphelinsHtml), en ne gardant que les lignes `<tr>` correspondant au filtre courant
+   * (currentOrphelinsFilter) avant d'initialiser simple-datatables : la lib reconstruit sa
+   * propre pagination a l'init a partir des lignes presentes dans le DOM source, le filtrage
+   * doit donc avoir lieu avant, pas en cachant des lignes apres coup.
+   * @returns {void}
+   */
+  const renderStepOrphelins = function () {
+    const contentContainer = document.getElementById('step-orphelins-content');
+
+    if (!contentContainer || !lastOrphelinsHtml) {
+      return;
+    }
+
+    contentContainer.innerHTML = lastOrphelinsHtml;
+
+    if (currentOrphelinsFilter !== 'tous') {
+      const wantResolved = currentOrphelinsFilter === 'associes' ? '1' : '0';
+
+      contentContainer.querySelectorAll('table tbody tr[data-resolved]').forEach(function (row) {
+        if (row.dataset.resolved !== wantResolved) {
+          row.remove();
+        }
+      });
+    }
+
+    initStepOrphelinsView();
+  };
+
   /**
    * Charge et remplace le contenu HTML de la step 5 (paiements HelloAsso orphelins).
    * @param {boolean} [forceRefresh=false] Ignore le cache fichier HelloAsso de 30 min.
@@ -402,8 +438,8 @@
         hideOrphelinsLoader();
 
         if (response.success) {
-          contentContainer.innerHTML = decodeURIComponent(escape(atob(response.data)));
-          initStepOrphelinsView();
+          lastOrphelinsHtml = decodeURIComponent(escape(atob(response.data)));
+          renderStepOrphelins();
         }
       }, false);
     }
@@ -1514,6 +1550,21 @@
       window.setTimeout(function () {
         btnRefreshOrphelins.dataset.isSaving = '0';
       }, 1000);
+    });
+  }
+
+  /**
+   * Filtre Tous/Non associés/Associés de l'etape 5 : purement cote client, cf.
+   * renderStepOrphelins() (pas de nouvel appel ajax a chaque changement).
+   */
+  const orphelinsFilter = document.getElementById('orphelinsFilter');
+
+  if (orphelinsFilter) {
+    currentOrphelinsFilter = orphelinsFilter.value;
+
+    orphelinsFilter.addEventListener('change', function () {
+      currentOrphelinsFilter = orphelinsFilter.value;
+      renderStepOrphelins();
     });
   }
 

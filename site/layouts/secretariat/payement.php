@@ -13,9 +13,13 @@ use Joomla\CMS\Language\Text;
  * @var array $displayData
  * - $displayData['report'] : object rapport de paiement, voir SecretariatModel::buildPaymentReport()
  *   (order_found, id_order, date, libelle_choisi, statut, beneficiaire_nom, beneficiaire_licence,
- *   payeur_nom, payeur_email, montant_catalogue, reduction_code, reduction_montant, total_paye,
- *   cotisation_code, cotisation_label, cotisation_montant, cotisation_connue, difference,
+ *   licence_helloasso, payeur_nom, payeur_email, montant_catalogue, reduction_code, reduction_montant,
+ *   total_paye, cotisation_code, cotisation_label, cotisation_montant, cotisation_connue, difference,
  *   receipt_url, fiscal_receipt_url)
+ *
+ * La ligne "Payé par X pour Y (licence)" affiche le payeur réel de la commande (X) et le bénéficiaire
+ * tel que déclaré dans HelloAsso (Y, avec sa licence saisie) : permet de vérifier que l'adhérent
+ * associé à ce paiement (titre de la popup, beneficiaire_nom) est bien la bonne personne.
  */
 $report = $displayData['report'];
 ?>
@@ -57,9 +61,15 @@ $report = $displayData['report'];
                 &nbsp;•&nbsp; <i class="fa-solid fa-user me-1"></i> <?= $this->escape($report->beneficiaire_licence) ?>
               <?php endif; ?>
             </p>
-            <?php if ($report->payeur_nom !== '' && $report->payeur_nom !== $report->beneficiaire_nom) : ?>
+            <?php if ($report->payeur_nom !== '') : ?>
               <p class="mb-0 text-muted small">
-                <i class="fa-solid fa-credit-card me-1"></i> <?= $this->escape(Text::sprintf('COM_GDA_SECRETARIAT_PAYEMENT_PAYEUR', $report->payeur_nom)) ?>
+                <i class="fa-solid fa-credit-card me-1"></i>
+                <?= $this->escape(Text::sprintf(
+                  'COM_GDA_SECRETARIAT_PAYEMENT_PAYEUR',
+                  $report->payeur_nom,
+                  $report->beneficiaire_nom,
+                  $report->licence_helloasso !== '' ? $report->licence_helloasso : Text::_('COM_GDA_SECRETARIAT_ORPHELINS_LICENCE_INCONNUE')
+                )) ?>
               </p>
             <?php endif; ?>
           </div>

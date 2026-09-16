@@ -538,7 +538,7 @@ class com_gdadhesionsInstallerScript
         ];
 
         $model->save($data);
-        Factory::getApplication()->enqueueMessage('Creation de l\'article pour les adhésions fermées', 'info');
+        // Factory::getApplication()->enqueueMessage('Creation de l\'article pour les adhésions fermées', 'info');
         return $model->getState($model->getName() . '.id');
     }
 
@@ -583,7 +583,7 @@ class com_gdadhesionsInstallerScript
 
         $model->save($data);
 
-        Factory::getApplication()->enqueueMessage('Creation de l\'article pour les adhésions fermées:' . $model->getName() . '.id', 'info');
+        // Factory::getApplication()->enqueueMessage('Creation de l\'article pour les adhésions fermées:' . $model->getName() . '.id', 'info');
 
         return $model->getState($model->getName() . '.id');
     }
@@ -638,7 +638,7 @@ class com_gdadhesionsInstallerScript
                     ->values(implode(',', $values));
             }
             $db->setQuery($query)->execute();
-            Factory::getApplication()->enqueueMessage('Enregistrement de la conf IdArticleAdhesionClos', 'info');
+            // Factory::getApplication()->enqueueMessage('Enregistrement de la conf IdArticleAdhesionClos', 'info');
         } catch (\Exception $e) {
             $app->enqueueMessage('Erreur insertion configuration : ' . $e->getMessage(), 'error');
         }
@@ -675,8 +675,8 @@ class com_gdadhesionsInstallerScript
         if ($menuId === null) {
             $model->save($data);
             $menuId = $model->getState($model->getName() . '.id');
-            Factory::getApplication()->enqueueMessage('Creation de l\'item de menu "' . $data['title'] . '" [' . $menuId . ']', 'info');
-        } 
+            // Factory::getApplication()->enqueueMessage('Creation de l\'item de menu "' . $data['title'] . '" [' . $menuId . ']', 'info');
+        }
         // else {
         //     Factory::getApplication()->enqueueMessage('L\'item de menu "' . $data['title'] . '" existe déjà [' . $menuId . ']', 'info');
         // }
@@ -754,7 +754,7 @@ class com_gdadhesionsInstallerScript
         $table->check();
         $table->store();
         $id = $table->id;
-        Factory::getApplication()->enqueueMessage('Creation du UserGroup "' . $title . '" [' . $id . ']', 'info');
+        // Factory::getApplication()->enqueueMessage('Creation du UserGroup "' . $title . '" [' . $id . ']', 'info');
         return (int) $id;
     }
 
@@ -806,7 +806,7 @@ class com_gdadhesionsInstallerScript
         $db->setQuery($query);
         $db->execute();
         $id = $db->insertid();
-        Factory::getApplication()->enqueueMessage('Creation de l\'AccessLevel "' . $title . '" [' . $id . ']', 'info');
+        // Factory::getApplication()->enqueueMessage('Creation de l\'AccessLevel "' . $title . '" [' . $id . ']', 'info');
         return $id;
     }
 
@@ -881,7 +881,7 @@ class com_gdadhesionsInstallerScript
                 UserHelper::addUserToGroup($existingUserId, (int) $groupId);
             }
 
-            Factory::getApplication()->enqueueMessage('Utilisateur déjà existant [' . $existingUserId . ']', 'info');
+            // Factory::getApplication()->enqueueMessage('Utilisateur déjà existant [' . $existingUserId . ']', 'info');
             return $existingUserId;
         }
 
@@ -909,7 +909,7 @@ class com_gdadhesionsInstallerScript
         foreach ($groupIds as $groupId) {
             UserHelper::addUserToGroup($userId, (int) $groupId);
         }
-        Factory::getApplication()->enqueueMessage('Utilisateur ' . $data['username'] . ' créé, id=' . $userId, 'info');
+        // Factory::getApplication()->enqueueMessage('Utilisateur ' . $data['username'] . ' créé, id=' . $userId, 'info');
         return $userId;
     }
 }

@@ -992,6 +992,9 @@ class SecretariatModel extends ListModel
    *   pas "montant_catalogue - reduction" (qui suppose un paiement intégral et ne serait plus
    *   correct pour un paiement partiel/échelonné)
    * - difference = cotisation_montant - total_paye (positif = restant dû, négatif = trop versé)
+   * - licence_helloasso = licence telle que saisie dans le formulaire HelloAsso (customFields de
+   *   l'item), à distinguer de beneficiaire_licence (le username Joomla déjà connu) : sert à
+   *   vérifier que l'association entre le paiement et l'adhérent est correcte.
    *
    * @param array|null $item         Item HelloAsso de l'adhérent (HelloAssoService::findItemForAdherent()), ou null si aucune commande/paiement.
    * @param array      $orderDetails Commande HelloAsso complète (HelloAssoService::getOrderDetails()), ou [] si non résolue.
@@ -1017,6 +1020,7 @@ class SecretariatModel extends ListModel
         'statut' => '',
         'beneficiaire_nom' => trim((string) ($adherent->prenom ?? '') . ' ' . (string) ($adherent->nom ?? '')),
         'beneficiaire_licence' => (string) ($adherent->username ?? ''),
+        'licence_helloasso' => '',
         'payeur_nom' => '',
         'payeur_email' => '',
         'montant_catalogue' => 0.0,
@@ -1068,6 +1072,10 @@ class SecretariatModel extends ListModel
       'statut' => Text::_('COM_GDA_SECRETARIAT_PAYEMENT_STATE_' . strtoupper((string) ($item['state'] ?? 'unknown'))),
       'beneficiaire_nom' => trim((string) ($item['user']['firstName'] ?? '') . ' ' . (string) ($item['user']['lastName'] ?? '')),
       'beneficiaire_licence' => (string) ($adherent->username ?? ''),
+      // Licence telle que SAISIE dans HelloAsso (customFields), distincte de beneficiaire_licence
+      // (le username Joomla déjà connu de l'adhérent associé) : permet de vérifier que l'association
+      // est correcte en comparant ce qui a été déclaré à ce qui a été retenu.
+      'licence_helloasso' => (string) ($this->getHelloAsso()->extractLicenceAnswer($item) ?? ''),
       'payeur_nom' => trim((string) ($payer['firstName'] ?? '') . ' ' . (string) ($payer['lastName'] ?? '')),
       'payeur_email' => (string) ($payer['email'] ?? ''),
       'montant_catalogue' => $grossAmount / 100,

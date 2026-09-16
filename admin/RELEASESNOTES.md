@@ -1,5 +1,16 @@
 # Component com_gadhesions
 
+## Version 0.9.16  
+
+- 📈 Améliorations
+  - Ajouter des filtre  dans Association HelloAsso
+  - Trier les elements dans le combo
+  - Ajout dans les popup de paiment le non issue de HelloAsso "Pour Nom Prenom(lic)"
+  - Nombre des HelloAsso qui ne sont pas associés
+ 
+- 🪲 Bugs
+
+
 ## Version 0.9.15
   - 📰 Nouveautés
     - Nouvel onglet dans la vue `Secrétariat` pour  vérifier les associations entre Hello Asso et les adhérents.
