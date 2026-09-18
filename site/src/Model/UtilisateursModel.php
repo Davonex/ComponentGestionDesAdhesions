@@ -207,6 +207,7 @@ class UtilisateursModel extends ListModel
                 $db->quoteName('s.id_campagne'),
                 $db->quoteName('s.id_profil'),
                 $db->quoteName('s.cotisation_code'),
+                $db->quoteName('s.cotisation_montant'),
                 $db->quoteName('s.caci_check'),
                 $db->quoteName('s.cotisation_check'),
                 $db->quoteName('s.licence_check'),

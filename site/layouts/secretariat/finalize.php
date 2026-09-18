@@ -3,6 +3,7 @@
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\HTML\HTMLHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
+use NCB\Component\Gda\Site\Service\CotisationService;
 
 /**
  * @var array $displayData
@@ -17,20 +18,22 @@ $items = $displayData['items'] ?? [];
     <?php if (empty($items)) : ?>
       <p class="text-muted"><?= Text::_('COM_GDA_SECRETARIAT_STEP4_EMPTY') ?? 'Aucune adhésion finalisée pour le moment.' ?></p>
     <?php else : ?>
-      <table class="table table-bordered table-striped">
+      <table class="table table-bordered table-striped secretariat-table">
         <thead>
           <tr>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ACTION') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PHOTO') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CACI') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PAIEMENT') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_LICENCE') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_NAME') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_EMAIL') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE_DE_NAISSANCE') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_COTISATION') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CATEGORIE') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE') ?></th>
+            <th>
+              <!-- <?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ACTION') ?> -->
+            </th>
+            <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PHOTO') ?></th>
+            <th class="align-middle"><i class="fa-solid fa-file-medical me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CACI') ?></th>
+            <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PAIEMENT') ?></th>
+            <th class="align-middle"><i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_LICENCE') ?></th>
+            <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_NAME') ?></th>
+            <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_EMAIL') ?></th>
+            <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE_DE_NAISSANCE') ?></th>
+            <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_COTISATION') ?></th>
+            <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CATEGORIE') ?></th>
+            <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE') ?></th>
           </tr>
         </thead>
         <tbody>
@@ -49,16 +52,18 @@ $items = $displayData['items'] ?? [];
                   $licenceClass .= ' gda-licence-chip--warning';
                 }
               ?>
+              <?php $hintDefinaliser = Text::_('COM_GDA_SECRETARIAT_INSCRIPTION_UNFINALIZE_HINT'); ?>
               <td class="text-start">
                 <button
                   type="button"
-                  class="btn btn-sm btn-outline-warning js-unfinalize-inscription"
+                  class="btn btn-sm btn-outline-warning gda-btn-step js-unfinalize-inscription"
                   data-item-id="<?= (int) ($item->id_profil ?? 0) ?>"
                   data-item-campagne="<?= (int) ($item->id_campagne ?? 0) ?>"
                   data-bs-toggle="tooltip"
-                  data-bs-title="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_INSCRIPTION_UNFINALIZE_HINT') ?? 'Retirer la finalisation de l\'inscription') ?>"
-                  title="<?= Text::_('COM_GDA_SECRETARIAT_INSCRIPTION_UNFINALIZE_HINT') ?? 'Retirer la finalisation de l\'inscription' ?>">
-                  <?= Text::_('COM_GDA_SECRETARIAT_INSCRIPTION_UNFINALIZE') ?? 'Dé-finaliser inscription' ?>
+                  data-bs-title="<?= $this->escape($hintDefinaliser) ?>"
+                  title="<?= $this->escape($hintDefinaliser) ?>"
+                  aria-label="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_INSCRIPTION_UNFINALIZE')) ?>">
+                  <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
                 </button>
               </td>
               <?php $pathPhoto = FileHelper::getImageSrc($item->photo, 'ProfilPhotoPath', 'DefaultProfilPhoto'); ?>
@@ -144,7 +149,7 @@ $items = $displayData['items'] ?? [];
               </td>
               <td><?= $this->escape((string) ($item->email ?? '')) ?></td>
               <td><?= HTMLHelper::date($item->date_de_naissance, 'd/m/Y') ?></td>
-              <td><?= $this->escape(Text::_('COM_GDA_COTISATION_TARIF_' . ($item->cotisation_code ?? ''))) ?></td>
+              <td><?= $this->escape(CotisationService::getLabel((string) ($item->cotisation_code ?? ''))) ?></td>
               <td><?= $this->escape((string) ($item->categorie ?? '')) ?></td>
               <td><?= HTMLHelper::date($item->date_souscription, 'd/m/Y H:i') ?></td>
             </tr>

@@ -108,8 +108,9 @@ class SecretariatModel extends ListModel
    * Façade sur RapprochementPaiementService::getPaiementsOrphelins() pour la campagne courante.
    *
    * @param object $saison       Campagne courante décorée (ConfHelper::getSaisonService()->getSaisonCourante()).
-   * @param bool   $forceRefresh true = contourne le cache fichier HelloAsso de 30 min.
-   * @return array{lignes: array<int, object>, candidats: array<int, object>}
+   * @param bool   $forceRefresh true = contourne le cache fichier HelloAsso de 30 min et déclenche une
+   *                             tentative d'association automatique par correspondance exacte de licence.
+   * @return array{lignes: array<int, object>, candidats: array<int, object>, nb_non_associes: int, nb_auto_associes: int}
    * @throws \RuntimeException Voir RapprochementPaiementService::getPaiementsOrphelins().
    */
   public function getPaiementsOrphelins(object $saison, bool $forceRefresh = false): array
@@ -189,6 +190,7 @@ class SecretariatModel extends ListModel
       $db->quoteName('s.date_souscription'),
       $db->quoteName('s.last_update'),
       $db->quoteName('s.cotisation_code'),
+      $db->quoteName('s.cotisation_montant'),
       $db->quoteName('s.id_order'),
       $db->quoteName('s.categorie'),
       'p.*',
@@ -560,6 +562,124 @@ class SecretariatModel extends ListModel
     }
 
     return true;
+  }
+
+  /**
+   * Corrige la tarification (champ "reduction") d'un adherent et recalcule le code de
+   * cotisation qui en decoule, en combinant ce choix avec l'age et la localisation deja
+   * connus du profil (meme calcul qu'a l'adhesion, voir CotisationService::getCode()).
+   * La correction est persistee sur le profil (#__gda_profils.reduction) pour que les
+   * saisons futures en heritent, et sur la souscription en cours.
+   *
+   * @param int $idProfil Identifiant du profil.
+   * @param int $idCampagne Identifiant de la campagne.
+   * @param int $reduction Type de reduction. Les valeurs acceptees sont celles des tarifs
+   *                       ACTIFS de #__gda_cotisation (onglet "Tarification" de la vue Saisons) :
+   *                       desactiver un tarif interdit immediatement la correction vers cette
+   *                       option, y compris pour une souscription en cours.
+   * @return array{cotisation_code: string, cotisation_label: string, cotisation_montant: float, cotisation_montant_affiche: string, categorie: string}
+   * @throws \InvalidArgumentException Si les identifiants ou la reduction sont invalides.
+   * @throws \RuntimeException Si le profil ou la souscription sont introuvables.
+   */
+  public function updateCotisationCode(int $idProfil, int $idCampagne, int $reduction): array
+  {
+    if ($idProfil <= 0 || $idCampagne <= 0) {
+      throw new \InvalidArgumentException('Identifiants invalides.');
+    }
+
+    $db = $this->getDatabase();
+
+    // Memes choix que le champ "reduction" (Tarification) du formulaire d'adhesion : la liste
+    // blanche est construite depuis les tarifs ACTIFS de #__gda_cotisation, source de verite
+    // unique depuis la 0.9.17.
+    if (!in_array($reduction, array_keys(CotisationService::getOptionsReduction($db)), true)) {
+      throw new \InvalidArgumentException('Reduction invalide.');
+    }
+
+    $now = Factory::getDate()->toSql();
+
+    $db->transactionStart();
+
+    try {
+      $profilQuery = $db->createQuery()
+        ->select([$db->quoteName('date_de_naissance'), $db->quoteName('code_postal')])
+        ->from($db->quoteName('#__gda_profils'))
+        ->where($db->quoteName('id_profil') . ' = :id_profil')
+        ->bind(':id_profil', $idProfil);
+
+      $db->setQuery($profilQuery);
+      $profil = $db->loadObject();
+
+      if ($profil === null) {
+        throw new \RuntimeException('Profil introuvable.');
+      }
+
+      $updateProfilQuery = $db->createQuery()
+        ->update($db->quoteName('#__gda_profils'))
+        ->set($db->quoteName('reduction') . ' = :reduction')
+        ->where($db->quoteName('id_profil') . ' = :id_profil')
+        ->bind(':reduction', $reduction)
+        ->bind(':id_profil', $idProfil);
+
+      $db->setQuery($updateProfilQuery);
+      $db->execute();
+
+      $dateDeNaissance = (string) ($profil->date_de_naissance ?? '');
+
+      $cotisationService = new CotisationService($db, [
+        'dateDeNaissance' => $dateDeNaissance,
+        'codePostal' => (string) ($profil->code_postal ?? ''),
+        'reduction' => $reduction,
+      ]);
+
+      $code = $cotisationService->getCode();
+      $categorie = $dateDeNaissance !== '' ? CotisationService::GetCategorie($code, $dateDeNaissance) : null;
+      // Montant reellement du : pour l'option "Licence seule", c'est la licence FFESSM (selon
+      // l'age), pas 0€.
+      $montant = CotisationService::getMontantSouscription($code, $dateDeNaissance, $db);
+
+      // Corriger la tarification doit re-figer le montant : sans cela la souscription garderait
+      // le montant calcule avec l'ancienne reduction.
+      $montantFige = number_format($montant, 2, '.', '');
+
+      $updateSouscriptionQuery = $db->createQuery()
+        ->update($db->quoteName('#__gda_souscriptions'))
+        ->set($db->quoteName('cotisation_code') . ' = :cotisation_code')
+        ->set($db->quoteName('cotisation_montant') . ' = :cotisation_montant')
+        ->set($db->quoteName('last_update') . ' = :last_update')
+        ->where($db->quoteName('id_profil') . ' = :id_profil')
+        ->where($db->quoteName('id_campagne') . ' = :id_campagne')
+        ->bind(':cotisation_code', $code)
+        ->bind(':cotisation_montant', $montantFige)
+        ->bind(':last_update', $now)
+        ->bind(':id_profil', $idProfil)
+        ->bind(':id_campagne', $idCampagne);
+
+      if ($categorie !== null) {
+        $updateSouscriptionQuery->set($db->quoteName('categorie') . ' = :categorie')
+          ->bind(':categorie', $categorie);
+      }
+
+      $db->setQuery($updateSouscriptionQuery);
+      $db->execute();
+
+      if ((int) $db->getAffectedRows() === 0) {
+        throw new \RuntimeException('Aucune souscription mise a jour.');
+      }
+
+      $db->transactionCommit();
+    } catch (\Throwable $e) {
+      $db->transactionRollback();
+      throw $e;
+    }
+
+    return [
+      'cotisation_code' => $code,
+      'cotisation_label' => CotisationService::getLabel($code, $db),
+      'cotisation_montant' => $montant,
+      'cotisation_montant_affiche' => CotisationService::formatMontant($montant),
+      'categorie' => $categorie ?? '',
+    ];
   }
 
   /**
@@ -964,6 +1084,7 @@ class SecretariatModel extends ListModel
     $query = $db->createQuery()
       ->select([
         $db->quoteName('s.cotisation_code'),
+        $db->quoteName('s.cotisation_montant'),
         $db->quoteName('p.nom'),
         $db->quoteName('p.prenom'),
         $db->quoteName('u.username'),
@@ -1002,12 +1123,16 @@ class SecretariatModel extends ListModel
    */
   private function buildPaymentReport(?array $item, array $orderDetails, object $adherent): object
   {
-    // CotisationService::getMontant() retourne un montant en EUROS (ex: 205), contrairement aux
-    // montants HelloAsso ($totalPaye, $grossAmount, $discountAmount ci-dessous) qui sont en centimes.
+    // La cotisation est exprimee en EUROS decimaux (ex: 205.00), contrairement aux montants
+    // HelloAsso ($totalPaye, $grossAmount, $discountAmount ci-dessous) qui sont en centimes.
+    // On lit le montant FIGE a la souscription : recalculer le tarif courant fausserait le
+    // rapprochement d'une souscription anterieure a une correction de tarif par le Bureau.
     $cotisationCode = trim((string) ($adherent->cotisation_code ?? ''));
     $cotisationConnue = $cotisationCode !== '';
-    $cotisationMontant = $cotisationConnue ? CotisationService::getMontant($cotisationCode) : 0;
-    $cotisationLabel = $cotisationConnue ? Text::_('COM_GDA_COTISATION_TARIF_' . $cotisationCode) : '';
+    $cotisationMontant = $cotisationConnue
+      ? CotisationService::getMontantFige($adherent->cotisation_montant ?? null, $cotisationCode)
+      : 0.0;
+    $cotisationLabel = $cotisationConnue ? CotisationService::getLabel($cotisationCode) : '';
 
     $orderFound = !empty($orderDetails['payments']) && $item !== null;
 

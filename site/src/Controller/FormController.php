@@ -157,20 +157,25 @@ class FormController extends BaseController
             // Utiliser l'objet cotisation service pour calculer le tarif de la cotisation et les droits à l'image
             $service = new CotisationService(Factory::getContainer()->get('DatabaseDriver'), $data);
 
+            $db = Factory::getContainer()->get('DatabaseDriver');
+
             $result['code'] =  $service->getCode();
-            $result['montant'] =  CotisationService::getMontant($result['code'], Factory::getContainer()->get('DatabaseDriver'));
-            // mettre la decription de la cotisation et concatener le montant en Euro avec 0 decimale
-            $result['innerHtml'] = Text::_('COM_GDA_COTISATION_TARIF_' . $result['code']) . ' : <pan class="fw-bold">' . number_format($result['montant'], 0, ',', ' ') . ',00 €</span>';
-            // Contrôles métier (popups côté client) : réduction Famille réservée aux adultes
-            // (avertissement, ne bloque pas), âge minimum du club (bloquant). Le message est
+            // Montant réellement dû : pour l'option "Licence seule", c'est la licence FFESSM
+            // (selon l'âge), pas 0€ - voir CotisationService::getMontantSouscription().
+            $montant = CotisationService::getMontantSouscription($result['code'], (string) $data['dateDeNaissance'], $db);
+            // Notation SQL pour le champ caché #jform_cotisation_montant (repris tel quel par
+            // adhesions.js), chaîne formatée à part pour l'affichage du récapitulatif.
+            $result['montant'] = number_format($montant, 2, '.', '');
+            $result['montant_affiche'] = CotisationService::formatMontant($montant);
+            // Libellé de la tarification retenue (2e ligne du récapitulatif) : texte brut, assigné
+            // côté client via textContent (adhesions.js) - pas de HTML à échapper ici.
+            $result['label_affiche'] = CotisationService::getLabel($result['code'], $db);
+            // Contrôle métier (popup côté client) : âge minimum du club (bloquant). Le message est
             // rendu ici, côté serveur, via le layout adhesion.alert pour rester modifiable au
             // même endroit que le reste du gabarit de la vue.
             $alerts = [];
             if (!$service->isAgeMinimumRespecte()) {
                 $alerts[] = ['title' => Text::_('COM_GDA_ADHESION_AGE_MINIMUM_TITLE'), 'message' => Text::_('COM_GDA_ADHESION_AGE_MINIMUM_MESSAGE')];
-            }
-            if (!$service->isReductionFamilleValide()) {
-                $alerts[] = ['title' => Text::_('COM_GDA_ADHESION_REDUCTION_FAMILLE_TITLE'), 'message' => Text::_('COM_GDA_ADHESION_REDUCTION_FAMILLE_MESSAGE')];
             }
 
             $result['age_minimum_non_respecte'] = !$service->isAgeMinimumRespecte();

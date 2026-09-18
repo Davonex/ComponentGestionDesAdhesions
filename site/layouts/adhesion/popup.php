@@ -2,6 +2,7 @@
 
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
+use NCB\Component\Gda\Site\Service\CotisationService;
 use Joomla\CMS\Language\Text;
 
 /**
@@ -83,7 +84,7 @@ $caciWarningMessage = '';
       <ol class="list-unstyled mb-0">
         <li class="d-flex align-items-start mb-2">
           <span class="badge rounded-pill bg-primary me-2">1</span>
-          <span class="small"><?= Text::sprintf('COM_GDA_ADHESION_POPUP_STEP1', $this->escape(Text::_('COM_GDA_COTISATION_TARIF_' . $item['cotisation_code']))) ?></span>
+          <span class="small"><?= Text::sprintf('COM_GDA_ADHESION_POPUP_STEP1', $this->escape(CotisationService::getLabel((string) $item['cotisation_code']))) ?></span>
         </li>
         <li class="d-flex align-items-start mb-2">
           <span class="badge rounded-pill bg-primary me-2">2</span>

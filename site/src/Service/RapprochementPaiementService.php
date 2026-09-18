@@ -6,6 +6,7 @@ namespace NCB\Component\Gda\Site\Service;
 
 use Joomla\CMS\Language\Text;
 use Joomla\Database\DatabaseInterface;
+use NCB\Component\Gda\Site\Helper\GdaLogger;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 
 /**
@@ -53,12 +54,17 @@ final class RapprochementPaiementService
      *
      * @param object $saison       Campagne décorée (ConfHelper::getSaisonService()->getSaisonCourante()),
      *                              doit exposer ->id_campagne, ->formType, ->formSlug.
-     * @param bool   $forceRefresh true = contourne le cache fichier HelloAsso de 30 min (bouton "Rafraîchir").
-     * @return array{lignes: array<int, object>, candidats: array<int, object>, nb_non_associes: int}
+     * @param bool   $forceRefresh true = contourne le cache fichier HelloAsso de 30 min et déclenche une
+     *                             tentative d'association automatique par correspondance exacte de
+     *                             licence sur les lignes encore orphelines (bouton "Rafraîchir" — voir
+     *                             autoAssocierParLicenceExacte()).
+     * @return array{lignes: array<int, object>, candidats: array<int, object>, nb_non_associes: int, nb_auto_associes: int}
      *   - lignes[]: {id_order, date, payeur_nom, beneficiaire_nom, beneficiaire_licence, resolved(bool), adherent_id_profil(?int), adherent_nom(?string), adherent_licence(?string)}
-     *   - candidats[]: {id_profil, label} — adhérents de la campagne dont id_order est encore vide.
+     *   - candidats[]: {id_profil, label, username} — adhérents de la campagne dont id_order est encore vide.
      *   - nb_non_associes : nombre de lignes encore orphelines (resolved = false), pour le message
      *     récapitulatif en tête de l'onglet (même motif que Brevets::nbNonRattaches).
+     *   - nb_auto_associes : nombre d'associations automatiques effectuées lors de cet appel (0 si
+     *     $forceRefresh = false ou si aucune correspondance exacte n'a été trouvée).
      * @throws \RuntimeException Si la campagne n'a pas de formulaire HelloAsso configuré, si l'appel
      *                           API échoue, ou si une requête SQL échoue.
      */
@@ -74,12 +80,103 @@ final class RapprochementPaiementService
         $items = $this->flattenHelloAssoItems($orders);
         $resolus = $this->getSouscriptionsResolues($idCampagne);
         $lignes = $this->resoudreItemsParAdherent($items, $resolus);
+        $candidats = $this->getCandidatsSansPaiement($idCampagne);
+
+        $nbAutoAssocies = 0;
+
+        if ($forceRefresh) {
+            $nbAutoAssocies = $this->autoAssocierParLicenceExacte($lignes, $candidats, $idCampagne);
+
+            if ($nbAutoAssocies > 0) {
+                // Les associations qui viennent d'être persistées changent l'état de la campagne :
+                // on reconstruit lignes/candidats à partir de la base plutôt que de patcher les
+                // tableaux en mémoire, pour rester la seule source de vérité.
+                $resolus = $this->getSouscriptionsResolues($idCampagne);
+                $lignes = $this->resoudreItemsParAdherent($items, $resolus);
+                $candidats = $this->getCandidatsSansPaiement($idCampagne);
+            }
+        }
 
         return [
-            'lignes'          => $lignes,
-            'candidats'       => $this->getCandidatsSansPaiement($idCampagne),
-            'nb_non_associes' => count(array_filter($lignes, static fn (object $ligne): bool => empty($ligne->resolved))),
+            'lignes'           => $lignes,
+            'candidats'        => $candidats,
+            'nb_non_associes'  => count(array_filter($lignes, static fn (object $ligne): bool => empty($ligne->resolved))),
+            'nb_auto_associes' => $nbAutoAssocies,
         ];
+    }
+
+    /**
+     * Tente une association automatique par correspondance exacte de licence, pour chaque ligne
+     * encore orpheline dont la licence déclarée dans HelloAsso correspond exactement au username
+     * d'un candidat libre de la campagne. Reproduit à l'échelle de toute la campagne ce que
+     * SouscriptionService::resolveIdOrder() fait déjà pour un seul adhérent, mais seulement à la
+     * visite de son propre tableau de bord : en production, un paiement dont ni l'adhérent ni le
+     * secrétariat n'a revisité cette page reste orphelin indéfiniment malgré une licence correcte —
+     * ce mécanisme comble ce trou en le déclenchant explicitement au clic sur "Rafraîchir", pour
+     * toute la campagne d'un coup.
+     *
+     * Ne fait rien de plus qu'une correspondance déjà sans ambiguïté (licence strictement identique,
+     * après `trim()`) : ne remplace pas la vérification manuelle nécessaire pour les cas ambigus
+     * (typo, homonymie), qui restent affichés comme orphelins pour traitement par la secrétaire.
+     *
+     * @param array<int, object> $lignes     Lignes déjà résolues/orphelines (resoudreItemsParAdherent()).
+     * @param array<int, object> $candidats  Candidats libres de la campagne (getCandidatsSansPaiement()),
+     *                                       doit exposer ->id_profil et ->username.
+     * @param int                $idCampagne Identifiant de la campagne.
+     * @return int Nombre d'associations automatiques effectuées.
+     */
+    private function autoAssocierParLicenceExacte(array $lignes, array $candidats, int $idCampagne): int
+    {
+        $candidatParUsername = [];
+
+        foreach ($candidats as $candidat) {
+            $candidatParUsername[trim((string) $candidat->username)] = $candidat;
+        }
+
+        if ($candidatParUsername === []) {
+            return 0;
+        }
+
+        $souscriptionService = new SouscriptionService($this->db);
+        $nbAssocies = 0;
+
+        foreach ($lignes as $ligne) {
+            if (!empty($ligne->resolved)) {
+                continue;
+            }
+
+            $licence = trim((string) ($ligne->beneficiaire_licence ?? ''));
+
+            if ($licence === '' || !isset($candidatParUsername[$licence])) {
+                continue;
+            }
+
+            $candidat = $candidatParUsername[$licence];
+
+            try {
+                $souscriptionService->updateIdOrder((int) $candidat->id_profil, $idCampagne, (string) $ligne->id_order);
+                $nbAssocies++;
+                // Un même candidat ne doit pas être réutilisé pour une autre ligne dans cette passe.
+                unset($candidatParUsername[$licence]);
+
+                GdaLogger::info(sprintf(
+                    'RapprochementPaiementService::autoAssocierParLicenceExacte() - Association automatique : commande %s -> profil %d (%s), campagne %d',
+                    $ligne->id_order,
+                    $candidat->id_profil,
+                    $licence,
+                    $idCampagne
+                ));
+            } catch (\Throwable $e) {
+                GdaLogger::warning(sprintf(
+                    'RapprochementPaiementService::autoAssocierParLicenceExacte() - Échec association automatique (commande %s, profil %d) : %s',
+                    $ligne->id_order,
+                    $candidat->id_profil,
+                    $e->getMessage()
+                ));
+            }
+        }
+
+        return $nbAssocies;
     }
 
     /**
@@ -360,8 +457,8 @@ final class RapprochementPaiementService
      * association manuelle (liste déroulante de l'onglet Paiements orphelins).
      *
      * @param int $idCampagne Identifiant de la campagne.
-     * @return array<int, object> Candidats {id_profil, label} triés par ordre alphabétique du
-     *                             libellé affiché (prénom puis nom, voir formaterNomComplet()).
+     * @return array<int, object> Candidats {id_profil, label, username} triés par ordre alphabétique
+     *                             du libellé affiché (prénom puis nom, voir formaterNomComplet()).
      * @throws \RuntimeException Si la requête échoue.
      */
     private function getCandidatsSansPaiement(int $idCampagne): array
@@ -401,6 +498,9 @@ final class RapprochementPaiementService
             $candidats[] = (object) [
                 'id_profil' => (int) $row->id_profil,
                 'label'     => $this->formaterNomComplet($row) . ' (' . $row->username . ')',
+                // Exposé pour autoAssocierParLicenceExacte() (comparaison exacte avec la licence
+                // déclarée dans HelloAsso) — le layout n'utilise que 'label'.
+                'username'  => (string) $row->username,
             ];
         }
 

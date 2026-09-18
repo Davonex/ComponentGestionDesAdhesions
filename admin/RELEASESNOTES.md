@@ -1,5 +1,42 @@
 # Component com_gadhesions
 
+## Version 0.9.17 
+
+- 📰 Nouveautés
+  - Nouvel onglet `Tarification` dans la vue `Saisons` : modifier les libellés et les tarifs par double-clic.
+  - Les libellés proposés dans la liste "Tarification" du formulaire d'adhésion sont modifiables.
+  - Les tarifs de licence FFESSM sont modifiables au même endroit.
+  - Activer ou désactiver un tarif sans passer par un développeur.
+  - Nouvelle option "Licence seule" dans le formulaire d'adhésion, pour les personnes qui souhaitent uniquement la licence FFESSM sans adhérer au club.
+
+- 📈 Améliorations
+  - Permetre à la secretaire de modifier la tarification.
+  - Icon crayon pour modifier les champs.
+  - Rafraîchir tente maintenant une association automatique par licence exacte.
+  - HelloAsso VS OrAdhérent : correction d'association possible (double-clic, option "Aucun").
+  - HelloAsso VS Adhérent : clic sur le n° de commande pour voir le détail du paiement.
+  - Les tarifs acceptent les centimes.
+  - Un tarif désactivé n'est plus proposé dans le formulaire d'adhésion.
+  - Changer un tarif ne modifie plus le montant des adhésions déjà enregistrées.
+  - La mention "[Hors Agglo]" s'ajoute toute seule quand les deux tarifs sont différents.
+  - Adhésion : le champ "Tarification" est maintenant à l'étape "Info plongeur", à côté du choix des groupes.
+  - Adhésion : le récapitulatif affiche désormais séparément le montant à régler et le libellé de la tarification choisie.
+  - Adhésion : le choix d'un groupe de formation est obligatoire (sauf pour "Licence seule"), avec un message d'aide si le champ est resté vide.
+  - Adhésion : le champ "groupe" se vide et se grise automatiquement pour l'option "Licence seule".
+  - Adhésion : le bouton "Valider" est repositionné à côté du titre à l'étape Récapitulatif.
+  - Tarification : les lignes de licence FFESSM précisent maintenant Adulte / Jeune / Enfant.
+  - Secretariat: 100% jusqu'a 1200px
+
+
+- 🪲 Bugs
+  - Erreur dans le tooltips dans la vue secretariat Step One
+  - Erreur de la validation multiple du formulaire d'Adhesion
+  - Secrétariat : le coût de la licence s'affichait sans les centimes (48 € au lieu de 48,50 €).
+  - Adhésion : le montant de la cotisation manquait dans le récapitulatif.
+  - Adjésion: supression du message reduction famille pour les jeunes.
+  - Adhésion : un groupe précédemment choisi restait enregistré même après avoir été retiré du formulaire (ou remplacé par "Licence seule").
+
+
 ## Version 0.9.16  
 
 - 📈 Améliorations

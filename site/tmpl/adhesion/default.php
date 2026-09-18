@@ -9,6 +9,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Layout\LayoutHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Helper\AdhesionHelper;
+use NCB\Component\Gda\Site\Service\CotisationService;
 
 use Joomla\CMS\HTML\Helpers\Bootstrap;
 
@@ -52,6 +53,9 @@ Text::script('COM_GDADHESIONS_DROIT_IMAGE_NON');
 Text::script('COM_GDADHESIONS_PAS_DE_LICENCE');
 Text::script('COM_GDA_ADHESION_RECAP_AUCUN_GROUPE');
 Text::script('COM_GDA_ADHESION_RECAP_AUCUN_BREVET');
+// "Licence seule" : superpose le bloc #recap_groupes au récapitulatif (adhesions.js), en plus de
+// la popup au changement du champ Tarification et du rappel dans les mails de création/mise à jour.
+Text::script('COM_GDA_ADHESION_LICENCE_SEULE_MESSAGE');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_CHARGE');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_NON_CHARGE');
 Text::script('COM_GDA_ADHESION_RECAP_CACI_NON_RENSEIGNE');
@@ -97,6 +101,23 @@ $app->getDocument()->addScriptOptions('com_gdadhesions.stepInvalidAlert', $stepI
 // Titre de la popup d'erreur d'upload (photo/CACI) : le message lui-même est dynamique (nom de
 // fichier, taille), construit côté JS - cf. showAdhesionAlertText() dans adhesions.js.
 Text::script('COM_GDA_ADHESION_UPLOAD_ERROR_TITLE');
+
+// Popup "Licence seule" : affichée par adhesions.js au changement du champ Tarification
+// (#jform_reduction) dès que la valeur choisie correspond à CotisationService::REDUCTION_LICENCE_SEULE,
+// rendue une fois ici comme les autres popups statiques de la vue.
+$licenceSeuleAlertHtml = base64_encode(LayoutHelper::render('adhesion.alert', ['alerts' => [
+    ['title' => Text::_('COM_GDA_ADHESION_LICENCE_SEULE_TITLE'), 'message' => Text::_('COM_GDA_ADHESION_LICENCE_SEULE_MESSAGE')],
+]]));
+$app->getDocument()->addScriptOptions('com_gdadhesions.licenceSeuleAlert', $licenceSeuleAlertHtml);
+$app->getDocument()->addScriptOptions('com_gdadhesions.reductionLicenceSeule', CotisationService::REDUCTION_LICENCE_SEULE);
+
+// Popup "Groupe de formation requis" : affichée par adhesions.js si le champ "Rejoignez un
+// groupe" est vide au passage à l'étape récapitulatif, pour toute tarification autre que
+// "Licence seule" (qui ne donne accès à aucun groupe de formation).
+$groupeRequiredAlertHtml = base64_encode(LayoutHelper::render('adhesion.alert', ['alerts' => [
+    ['title' => Text::_('COM_GDA_ADHESION_GROUPE_REQUIRED_TITLE'), 'message' => Text::_('COM_GDA_ADHESION_GROUPE_REQUIRED_MESSAGE')],
+]]));
+$app->getDocument()->addScriptOptions('com_gdadhesions.groupeRequiredAlert', $groupeRequiredAlertHtml);
 
 
 
@@ -157,6 +178,12 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
             <i class="fa fa-qrcode"></i> <?php echo Text::_('COM_GDA_SCAN_QRCODE'); ?>
           </button>
         </div>
+        <!-- Bouton Valider, visible uniquement à l'étape "Récapitulatif" (géré en JS, cf. slid.bs.carousel) -->
+        <div>
+          <button id="btnValider" class="btn btn-success d-none btn-lg" onclick='submitform(event,"form-adhesion",CBsubmitformAdhesion,null)'>
+            <i class="fa-solid fa-check me-2"></i> Valider
+          </button>
+        </div>
 
         <!-- Fenêtre plein écran pour le scanner -->
 
@@ -164,12 +191,6 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
           <button type="button" id="closeQrScanner" class="btn btn-danger qr-close">Fermer</button>
           <div id="qrReader" style="width:100%;max-width:600px;margin:auto;"></div>
           
-        </div>
-
-
-        <div>
-
-
         </div>
       </div> <!-- container header -->
 
@@ -245,20 +266,11 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
             <h4><?= Text::_('COM_GDA_EMERGENCY_CONTACT') ?></h4>
             <?= AdhesionHelper::renderField($this->form->getField('a_prevenir'));  ?>
             <?= AdhesionHelper::renderField($this->form->getField('a_prevenir_tel'));  ?>
-          </div>
-        </div>
-
-        <!-- Row :Droit image + reduction -->
-        <div class="row">
-          <!-- Ligne 04 - droit Images-->
-          <div class="col-sm-12 col-md-6">
             <?= AdhesionHelper::renderField($this->form->getField('droit_img'));  ?>
           </div>
-          <div class="col-sm-12 col-md-6">
-            <?= AdhesionHelper::renderField($this->form->getField('reduction'));  ?>
-          </div>
         </div>
 
+        
         <!-- Bouton suivant -->
         <!-- <button class="btn btn-primary float-end" data-bs-target="#wizardInscription"
             data-bs-slide="next">Suivant</button> -->
@@ -281,6 +293,7 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
         <input id="caciUpload" class="position-absolute invisible" type="file" accept="image/jpeg, image/png, application/pdf" />
         <!-- Fin Zone de capture du drag and drop -->
 
+
         <div class="row">
           <!-- ligne lisence -->
           <div class="col-sm-12 col-md-6">
@@ -294,11 +307,16 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
 
 
         <div class="row">
-          <!-- Row select groupes -->
-          <div class="col-sm-12 col-md-12">
+          <!-- Row :Tarification + select groupes -->
+          <div class="col-sm-12 col-md-6">
+            <?= AdhesionHelper::renderField($this->form->getField('reduction'));  ?>
+          </div>
+          <div class="col-sm-12 col-md-6">
             <?= AdhesionHelper::renderField($this->form->getField('id_groupes'));  ?>
           </div>
         </div>
+
+        
 
 
         <div class="row">
@@ -357,15 +375,9 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
       <div class="carousel-item" id="step-2">
         <div class="card mb-3 shadow-sm">
           <div class="card-body">
-            <!-- ligne avec la bouton valider -->
             <div class="row">
-              <div class="col-8">
+              <div class="col-12">
                 <span class="text-verif fw-bold">Merci de vérifier que toutes les informations sont correctes avant de valider votre adhésion.</span>
-              </div>
-              <div class="col-4">
-                <button id="btnValider" class="btn btn-success float-end d-none btn-lg" onclick='submitform(event,"form-adhesion",CBsubmitformAdhesion,null)'>
-                  <i class="fa-solid fa-check me-2"></i> Valider
-                </button>
               </div>
             </div>
 
@@ -441,13 +453,24 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
                 <p><span id="recap_droit_img" class="text-recap"></span></p>
               </div>
               <div class="col-7">
+<?php
+                // Rendu initial du récapitulatif ; il est ensuite rafraîchi en ajax par
+                // FormController::CheckCotisation() (adhesions.js -> CBCheckCotisation).
+                // Le champ caché cotisation_montant est vide tant que l'ajax n'a pas répondu :
+                // on retombe alors sur le tarif courant du code par défaut du formulaire.
+                $codeCotisation = (string) $this->form->getField('cotisation_code')->value;
+                $montantCotisation = CotisationService::getMontantFige(
+                    $this->form->getField('cotisation_montant')->value,
+                    $codeCotisation
+                );
+                ?>
                 <p>
-                  <span class="label-recap">Cotisation :</span>
-                  <span class="text-recap" id="recap_cotisation">
-                    <?= sprintf(Text::_('COM_GDA_COTISATION_TARIF_' . $this->form->getField('cotisation_code')->value), $this->form->getField('cotisation_montant')->value) ?>
-
-
-                  </span>
+                  <span class="label-recap">Montant à régler :</span>
+                  <span class="text-recap fw-bold" id="recap_cotisation_montant"><?= $this->escape(CotisationService::formatMontant($montantCotisation)) ?></span>
+                </p>
+                <p>
+                  <span class="label-recap"><?= $this->escape(Text::_('COM_GDA_REDUCTION_LABEL')) ?> :</span>
+                  <span class="text-recap" id="recap_cotisation_label"><?= $this->escape(CotisationService::getLabel($codeCotisation)) ?></span>
                 </p>
                 <p>
                   <span class="label-recap">Inscription sur HelloAsso :</span>

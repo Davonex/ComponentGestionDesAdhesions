@@ -21,6 +21,8 @@ class HtmlView extends BaseHtmlView
     public array $activites = [];
     public ?\Joomla\CMS\Form\Form $formCourante = null;
     public ?\Joomla\CMS\Form\Form $formAjout = null;
+    /** @var object[] Référentiel tarifaire de l'onglet « Tarification ». */
+    public array $tarifs = [];
 
     public function display($tpl = null): void
     {
@@ -45,6 +47,7 @@ class HtmlView extends BaseHtmlView
         $this->activites      = $groupesService->getActivitesDisponibles();
         $this->formCourante   = $model->getFormCourante($this->buildDataCourante($this->saisonCourante));
         $this->formAjout      = $model->getFormAjout();
+        $this->tarifs         = $model->getTarifs();
 
         parent::display($tpl);
     }

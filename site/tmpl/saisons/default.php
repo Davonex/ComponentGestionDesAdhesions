@@ -23,6 +23,8 @@ $wa->useScript('form.validate');
 
 Text::script('COM_GDA_SAISONS_COURANTE_CONFIRM_DECLARER');
 Text::script('COM_GDA_SAISONS_COURANTE_CONFIRM_RETIRER');
+Text::script('COM_GDA_SAISONS_TARIF_ERR_LIBELLE');
+Text::script('COM_GDA_SAISONS_TARIF_ERR_MONTANT');
 
 ?>
 
@@ -36,6 +38,17 @@ Text::script('COM_GDA_SAISONS_COURANTE_CONFIRM_RETIRER');
                 <?= Text::_('COM_GDA_SAISONS_TAB_COURANTE') ?>
             </button>
         </li>
+
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="saisons-tab-tarification" data-bs-toggle="tab"
+                data-bs-target="#saisons-pane-tarification" type="button" role="tab"
+                aria-controls="saisons-pane-tarification" aria-selected="false">
+                <?= Text::_('COM_GDA_SAISONS_TAB_TARIFICATION') ?>
+            </button>
+        </li>
+
+
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="saisons-tab-historique" data-bs-toggle="tab"
                 data-bs-target="#saisons-pane-historique" type="button" role="tab"
@@ -43,6 +56,7 @@ Text::script('COM_GDA_SAISONS_COURANTE_CONFIRM_RETIRER');
                 <?= Text::_('COM_GDA_SAISONS_TAB_HISTORIQUE') ?>
             </button>
         </li>
+
     </ul>
 
     <div class="tab-content border border-top-0 p-3" id="saisonsTabContent">
@@ -61,6 +75,10 @@ Text::script('COM_GDA_SAISONS_COURANTE_CONFIRM_RETIRER');
                 'saisons'   => $this->listeSaisons,
                 'formAjout' => $this->formAjout,
             ]) ?>
+        </div>
+        <div class="tab-pane fade" id="saisons-pane-tarification" role="tabpanel"
+            aria-labelledby="saisons-tab-tarification">
+            <?= LayoutHelper::render('saisons.tarification', ['tarifs' => $this->tarifs]) ?>
         </div>
     </div>
 

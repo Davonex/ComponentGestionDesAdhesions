@@ -31,17 +31,17 @@ $items = $displayData['items'];
             <table class="table table-bordered table-striped simple-database secretariat-table" data-simple-database-search="true" data-simple-database-sort="true">
                 <thead>
                     <tr>
-                        <th></th>
-                        <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PHOTO') ?? 'Photo' ?></th>
-                        <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_LICENCE') ?? 'Licence' ?></th>
-                        <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_NAME') ?? 'Nom' ?></th>
-                        <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_EMAIL') ?? 'Email' ?></th>
-                        <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ADRESS') ?? 'Adresse' ?></th>
-                        <!-- <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_VDY') ?? 'VDY' ?></th> -->
-                        <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CACI') ?? 'Caci' ?></th>
-                        <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE_CACI') ?? 'Date Caci' ?></th>
-                        <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE') ?? 'Subscription Date' ?></th>
-                        <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ACTION') ?? 'Action' ?></th>
+                        <th class="align-middle"></th>
+                        <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PHOTO') ?? 'Photo' ?></th>
+                        <th class="align-middle"><i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_LICENCE') ?? 'Licence' ?></th>
+                        <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_NAME') ?? 'Nom' ?></th>
+                        <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_EMAIL') ?? 'Email' ?></th>
+                        <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ADRESS') ?? 'Adresse' ?></th>
+                        <!-- <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_VDY') ?? 'VDY' ?></th> -->
+                        <th class="align-middle"><i class="fa-solid fa-file-medical me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CACI') ?? 'Caci' ?></th>
+                        <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE_CACI') ?? 'Date Caci' ?></th>
+                        <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE') ?? 'Subscription Date' ?></th>
+                        <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ACTION') ?? 'Action' ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -200,19 +200,21 @@ $items = $displayData['items'];
                             <td class="text-center"><?= HTMLHelper::date($item->date_souscription, 'd/m/Y H:i') ?></td>
                             <!-- Action -->
                             <td class="text-center">
+                                <?php $hintValiderCaci = Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE_HINT'); ?>
                                 <span
                                     class="d-inline-block js-validate-caci-tooltip"
                                     data-bs-toggle="tooltip"
-                                    data-label-valide="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE')) ?>"
-                                    data-bs-title="<?= $this->escape($isCaciValidable ? Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE') : $badgeDateCaciTitle) ?>"
-                                    title="<?= $this->escape($isCaciValidable ? Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE') : $badgeDateCaciTitle) ?>">
+                                    data-label-valide="<?= $this->escape($hintValiderCaci) ?>"
+                                    data-bs-title="<?= $this->escape($isCaciValidable ? $hintValiderCaci : $badgeDateCaciTitle) ?>"
+                                    title="<?= $this->escape($isCaciValidable ? $hintValiderCaci : $badgeDateCaciTitle) ?>">
                                     <button
                                         type="button"
-                                        class="btn btn-sm btn-primary js-validate-caci"
+                                        class="btn btn-sm btn-outline-success gda-btn-step js-validate-caci"
                                         data-item-id="<?= (int) $item->id_profil ?>"
                                         data-item-campagne="<?= (int) $item->id_campagne ?>"
+                                        aria-label="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE')) ?>"
                                         <?= $isCaciValidable ? '' : 'disabled aria-disabled="true"' ?>>
-                                        <?= Text::_('COM_GDA_SECRETARIAT_CACI_VALIDE') ?>
+                                        <i class="fa-regular fa-square-check" aria-hidden="true"></i>
                                     </button>
                                 </span>
                             </td>

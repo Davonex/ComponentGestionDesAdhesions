@@ -61,10 +61,10 @@ $nbNonAssocies = (int) ($displayData['nb_non_associes'] ?? 0);
       <table class="table table-bordered table-striped secretariat-table">
         <thead>
           <tr>
-            <th class="bg-success-subtle" style="width: 110px;"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_COMMANDE') ?></th>
-            <th class="bg-success-subtle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE') ?></th>
-            <th class="bg-success-subtle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PAYEUR') ?></th>
-            <th style="background-color: var(--logo-droit-500);"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ADHERENT_ASSOCIE') ?></th>
+            <th class="bg-success-subtle align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_COMMANDE') ?></th>
+            <th class="bg-success-subtle align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE') ?></th>
+            <th class="bg-success-subtle align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PAYEUR') ?></th>
+            <th style="background-color: var(--logo-droit-500);" class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ADHERENT_ASSOCIE') ?></th>
           </tr>
         </thead>
         <tbody>

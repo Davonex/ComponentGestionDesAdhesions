@@ -15,6 +15,13 @@
       noResults: 'Aucun résultat trouvé',
       info: 'Affichage de {start} à {end} sur {rows} entrées'
     },
+    // fixedColumns (true par defaut) mesure la largeur rendue de chaque colonne et la fige en
+    // pourcentage via un style inline sur chaque <th> - une inline style gagne toujours sur le
+    // colgroup/CSS des tableaux du Secretariat (#step-0/1/3/4/orphelins table.secretariat-table
+    // { table-layout: fixed } dans gda.css), d'ou les colonnes "Action" (icone seule) qui
+    // restaient aussi larges que "Nom Prenom". Desactive globalement : aucun de ces tableaux
+    // n'a besoin de largeurs figees entre deux tris/recherches.
+    fixedColumns: false,
     // Classes custom pour styler simple-datatables dans gda.css
     classes: {
       container: 'datatable-container gda-dt-container',
@@ -92,6 +99,65 @@
   };
 
   /**
+   * Initialise une DataTable simple-datatables sur une table, et réattache les tooltips à chaque
+   * redessin (tri, recherche, pagination, changement du nombre de lignes par page).
+   *
+   * simple-datatables réutilise les mêmes noeuds `<tr>` pour ces opérations plutôt que de les
+   * recréer, alors que Bootstrap fige le titre d'une tooltip dans un attribut interne
+   * (`data-bs-original-title`) au moment de sa construction. Sans ce réattachement, une tooltip
+   * continuait d'afficher les données de l'adhérent qui occupait ce noeud DOM lors du chargement
+   * initial de l'étape, même après un tri/une recherche ayant changé l'adhérent affiché à cet
+   * endroit (bug constaté en production sur le bouton de suppression de l'étape 1).
+   *
+   * @param {HTMLTableElement|null} table     Table à transformer en DataTable.
+   * @param {ParentNode}            container Zone à retransmettre à initTooltips() à chaque redessin.
+   * @param {Object}                [options] Options simple-datatables à fusionner par-dessus frenchDataTableOptions (ex. `columns`).
+   * @returns {void}
+   */
+  const initDataTableWithTooltips = function (table, container, options = {}) {
+    const datatableApi = globalThis.simpleDatatables;
+
+    if (!table) {
+      return;
+    }
+
+    if (!datatableApi || !datatableApi.DataTable) {
+      console.error('simple-datatables n\'est pas chargee');
+      return;
+    }
+
+    const dataTable = new datatableApi.DataTable(table, Object.assign({}, frenchDataTableOptions, options));
+
+    dataTable.on('datatable.update', function () {
+      initTooltips(container);
+    });
+  };
+
+  /**
+   * Construit la config `columns` de simple-datatables (headerClass + cellClass) a partir d'une
+   * classe de largeur (col-secretariat-*, cf. gda.css) par colonne, dans l'ordre des colonnes du
+   * tableau source.
+   *
+   * Le <colgroup> HTML ne fonctionne pas avec cette lib : au rendu, elle reconstruit entierement
+   * le <thead>/<tbody> depuis ses propres donnees et ne recopie jamais le <colgroup> du tableau
+   * source (constate en devtools : la largeur retombait sur un partage egal entre colonnes malgre
+   * un <colgroup> et un CSS corrects). headerClass/cellClass est la seule facon documentee de
+   * poser une classe CSS sur les <th>/<td> qu'elle genere elle-meme.
+   *
+   * @param {Array<string|null>} widthClasses Classe col-secretariat-* par colonne (index = position dans le tableau source), null pour ne rien poser sur cette colonne.
+   * @returns {Array<Object>} Config `columns` pour simpleDatatables.DataTable.
+   */
+  const buildWidthColumns = function (widthClasses) {
+    return widthClasses.reduce(function (columns, className, index) {
+      if (className) {
+        columns.push({ select: index, headerClass: className, cellClass: className });
+      }
+
+      return columns;
+    }, []);
+  };
+
+  /**
    * Applique l'état (actif/désactivé) du bouton de validation du CACI d'une ligne, ainsi que
    * l'infobulle qui explique pourquoi (fichier manquant, date manquante, date insuffisante...).
    *
@@ -135,13 +201,21 @@
   const initStepZeroView = function () {
     const step0Container = document.getElementById('step-0');
     const table1 = document.querySelector('#step-0 table');
-    const datatableApi = globalThis.simpleDatatables;
 
-    if (table1 && datatableApi && datatableApi.DataTable) {
-      new datatableApi.DataTable(table1, frenchDataTableOptions);
-    } else if (table1) {
-      console.error('simple-datatables n\'est pas chargee');
-    }
+    initDataTableWithTooltips(table1, step0Container, {
+      columns: buildWidthColumns([
+        'col-secretariat-xs', // Action (supprimer)
+        'col-secretariat-xs',  // Photo
+        'col-secretariat-sm',  // Licence
+        'col-secretariat-lg',  // Nom
+        'col-secretariat-lg',  // Email
+        'col-secretariat-lg',  // Adresse
+        'col-secretariat-xs',  // Caci
+        'col-secretariat-sm',  // Date Caci
+        'col-secretariat-sm',  // Date souscription
+        'col-secretariat-xs'  // Action (valider)
+      ])
+    });
 
     if (step0Container) {
       initTooltips(step0Container);
@@ -155,13 +229,24 @@
   const initStepOneView = function () {
     const step1Container = document.getElementById('step-1');
     const table2 = document.querySelector('#step-1 table');
-    const datatableApi = globalThis.simpleDatatables;
 
-    if (table2 && datatableApi && datatableApi.DataTable) {
-      new datatableApi.DataTable(table2, frenchDataTableOptions);
-    } else if (table2) {
-      console.error('simple-datatables n\'est pas chargee');
-    }
+    initDataTableWithTooltips(table2, step1Container, {
+      columns: buildWidthColumns([
+        'col-secretariat-xs', // Action (devalider CACI)
+        'col-secretariat-xs',  // Photo
+        'col-secretariat-sm',  // Licence
+        'col-secretariat-sm',  // Nom
+        'col-secretariat-lg',  // Ville
+        'col-secretariat-md',  // Cotisation (Tarification)
+        'col-secretariat-md',  // Groupes
+        'col-secretariat-xs',  // Categorie
+        'col-secretariat-xs',  // Licence EUR
+        'col-secretariat-xs',  // Cotisation EUR
+        'col-secretariat-md',  // Paiement
+        'col-secretariat-sm',  // Date
+        'col-secretariat-xs'  // Action (valider paiement)
+      ])
+    });
 
     if (step1Container) {
       initTooltips(step1Container);
@@ -219,13 +304,21 @@
   const initStepThreeView = function () {
     const step3Container = document.getElementById('step-3');
     const table3 = document.querySelector('#step-3 table');
-    const datatableApi = globalThis.simpleDatatables;
 
-    if (table3 && datatableApi && datatableApi.DataTable) {
-      new datatableApi.DataTable(table3, frenchDataTableOptions);
-    } else if (table3) {
-      console.error('simple-datatables n\'est pas chargee');
-    }
+    initDataTableWithTooltips(table3, step3Container, {
+      columns: buildWidthColumns([
+        'col-secretariat-xs', // Action (devalider paiement)
+        'col-secretariat-xs',  // Photo
+        'col-secretariat-sm',  // Licence
+        'col-secretariat-lg',  // Nom
+        'col-secretariat-lg',  // Email
+        'col-secretariat-sm',  // Date de naissance
+        'col-secretariat-md',  // Cotisation
+        'col-secretariat-xs',  // Categorie
+        'col-secretariat-sm',  // Date
+        'col-secretariat-xs'  // Action (finaliser)
+      ])
+    });
 
     if (step3Container) {
       initTooltips(step3Container);
@@ -281,13 +374,22 @@
   const initStepFourView = function () {
     const step4Container = document.getElementById('step-4');
     const table4 = document.querySelector('#step-4 table');
-    const datatableApi = globalThis.simpleDatatables;
 
-    if (table4 && datatableApi && datatableApi.DataTable) {
-      new datatableApi.DataTable(table4, frenchDataTableOptions);
-    } else if (table4) {
-      console.error('simple-datatables n\'est pas chargee');
-    }
+    initDataTableWithTooltips(table4, step4Container, {
+      columns: buildWidthColumns([
+        'col-secretariat-xs', // Action (definaliser)
+        'col-secretariat-xs',  // Photo
+        'col-secretariat-xs',  // Caci
+        'col-secretariat-sm',  // Paiement
+        'col-secretariat-sm',  // Licence
+        'col-secretariat-md',  // Nom
+        'col-secretariat-md',  // Email
+        'col-secretariat-sm',  // Date de naissance
+        'col-secretariat-md',  // Cotisation
+        'col-secretariat-xs',  // Categorie
+        'col-secretariat-sm'   // Date
+      ])
+    });
 
     if (step4Container) {
       initTooltips(step4Container);
@@ -346,13 +448,15 @@
   const initStepOrphelinsView = function () {
     const contentContainer = document.getElementById('step-orphelins-content');
     const table5 = document.querySelector('#step-orphelins-content table');
-    const datatableApi = globalThis.simpleDatatables;
 
-    if (table5 && datatableApi && datatableApi.DataTable) {
-      new datatableApi.DataTable(table5, frenchDataTableOptions);
-    } else if (table5) {
-      console.error('simple-datatables n\'est pas chargee');
-    }
+    initDataTableWithTooltips(table5, contentContainer, {
+      columns: buildWidthColumns([
+        'col-secretariat-narrow', // Commande
+        'col-secretariat-narrow', // Date
+        null,                     // Payeur (partage le reste)
+        null                      // Adherent associe (partage le reste)
+      ])
+    });
 
     if (contentContainer) {
       initTooltips(contentContainer);
@@ -440,6 +544,14 @@
         if (response.success) {
           lastOrphelinsHtml = decodeURIComponent(escape(atob(response.data)));
           renderStepOrphelins();
+
+          // Un chargement/rafraîchissement normal renvoie un message vide (simpleCallAjax est
+          // appelé avec renderMessage=false pour rester muet) : seul le rafraîchissement ayant
+          // réellement déclenché des associations automatiques (voir RapprochementPaiementService::
+          // autoAssocierParLicenceExacte()) porte un message, qu'on affiche alors explicitement.
+          if (response.message) {
+            Joomla.renderMessages({ message: [response.message] });
+          }
         }
       }, false);
     }
@@ -700,6 +812,33 @@
     const currentCategorie = (editableCell.dataset.currentCategorie || '').toUpperCase();
     if (currentCategorie) {
       select.value = currentCategorie;
+    }
+
+    select.focus();
+  });
+
+  // Gestion de l'édition inline de la tarification (reduction) au double-clic : meme motif
+  // que .js-editable-categorie ci-dessus.
+  document.addEventListener('dblclick', function (event) {
+    const editableCell = event.target.closest('.js-editable-cotisation');
+
+    if (!editableCell) {
+      return;
+    }
+
+    const display = editableCell.querySelector('.cotisation-display');
+    const select = editableCell.querySelector('.cotisation-input');
+
+    if (!display || !select) {
+      return;
+    }
+
+    display.classList.add('d-none');
+    select.classList.remove('d-none');
+
+    const currentReduction = editableCell.dataset.currentReduction || '';
+    if (currentReduction) {
+      select.value = currentReduction;
     }
 
     select.focus();
@@ -1330,6 +1469,54 @@
     saveCategorie(select);
   });
 
+  // Validation de la tarification (reduction) sur Enter.
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter') {
+      return;
+    }
+
+    const select = event.target.closest('.cotisation-input:not(.d-none)');
+
+    if (!select) {
+      return;
+    }
+
+    event.preventDefault();
+    select.dataset.ignoreBlurOnce = '1';
+    saveCotisationCode(select);
+  });
+
+  // Sauvegarde tarification a la perte de focus.
+  document.addEventListener('blur', function (event) {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    const select = event.target.closest('.cotisation-input:not(.d-none)');
+
+    if (!select) {
+      return;
+    }
+
+    if (select.dataset.ignoreBlurOnce === '1') {
+      select.dataset.ignoreBlurOnce = '0';
+      return;
+    }
+
+    saveCotisationCode(select);
+  }, true);
+
+  // Sauvegarde tarification quand le choix change.
+  document.addEventListener('change', function (event) {
+    const select = event.target.closest('.cotisation-input:not(.d-none)');
+
+    if (!select) {
+      return;
+    }
+
+    saveCotisationCode(select);
+  });
+
   /**
    * Valide et sauvegarde la date CACI via AJAX.
    * @param {HTMLInputElement} input
@@ -1506,12 +1693,95 @@
           display.textContent = newCategorie;
           editableCell.dataset.currentCategorie = newCategorie;
 
+          // Chaine deja formatee par le serveur (symbole € compris) : les tarifs de licence ont
+          // des centimes, un parseInt sur "48,50" afficherait 48 €.
           const selectedOption = select.options[select.selectedIndex];
-          const licenceCost = parseInt(selectedOption?.dataset.licenceCost || '0', 10);
+          const licenceCost = selectedOption?.dataset.licenceCostAffiche;
           const licenceCell = editableCell.closest('tr')?.querySelector('.js-licence-cost');
 
-          if (licenceCell) {
-            licenceCell.textContent = `${Number.isNaN(licenceCost) ? 0 : licenceCost} €`;
+          if (licenceCell && licenceCost) {
+            licenceCell.textContent = licenceCost;
+          }
+        }
+
+        select.dataset.isSaving = '0';
+        display.classList.remove('d-none');
+        select.classList.add('d-none');
+      });
+    } else {
+      console.error('simpleCallAjax n\'est pas disponible');
+      select.dataset.isSaving = '0';
+      display.classList.remove('d-none');
+      select.classList.add('d-none');
+    }
+  };
+
+  /**
+   * Sauvegarde la tarification (reduction) via AJAX. Le code de cotisation final (lettre +
+   * localisation) et le montant sont recalcules cote serveur (age + code postal deja connus
+   * du profil), pas de simple remplacement de texte cote client.
+   * @param {HTMLSelectElement} select
+   */
+  const saveCotisationCode = function (select) {
+    if (select.dataset.isSaving === '1') {
+      return;
+    }
+
+    const editableCell = select.closest('.js-editable-cotisation');
+    const display = editableCell ? editableCell.querySelector('.cotisation-display') : null;
+
+    if (!editableCell || !display) {
+      return;
+    }
+
+    const newReduction = parseInt(select.value, 10);
+    const currentReduction = parseInt(editableCell.dataset.currentReduction || '0', 10);
+    const idProfil = parseInt(editableCell.dataset.itemId || '0', 10);
+    const idCampagne = parseInt(editableCell.dataset.itemCampagne || '0', 10);
+    const allowed = [0, 1, 2, 4];
+
+    if (!allowed.includes(newReduction)) {
+      display.classList.remove('d-none');
+      select.classList.add('d-none');
+      return;
+    }
+
+    if (idProfil <= 0 || idCampagne <= 0) {
+      Joomla.renderMessages({ error: ['Identifiants invalides pour la mise a jour de la tarification.'] });
+      display.classList.remove('d-none');
+      select.classList.add('d-none');
+      return;
+    }
+
+    if (newReduction === currentReduction) {
+      display.classList.remove('d-none');
+      select.classList.add('d-none');
+      return;
+    }
+
+    const ajaxData = {
+      task: 'secretariat.updateCotisationCode',
+      id_profil: idProfil,
+      id_campagne: idCampagne,
+      reduction: newReduction
+    };
+
+    const csrfTokenName = Joomla.getOptions('csrf.token');
+    if (csrfTokenName) {
+      ajaxData[csrfTokenName] = 1;
+    }
+
+    select.dataset.isSaving = '1';
+
+    if (typeof simpleCallAjax === 'function') {
+      simpleCallAjax(ajaxData, function (response) {
+        if (response.success) {
+          display.textContent = response.data?.cotisation_label || display.textContent;
+          editableCell.dataset.currentReduction = String(newReduction);
+
+          const montantCell = editableCell.closest('tr')?.querySelector('.js-cotisation-montant');
+          if (montantCell && response.data?.cotisation_montant_affiche) {
+            montantCell.textContent = response.data.cotisation_montant_affiche;
           }
         }
 

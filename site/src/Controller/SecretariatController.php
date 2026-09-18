@@ -208,6 +208,54 @@ class SecretariatController extends BaseController
   }
 
   /**
+   * Ajax: corrige la tarification (reduction) d'un adherent et recalcule le code de
+   * cotisation qui en decoule (age + localisation), via SecretariatModel::updateCotisationCode().
+   *
+   * @return void
+   */
+  public function updateCotisationCode(): void
+  {
+    /** @var \Joomla\CMS\Application\SiteApplication $app */
+    $app = Factory::getApplication();
+    $idProfil = 0;
+    $idCampagne = 0;
+
+    try {
+      $this->checkToken();
+      $this->guardBureauMember();
+
+      $input = $app->input;
+      $idProfil = $input->getInt('id_profil', 0);
+      $idCampagne = $input->getInt('id_campagne', 0);
+      $reduction = $input->getInt('reduction', 0);
+
+      /** @var \NCB\Component\Gda\Site\Model\SecretariatModel $model */
+      $model = $this->getModel('secretariat', 'site');
+      $data = $model->updateCotisationCode($idProfil, $idCampagne, $reduction);
+
+      $response = new JsonResponse();
+      $response->success = true;
+      $response->message = 'La tarification a été mise à jour';
+      $response->data = $data;
+      GdaLogger::info(
+        '[' . $this->getActingUserName() . '] ' .
+          'Tarification corrigée (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $data['cotisation_code']
+      );
+    } catch (\Throwable $e) {
+      $response = new JsonResponse();
+      $response->success = false;
+      $response->message = 'Erreur: ' . $e->getMessage();
+      GdaLogger::error(
+        '[' . $this->getActingUserName() . '] ' .
+          'Erreur lors de la correction de la tarification (id_profil=' . $idProfil . ', id_campagne=' . $idCampagne . '): ' . $e->getMessage()
+      );
+    }
+
+    echo $response;
+    $app->close();
+  }
+
+  /**
    * Ajax: met a jour la date CACI d'une souscription.
    */
   public function updateDateCaci(): void
@@ -750,10 +798,24 @@ class SecretariatController extends BaseController
         'nb_non_associes' => (int) ($result['nb_non_associes'] ?? 0),
       ]);
 
+      $nbAutoAssocies = (int) ($result['nb_auto_associes'] ?? 0);
+
       $response = new JsonResponse();
       $response->success = true;
       $response->data = base64_encode($html);
-      $response->message = '';
+      // Message affiché uniquement si le rafraîchissement a réellement associé automatiquement des
+      // paiements par correspondance exacte de licence (voir RapprochementPaiementService::
+      // autoAssocierParLicenceExacte()) : sinon un chargement/rafraîchissement normal reste muet.
+      $response->message = $nbAutoAssocies > 0
+        ? Text::plural('COM_GDA_SECRETARIAT_ORPHELINS_AUTO_ASSOCIATE_SUCCESS', $nbAutoAssocies)
+        : '';
+
+      if ($nbAutoAssocies > 0) {
+        GdaLogger::info(
+          '[' . $this->getActingUserName() . '] ' .
+            "Rafraîchissement orphelins : $nbAutoAssocies association(s) automatique(s) (id_campagne=" . (int) $saison->id_campagne . ')'
+        );
+      }
     } catch (\Throwable $e) {
       $response = new JsonResponse();
       $response->success = false;

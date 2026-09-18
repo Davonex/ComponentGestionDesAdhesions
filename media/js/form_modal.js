@@ -225,6 +225,17 @@ const refreshPreview = function (img) {
 
         e.preventDefault();
 
+        // Garde anti double-soumission : un clic pendant qu'une requete pour ce meme bouton est
+        // deja en cours est ignore. Sans cela, un double-clic sur "Valider" (formulaire Adhesion)
+        // envoyait deux fois le formulaire, le second envoi arrivant avec un id deja mis a jour
+        // par le callback du premier succes et etant alors rejete cote serveur (voir
+        // AdhesionModel::createProfil()).
+        const triggerButton = e.currentTarget instanceof HTMLButtonElement ? e.currentTarget : null;
+
+        if (triggerButton && triggerButton.dataset.isSaving === '1') {
+            return;
+        }
+
         let form = document.querySelector("#" + formId + ".form-validate");
         let formData = new FormData(document.getElementById(formId));
         // importe les upload sir il existe.
@@ -235,23 +246,32 @@ const refreshPreview = function (img) {
         const upCaci = window.UploadCaci;
         if (upCaci && upCaci.File) {
             formData.append('jform[upload.caci]', upCaci.File);
-            }   
+            }
 
         //  Joomla.submitbutton(formId)
-        
+
          if (!form ||  document.formvalidator.isValid(form))
         {
-           
+            if (triggerButton) {
+                triggerButton.dataset.isSaving = '1';
+                triggerButton.disabled = true;
+            }
+
             const basePath = Joomla.getOptions('system.paths')?.baseFull || '';
             Joomla.request({
                 method: 'POST',
-                url: `${basePath}index.php?option=com_gdadhesions&format=json`,  
+                url: `${basePath}index.php?option=com_gdadhesions&format=json`,
                 promise: false,
-                data: formData, 
+                data: formData,
             onSuccess: (data) => {
+                    if (triggerButton) {
+                        triggerButton.dataset.isSaving = '0';
+                        triggerButton.disabled = false;
+                    }
+
                     const response = JSON.parse(data);
                     if (response.success) {
-                        // console.log("submitform: success") 
+                        // console.log("submitform: success")
                         //.log(atob(response.data));
                         if (myCallback !== null)  {
                             myCallback(response);
@@ -260,18 +280,23 @@ const refreshPreview = function (img) {
                     }else {
                         console.error("error: " + response.message);
                         Joomla.renderMessages( {"error": [response.message]} );
-                    } 
-                    // si le btn est vlide on le ferme 
+                    }
+                    // si le btn est vlide on le ferme
                     if (btnClose !== null)  {
                         closeModal(btnClose)
                     }
                 },
             onError: (xhr) => {
+                if (triggerButton) {
+                    triggerButton.dataset.isSaving = '0';
+                    triggerButton.disabled = false;
+                }
+
                 const response = JSON.parse(xhr.response);
                 //console.error("error: " + response.message);
                 Joomla.renderMessages( {"error": [response.message]} );
             }
-            
+
             });
         } else {
             console.debug (formId + " not Valid")

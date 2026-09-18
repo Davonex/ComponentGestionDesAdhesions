@@ -185,124 +185,396 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // --- Onglet "Tarification" : référentiel des cotisations club et des licences FFESSM ---
+    //
+    // Indépendant de l'existence d'une saison courante : le Bureau doit pouvoir régler ses tarifs
+    // avant même d'avoir déclaré une saison.
+
+    /**
+     * Remplace une ligne du tableau par la version re-rendue renvoyée par le serveur. Tout ce que
+     * la ligne affiche (montants formatés, aperçu du suffixe hors agglo, badge d'activité) est
+     * calculé côté serveur : aucun formatage monétaire ici.
+     */
+    const remplacerLigneTarif = function (response) {
+        if (!response.data) {
+            return;
+        }
+
+        const html = decodeURIComponent(escape(atob(response.data)));
+        const parser = document.createElement('table');
+        parser.innerHTML = html;
+
+        // Le serveur peut renvoyer plusieurs lignes : modifier un libellé d'option le propage à
+        // toutes celles qui partagent cette option (A/D sur "Normal", B/E sur "Réduction
+        // Famille"). On remplace chaque <tr> reçue par son homologue, repérée par son id.
+        parser.querySelectorAll('tr').forEach(function (source) {
+            const cible = document.getElementById(source.id);
+
+            if (cible) {
+                cible.replaceWith(source);
+            }
+        });
+    };
+
+    const buildTarifData = function (champ, valeur, cell) {
+        const row = cell.closest('.js-tarif-row');
+        const ajaxData = buildAjaxData('saisons.updateTarif');
+        ajaxData.id_tarif = row ? row.dataset.idTarif : 0;
+        ajaxData.champ = champ;
+        ajaxData.valeur = valeur;
+
+        return ajaxData;
+    };
+
+    /**
+     * Accepte "123", "123,45" et "123.45", et normalise en notation SQL : la colonne est un
+     * DECIMAL(6,2). Renvoie null si la saisie n'est pas un montant valide.
+     */
+    const normaliserMontant = function (valeur) {
+        const brut = valeur.trim().replace(/\s/g, '').replace(',', '.');
+
+        if (!/^\d{1,4}(\.\d{1,2})?$/.test(brut)) {
+            return null;
+        }
+
+        return brut;
+    };
+
+    /**
+     * Édition inline d'une cellule du référentiel tarifaire : double-clic pour ouvrir, Entrée ou
+     * perte de focus pour enregistrer, Échap pour annuler sans appel serveur.
+     *
+     * Même cycle que registerInlineEdit() de brevets_mgt.js, avec deux ajouts : une validation
+     * client optionnelle (garde-fou d'ergonomie, jamais un substitut au contrôle serveur) et le
+     * remplacement de la ligne entière plutôt que du seul texte affiché.
+     *
+     * @param {Object}   config
+     * @param {string}   config.cellSelector    Sélecteur de la cellule éditable.
+     * @param {string}   config.displaySelector Sélecteur de l'élément d'affichage.
+     * @param {string}   config.inputSelector   Sélecteur du champ de saisie.
+     * @param {string}   config.datasetKey      Clé dataset portant la valeur courante.
+     * @param {string}   config.champ           Nom du champ envoyé au serveur.
+     * @param {Function} [config.valider]       (valeur) => valeur normalisée, ou null si invalide.
+     * @param {string}   [config.messageErreur] Clé de langue du message de refus client.
+     */
+    const registerTarifInlineEdit = function (config) {
+        const fermer = function (display, input) {
+            display.classList.remove('d-none');
+            input.classList.add('d-none');
+            input.dataset.isSaving = '0';
+        };
+
+        const sauver = function (input) {
+            if (input.dataset.isSaving === '1') {
+                return;
+            }
+
+            const cell = input.closest(config.cellSelector);
+            const display = cell ? cell.querySelector(config.displaySelector) : null;
+
+            if (!cell || !display) {
+                return;
+            }
+
+            const saisie = input.value.trim();
+            const valeurCourante = (input.dataset[config.datasetKey] || '').trim();
+
+            if (saisie === valeurCourante) {
+                fermer(display, input);
+                return;
+            }
+
+            let valeur = saisie;
+
+            if (typeof config.valider === 'function') {
+                valeur = config.valider(saisie);
+
+                if (valeur === null) {
+                    Joomla.renderMessages({ error: [Joomla.Text._(config.messageErreur)] });
+                    input.value = valeurCourante;
+                    fermer(display, input);
+                    return;
+                }
+            }
+
+            input.dataset.isSaving = '1';
+
+            simpleCallAjax(buildTarifData(config.champ, valeur, cell), function (response) {
+                if (response.success) {
+                    // La ligne entière est remplacée : inutile de refermer la cellule courante,
+                    // elle disparaît avec l'ancienne <tr>.
+                    remplacerLigneTarif(response);
+                    return;
+                }
+
+                // Refus métier côté serveur : on restaure la valeur d'origine plutôt que de
+                // laisser à l'écran une saisie que la base n'a pas acceptée.
+                input.value = valeurCourante;
+                fermer(display, input);
+            }, true, function () {
+                input.value = valeurCourante;
+                fermer(display, input);
+            });
+        };
+
+        document.addEventListener('dblclick', function (event) {
+            const cell = event.target.closest(config.cellSelector);
+
+            if (!cell) {
+                return;
+            }
+
+            const display = cell.querySelector(config.displaySelector);
+            const input = cell.querySelector(config.inputSelector);
+
+            if (!display || !input) {
+                return;
+            }
+
+            display.classList.add('d-none');
+            input.classList.remove('d-none');
+            input.focus();
+            input.select();
+        });
+
+        // En phase de capture : l'événement blur ne remonte pas.
+        document.addEventListener('blur', function (event) {
+            if (event.target instanceof Element && event.target.matches(config.inputSelector)) {
+                sauver(event.target);
+            }
+        }, true);
+
+        document.addEventListener('keydown', function (event) {
+            if (!(event.target instanceof Element) || !event.target.matches(config.inputSelector)) {
+                return;
+            }
+
+            if (event.key === 'Enter') {
+                // Un seul chemin de sauvegarde : Entrée déclenche le blur, qui enregistre.
+                event.preventDefault();
+                event.target.blur();
+                return;
+            }
+
+            if (event.key === 'Escape') {
+                const cell = event.target.closest(config.cellSelector);
+                const display = cell ? cell.querySelector(config.displaySelector) : null;
+
+                if (display) {
+                    event.target.value = event.target.dataset[config.datasetKey] || '';
+                    fermer(display, event.target);
+                }
+            }
+        });
+    };
+
+    registerTarifInlineEdit({
+        cellSelector: '.js-editable-tarif-libelle',
+        displaySelector: '.tarif-libelle-display',
+        inputSelector: '.tarif-libelle-input',
+        datasetKey: 'currentTarifLibelle',
+        champ: 'libelle',
+        messageErreur: 'COM_GDA_SAISONS_TARIF_ERR_LIBELLE',
+        valider: function (valeur) {
+            return valeur === '' ? null : valeur;
+        }
+    });
+
+    // Libellé de l'option du formulaire : partagé par plusieurs tarifs, le serveur propage et
+    // renvoie toutes les lignes concernées.
+    registerTarifInlineEdit({
+        cellSelector: '.js-editable-tarif-option',
+        displaySelector: '.tarif-option-display',
+        inputSelector: '.tarif-option-input',
+        datasetKey: 'currentTarifOption',
+        champ: 'option_libelle',
+        messageErreur: 'COM_GDA_SAISONS_TARIF_ERR_OPTION',
+        valider: function (valeur) {
+            return valeur === '' ? null : valeur;
+        }
+    });
+
+    registerTarifInlineEdit({
+        cellSelector: '.js-editable-tarif-vy',
+        displaySelector: '.tarif-vy-display',
+        inputSelector: '.tarif-vy-input',
+        datasetKey: 'currentTarifVy',
+        champ: 'tarif_vy',
+        messageErreur: 'COM_GDA_SAISONS_TARIF_ERR_MONTANT',
+        valider: normaliserMontant
+    });
+
+    registerTarifInlineEdit({
+        cellSelector: '.js-editable-tarif-hvy',
+        displaySelector: '.tarif-hvy-display',
+        inputSelector: '.tarif-hvy-input',
+        datasetKey: 'currentTarifHvy',
+        champ: 'tarif_hvy',
+        messageErreur: 'COM_GDA_SAISONS_TARIF_ERR_MONTANT',
+        valider: normaliserMontant
+    });
+
+    // Commentaire : vide autorisé (= pas de commentaire), donc aucune validation client.
+    registerTarifInlineEdit({
+        cellSelector: '.js-editable-tarif-commentaire',
+        displaySelector: '.tarif-commentaire-display',
+        inputSelector: '.tarif-commentaire-input',
+        datasetKey: 'currentTarifCommentaire',
+        champ: 'commentaire'
+    });
+
+    // Activation d'un tarif : pas de modale de confirmation, l'action est réversible d'un
+    // double-clic et c'est le message serveur ("option partagée") qui informe des conséquences.
+    const toggleTarifActif = function (badge) {
+        simpleCallAjax(
+            buildTarifData('actif', badge.dataset.actif === '1' ? '0' : '1', badge),
+            remplacerLigneTarif
+        );
+    };
+
+    document.addEventListener('dblclick', function (event) {
+        const badge = event.target.closest('.js-toggle-tarif-actif');
+
+        if (badge) {
+            toggleTarifActif(badge);
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+            return;
+        }
+
+        const badge = event.target.closest('.js-toggle-tarif-actif');
+
+        if (badge) {
+            event.preventDefault();
+            toggleTarifActif(badge);
+        }
+    });
+
     // --- Onglet "Saison courante" : champs de définition + groupes du club, sauvegarde groupée ---
 
     const formCourante = document.getElementById('form_saison_courante');
     const btnSave = document.getElementById('btnSaveSaisonCourante');
 
-    if (!formCourante || !btnSave) {
-        return;
-    }
+    // Ce bloc ne s'applique que si une saison courante est declaree (sinon
+    // layouts/saisons/courante.php n'affiche qu'une alerte, sans formulaire). Il est
+    // volontairement enveloppe dans un if plutot que precede d'un `return` : un return ici
+    // tuerait silencieusement tout code ajoute ensuite dans ce DOMContentLoaded, exactement
+    // dans le cas ou le Bureau vient configurer le composant.
+    if (formCourante && btnSave) {
 
-    let baseline = new FormData(formCourante);
+        let baseline = new FormData(formCourante);
 
-    // Sérialisation canonique (triée) d'un FormData : gère correctement les champs à valeurs
-    // multiples partageant le même name (ex: groupes[0][published] : input hidden + checkbox).
-    const serializeFormData = function (formData) {
-        const pairs = [];
-        formData.forEach(function (value, key) {
-            pairs.push(key + '=' + value);
-        });
-        return pairs.sort().join('&');
-    };
+        // Sérialisation canonique (triée) d'un FormData : gère correctement les champs à valeurs
+        // multiples partageant le même name (ex: groupes[0][published] : input hidden + checkbox).
+        const serializeFormData = function (formData) {
+            const pairs = [];
+            formData.forEach(function (value, key) {
+                pairs.push(key + '=' + value);
+            });
+            return pairs.sort().join('&');
+        };
 
-    const isDirty = function () {
-        return serializeFormData(new FormData(formCourante)) !== serializeFormData(baseline);
-    };
+        const isDirty = function () {
+            return serializeFormData(new FormData(formCourante)) !== serializeFormData(baseline);
+        };
 
-    const refreshSaveButtonVisibility = function () {
-        btnSave.classList.toggle('d-none', !isDirty());
-    };
+        const refreshSaveButtonVisibility = function () {
+            btnSave.classList.toggle('d-none', !isDirty());
+        };
 
-    // Tous les champs sont directement éditables (pas de verrou/double-clic) : le bouton
-    // Sauvegarder apparaît dès qu'un champ change, qu'il s'agisse de la définition de la
-    // saison ou d'une ligne de groupe.
-    formCourante.addEventListener('input', refreshSaveButtonVisibility);
-    formCourante.addEventListener('change', refreshSaveButtonVisibility);
+        // Tous les champs sont directement éditables (pas de verrou/double-clic) : le bouton
+        // Sauvegarder apparaît dès qu'un champ change, qu'il s'agisse de la définition de la
+        // saison ou d'une ligne de groupe.
+        formCourante.addEventListener('input', refreshSaveButtonVisibility);
+        formCourante.addEventListener('change', refreshSaveButtonVisibility);
 
-    // Aperçu de l'icône Font Awesome saisie pour un groupe : mis à jour en direct à chaque
-    // frappe (délégation : couvre aussi bien les lignes existantes que les lignes ajoutées
-    // dynamiquement via le bouton "Ajouter un groupe").
-    formCourante.addEventListener('input', function (event) {
-        if (!event.target.classList.contains('js-groupe-icon-input')) {
-            return;
-        }
+        // Aperçu de l'icône Font Awesome saisie pour un groupe : mis à jour en direct à chaque
+        // frappe (délégation : couvre aussi bien les lignes existantes que les lignes ajoutées
+        // dynamiquement via le bouton "Ajouter un groupe").
+        formCourante.addEventListener('input', function (event) {
+            if (!event.target.classList.contains('js-groupe-icon-input')) {
+                return;
+            }
 
-        const row = event.target.closest('.js-groupe-row');
-        const preview = row ? row.querySelector('.js-groupe-icon-preview') : null;
+            const row = event.target.closest('.js-groupe-row');
+            const preview = row ? row.querySelector('.js-groupe-icon-preview') : null;
 
-        if (preview) {
-            const iconClass = event.target.value.trim();
-            preview.className = 'fa-solid js-groupe-icon-preview' + (iconClass ? ' ' + iconClass : '');
-        }
-    });
-
-    // Bouton "Ajouter un groupe" : clone le modèle de ligne vide, réindexe ses champs, l'ajoute
-    // au tableau. L'ajout compte lui-même comme une modification (bouton Sauvegarder affiché).
-    // Délégation sur formCourante (élément stable) : le panneau groupes, et donc le bouton
-    // #btnAjouterGroupe lui-même, est remplacé après chaque sauvegarde réussie.
-    formCourante.addEventListener('click', function (event) {
-        if (!event.target.closest('#btnAjouterGroupe')) {
-            return;
-        }
-
-        const template = document.getElementById('tpl-groupe-row');
-        const tbody = document.getElementById('tbody-groupes-club');
-        if (!template || !tbody) {
-            return;
-        }
-
-        const index = tbody.querySelectorAll('.js-groupe-row').length;
-        const fragment = template.content.cloneNode(true);
-
-        fragment.querySelectorAll('[name]').forEach(function (el) {
-            el.name = el.name.replace('__INDEX__', String(index));
-
-            // Le <select> d'activité porte un id dérivé de son name : le réindexer aussi, sinon
-            // deux lignes ajoutées à la suite partageraient le même id.
-            if (el.id) {
-                el.id = el.id.replace('__INDEX__', String(index));
+            if (preview) {
+                const iconClass = event.target.value.trim();
+                preview.className = 'fa-solid js-groupe-icon-preview' + (iconClass ? ' ' + iconClass : '');
             }
         });
 
-        tbody.appendChild(fragment);
-        refreshSaveButtonVisibility();
-    });
+        // Bouton "Ajouter un groupe" : clone le modèle de ligne vide, réindexe ses champs, l'ajoute
+        // au tableau. L'ajout compte lui-même comme une modification (bouton Sauvegarder affiché).
+        // Délégation sur formCourante (élément stable) : le panneau groupes, et donc le bouton
+        // #btnAjouterGroupe lui-même, est remplacé après chaque sauvegarde réussie.
+        formCourante.addEventListener('click', function (event) {
+            if (!event.target.closest('#btnAjouterGroupe')) {
+                return;
+            }
 
-    // Clic sur "Sauvegarder" : ouvre la modal de confirmation plutôt que de soumettre directement.
-    btnSave.addEventListener('click', function () {
-        const modalEl = document.getElementById('modalConfirmSaison');
-        if (modalEl) {
-            bootstrap.Modal.getOrCreateInstance(modalEl).show();
-        }
-    });
+            const template = document.getElementById('tpl-groupe-row');
+            const tbody = document.getElementById('tbody-groupes-club');
+            if (!template || !tbody) {
+                return;
+            }
 
-    // Confirmation dans la modal : soumission ajax effective du formulaire (définition + groupes).
-    const btnConfirm = document.getElementById('btnConfirmSaveSaisonCourante');
-    if (btnConfirm) {
-        btnConfirm.addEventListener('click', function () {
-            const formData = new FormData(formCourante);
+            const index = tbody.querySelectorAll('.js-groupe-row').length;
+            const fragment = template.content.cloneNode(true);
 
-            simpleCallAjax(formData, function (response) {
-                // Succès : remplace le panneau groupes par la version fraîche du serveur (les
-                // nouvelles lignes reçoivent leur id_groupe réel), puis réinitialise la baseline
-                // et masque le bouton Sauvegarder.
-                const panel = document.getElementById('saisons-groupes-panel');
-                if (panel && response.data) {
-                    const html = decodeURIComponent(escape(atob(response.data)));
-                    const doc = document.createElement('div');
-                    doc.innerHTML = html;
-                    const freshPanel = doc.querySelector('#saisons-groupes-panel');
-                    if (freshPanel) {
-                        panel.replaceWith(freshPanel);
-                    }
+            fragment.querySelectorAll('[name]').forEach(function (el) {
+                el.name = el.name.replace('__INDEX__', String(index));
+
+                // Le <select> d'activité porte un id dérivé de son name : le réindexer aussi, sinon
+                // deux lignes ajoutées à la suite partageraient le même id.
+                if (el.id) {
+                    el.id = el.id.replace('__INDEX__', String(index));
                 }
-
-                baseline = new FormData(formCourante);
-                refreshSaveButtonVisibility();
             });
-            // En cas d'échec, simpleCallAjax affiche déjà le message d'erreur ; le formulaire
-            // reste inchangé et le bouton Sauvegarder reste visible (pas de perte de saisie).
+
+            tbody.appendChild(fragment);
+            refreshSaveButtonVisibility();
         });
+
+        // Clic sur "Sauvegarder" : ouvre la modal de confirmation plutôt que de soumettre directement.
+        btnSave.addEventListener('click', function () {
+            const modalEl = document.getElementById('modalConfirmSaison');
+            if (modalEl) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        });
+
+        // Confirmation dans la modal : soumission ajax effective du formulaire (définition + groupes).
+        const btnConfirm = document.getElementById('btnConfirmSaveSaisonCourante');
+        if (btnConfirm) {
+            btnConfirm.addEventListener('click', function () {
+                const formData = new FormData(formCourante);
+
+                simpleCallAjax(formData, function (response) {
+                    // Succès : remplace le panneau groupes par la version fraîche du serveur (les
+                    // nouvelles lignes reçoivent leur id_groupe réel), puis réinitialise la baseline
+                    // et masque le bouton Sauvegarder.
+                    const panel = document.getElementById('saisons-groupes-panel');
+                    if (panel && response.data) {
+                        const html = decodeURIComponent(escape(atob(response.data)));
+                        const doc = document.createElement('div');
+                        doc.innerHTML = html;
+                        const freshPanel = doc.querySelector('#saisons-groupes-panel');
+                        if (freshPanel) {
+                            panel.replaceWith(freshPanel);
+                        }
+                    }
+
+                    baseline = new FormData(formCourante);
+                    refreshSaveButtonVisibility();
+                });
+                // En cas d'échec, simpleCallAjax affiche déjà le message d'erreur ; le formulaire
+                // reste inchangé et le bouton Sauvegarder reste visible (pas de perte de saisie).
+            });
+        }
     }
 });

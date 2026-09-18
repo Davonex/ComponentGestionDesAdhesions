@@ -47,6 +47,14 @@ final class SouscriptionService
         $last_update = ToolsHelper::now();
         $cotisation_code = $data['cotisation_code'] ?? null;
         $id_order = $data['id_order'] ?? null;
+        // Montant figé : ce qui a réellement été facturé à l'adhérent, pour qu'une correction de
+        // tarif par le Bureau ne réécrive pas rétroactivement les saisons passées. Recalculé
+        // ici depuis le code si l'appelant ne l'a pas fourni (jamais repris d'un champ client).
+        $cotisation_montant = isset($data['cotisation_montant'])
+            ? number_format((float) $data['cotisation_montant'], 2, '.', '')
+            : ($cotisation_code !== null
+                ? number_format(CotisationService::getMontant((string) $cotisation_code, $this->db), 2, '.', '')
+                : null);
         // $caci_check = $data['caci_check'] ?? false;
 
 
@@ -75,12 +83,14 @@ final class SouscriptionService
             $query->update($this->db->quoteName('#__gda_souscriptions'))
                 ->set($this->db->quoteName('last_update') . ' = :value_last_update')
                 ->set($this->db->quoteName('cotisation_code') . ' = :value_cotisation_code')
+                ->set($this->db->quoteName('cotisation_montant') . ' = :value_cotisation_montant')
                 ->set($this->db->quoteName('id_order') . ' = :value_id_order')
                 ->set ($this->db->quoteName('categorie') . ' = :value_categorie')
                 ->where($this->db->quoteName('id_campagne') . ' = :value_id_campagne')
                 ->where($this->db->quoteName('id_profil') . ' = :value_id_profil');
             $query->bind(':value_last_update', $last_update);
             $query->bind(':value_cotisation_code', $cotisation_code);
+            $query->bind(':value_cotisation_montant', $cotisation_montant);
             $query->bind(':value_id_order', $id_order);
             $query->bind(':value_id_campagne', $idCampagne);
             $query->bind(':value_id_profil', $idProfil);
@@ -96,15 +106,17 @@ final class SouscriptionService
                 $this->db->quoteName('id_profil'),
                 $this->db->quoteName('date_souscription'),
                 $this->db->quoteName('cotisation_code'),
+                 $this->db->quoteName('cotisation_montant'),
                  $this->db->quoteName('id_order'),
                  $this->db->quoteName('last_update'),
                  $this->db->quoteName('categorie'),
             ]);
-            $query->values(':value_id_campagne, :value_id_profil, :value_date_souscription, :value_cotisation_code, :value_id_order, :value_last_update, :value_categorie');
+            $query->values(':value_id_campagne, :value_id_profil, :value_date_souscription, :value_cotisation_code, :value_cotisation_montant, :value_id_order, :value_last_update, :value_categorie');
             $query->bind(':value_id_campagne', $idCampagne);
             $query->bind(':value_id_profil', $idProfil);
             $query->bind(':value_date_souscription', $date_souscription);
             $query->bind(':value_cotisation_code', $cotisation_code);
+            $query->bind(':value_cotisation_montant', $cotisation_montant);
             $query->bind(':value_id_order', $id_order);
             $query->bind(':value_last_update', $last_update);
             $query->bind(':value_categorie', $categorie);

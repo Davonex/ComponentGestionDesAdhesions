@@ -116,6 +116,25 @@ document.addEventListener('DOMContentLoaded', function () {
     // Récupérer les valeurs du formulaire
     const getValue = id => document.querySelector(`#${id}`)?.value || "";
 
+    /**
+     * Option "Licence seule" (achat de la licence FFESSM sans adhésion au club) : popup
+     * d'avertissement affichée dès la sélection, en plus de l'encadré du récapitulatif
+     * (voir btnStepRecap plus bas) et du rappel dans les mails de création/modification
+     * (layouts/mail/adhesion_html.php, adhesion_text.php). isLicenceSeuleSelected() et
+     * syncGroupesFieldState() sont des fonctions globales (déclarées plus bas dans ce fichier) :
+     * elles sont aussi appelées depuis le bloc d'initialisation de TomSelect, dans un autre
+     * gestionnaire DOMContentLoaded exécuté après celui-ci.
+     */
+    const reductionSelect = document.querySelector('#jform_reduction');
+
+    reductionSelect?.addEventListener('change', function () {
+        syncGroupesFieldState();
+
+        if (isLicenceSeuleSelected()) {
+            showAdhesionAlert(Joomla.getOptions('com_gdadhesions.licenceSeuleAlert'));
+        }
+    });
+
     // gestion de l'affichage des boutons et du header à chaque changement d'étape du carousel
     wizard.addEventListener('slid.bs.carousel', function (e) {
         currentWizardStep = e.to;
@@ -144,7 +163,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Valider visible uniquement sur step 2
         if (e.to === 2) {
             btnValider.classList.remove('d-none');
-            document.querySelector("#recap_cotisation").innerHTML = "";
+            document.querySelector("#recap_cotisation_montant").textContent = "";
+            document.querySelector("#recap_cotisation_label").textContent = "";
             const data = {
                 task: 'form.CheckCotisation',
                 dateDeNaissance: getValue("jform_date_de_naissance"),
@@ -235,10 +255,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Groupes
         // Afficher la liste de options dans un element P  et que chaque element soit dans un span avec la class "btn btn-pripary"
-        const groupesSelect = document.querySelector("#jform_id_groupes");
-        const selectedOptions = Array.from(groupesSelect.selectedOptions).map((option) => "<span class='btn btn-primary me-1 mb-1'>" + option.text + "</span>");
+        const recapGroupesEl = document.querySelector("#recap_groupes");
 
-        document.querySelector("#recap_groupes").innerHTML = selectedOptions.join(" ") || "<span class='text-recap'>" + Joomla.Text._('COM_GDA_ADHESION_RECAP_AUCUN_GROUPE') + "</span>";
+        // "Licence seule" : le message d'avertissement superpose tout le bloc #recap_groupes
+        // (mêmes mécanique et emplacement que le repli "aucun groupe" ci-dessous), plutôt que la
+        // liste des groupes ou le repli habituel - sans adhésion au club, il n'y a pas de groupe
+        // de formation à rejoindre.
+        if (isLicenceSeuleSelected()) {
+            recapGroupesEl.classList.add('gda-alert-licence-seule');
+            recapGroupesEl.innerHTML = "<span>" + Joomla.Text._('COM_GDA_ADHESION_LICENCE_SEULE_MESSAGE') + "</span>";
+        } else {
+            recapGroupesEl.classList.remove('gda-alert-licence-seule');
+            const groupesSelect = document.querySelector("#jform_id_groupes");
+            const selectedOptions = Array.from(groupesSelect.selectedOptions).map((option) => "<span class='btn btn-primary me-1 mb-1'>" + option.text + "</span>");
+
+            recapGroupesEl.innerHTML = selectedOptions.join(" ") || "<span class='text-recap'>" + Joomla.Text._('COM_GDA_ADHESION_RECAP_AUCUN_GROUPE') + "</span>";
+        }
         // Brevets
         // récupérer tous les inputs du conteneur dont le name contient [nom]
         // console.log("recupe tous les brevets");
@@ -292,8 +324,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
+        // Groupe de formation obligatoire, sauf pour l'option "Licence seule" : vérifié à
+        // l'arrivée sur le récapitulatif (event.to), quel que soit l'onglet de départ, puisque le
+        // champ vit en permanence dans le DOM (étape "Info plongeur"). Message dédié, plus
+        // explicite que l'alerte générique "formulaire incomplet".
+        let alertOptionKey = 'com_gdadhesions.stepInvalidAlert';
+
+        if (event.to === 2 && !isLicenceSeuleSelected()) {
+            const tomSelect = document.querySelector('#jform_id_groupes')?.tomselect;
+            const groupeManquant = next && tomSelect && tomSelect.items.length === 0;
+
+            setGroupesInvalid(!!groupeManquant);
+
+            if (groupeManquant) {
+                next = false;
+                alertOptionKey = 'com_gdadhesions.groupeRequiredAlert';
+            }
+        }
+
         if (!next) {
-            showAdhesionAlert(Joomla.getOptions('com_gdadhesions.stepInvalidAlert'));
+            showAdhesionAlert(Joomla.getOptions(alertOptionKey));
             event.preventDefault()
             return;
         } else {
@@ -314,6 +364,56 @@ document.addEventListener('DOMContentLoaded', function () {
 
 });
 
+
+/**
+ * Détermine si l'option "Licence seule" est actuellement sélectionnée dans le champ Tarification
+ * (#jform_reduction). Fonction globale (pas de const de closure) : appelée depuis plusieurs
+ * gestionnaires DOMContentLoaded distincts de ce fichier.
+ *
+ * @returns {boolean}
+ */
+function isLicenceSeuleSelected() {
+    const reductionSelect = document.querySelector('#jform_reduction');
+    const reductionLicenceSeule = Joomla.getOptions('com_gdadhesions.reductionLicenceSeule');
+
+    return !!reductionSelect && String(reductionSelect.value) === String(reductionLicenceSeule);
+}
+
+/**
+ * Synchronise l'état du champ "Rejoignez un groupe" (#jform_id_groupes, widget TomSelect) avec la
+ * tarification choisie : vidé et grisé pour l'option "Licence seule" (aucune adhésion au club,
+ * donc aucun groupe de formation à rejoindre), actif sinon. Appelée au changement du champ
+ * Tarification et une fois à l'initialisation de TomSelect (cas d'un profil existant déjà
+ * enregistré avec cette option).
+ */
+function syncGroupesFieldState() {
+    const tomSelect = document.querySelector('#jform_id_groupes')?.tomselect;
+
+    if (!tomSelect) {
+        return;
+    }
+
+    if (isLicenceSeuleSelected()) {
+        tomSelect.clear(true);
+        tomSelect.disable();
+        setGroupesInvalid(false);
+    } else {
+        tomSelect.enable();
+    }
+}
+
+/**
+ * Bascule le style "invalide" (bordure rouge + icône, même code couleur que les champs natifs
+ * Bootstrap ".is-invalid" du formulaire) du widget TomSelect du champ "Rejoignez un groupe" - voir
+ * la règle ".ts-wrapper.is-invalid .ts-control" dans adhesions-override.css.
+ *
+ * @param {boolean} isInvalid
+ */
+function setGroupesInvalid(isInvalid) {
+    const tomSelect = document.querySelector('#jform_id_groupes')?.tomselect;
+
+    tomSelect?.wrapper?.classList.toggle('is-invalid', isInvalid);
+}
 
 /**
  * Injecte un contenu de modal (layout adhesion.alert, rendu et encodé côté serveur) dans
@@ -546,7 +646,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // tom select // multi select
 document.addEventListener("DOMContentLoaded", function () {
-    new TomSelect('#jform_id_groupes', {
+    const groupesTomSelect = new TomSelect('#jform_id_groupes', {
         dropdownParent: 'body',
         plugins: {
             remove_button: {
@@ -557,6 +657,18 @@ document.addEventListener("DOMContentLoaded", function () {
         persist: false
     });
     // multiselectInit ('jform_id_groupes')
+
+    // Retour visuel immédiat : dès qu'un groupe est choisi, la bordure rouge (si affichée par le
+    // contrôle bloquant du carousel) disparaît sans attendre le prochain changement d'étape.
+    groupesTomSelect.on('change', function (value) {
+        if (value) {
+            setGroupesInvalid(false);
+        }
+    });
+
+    // État initial du champ selon la tarification déjà sélectionnée (cas d'un profil existant
+    // déjà enregistré avec l'option "Licence seule").
+    syncGroupesFieldState();
 });
 
 
@@ -609,7 +721,8 @@ window.CBsubmitformAdhesion = CBsubmitformAdhesion;
 function CBCheckCotisation(response) {
     // console.log (response.data);
     //sprintf(Text::_('COM_GDA_COTISATION_TARIF_'+response.data.code), response.data.montant);
-    document.querySelector("#recap_cotisation").innerHTML = response.data.innerHtml;
+    document.querySelector("#recap_cotisation_montant").textContent = response.data.montant_affiche;
+    document.querySelector("#recap_cotisation_label").textContent = response.data.label_affiche;
     document.querySelector("#jform_cotisation_code").value = response.data.code;
     document.querySelector("#jform_cotisation_montant").value = response.data.montant;
 

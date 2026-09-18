@@ -3,6 +3,7 @@
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\HTML\HTMLHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
+use NCB\Component\Gda\Site\Service\CotisationService;
 
 /**
  * @var array $displayData
@@ -22,7 +23,7 @@ $items = $displayData['items'] ?? [];
           <tr>
             <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ACTION') ?></th>
             <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PHOTO') ?></th>
-            <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_LICENCE') ?></th>
+            <th><i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_LICENCE') ?></th>
             <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_NAME') ?></th>
             <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_EMAIL') ?></th>
             <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE_DE_NAISSANCE') ?></th>
@@ -48,16 +49,18 @@ $items = $displayData['items'] ?? [];
                   $licenceClass .= ' gda-licence-chip--warning';
                 }
               ?>
-              <td class="text-start">
+              <?php $hintDevaliderPaiement = Text::_('COM_GDA_SECRETARIAT_PAYMENT_DEVALIDATE_HINT'); ?>
+              <td class="text-center">
                 <button
                   type="button"
-                  class="btn btn-sm btn-outline-warning js-unvalidate-payment"
+                  class="btn btn-sm btn-outline-warning gda-btn-step js-unvalidate-payment"
                   data-item-id="<?= (int) ($item->id_profil ?? 0) ?>"
                   data-item-campagne="<?= (int) ($item->id_campagne ?? 0) ?>"
                   data-bs-toggle="tooltip"
-                  data-bs-title="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_PAYMENT_DEVALIDATE_HINT') ?? 'Retirer la validation paiement') ?>"
-                  title="<?= Text::_('COM_GDA_SECRETARIAT_PAYMENT_DEVALIDATE_HINT') ?? 'Retirer la validation paiement' ?>">
-                  <?= Text::_('COM_GDA_SECRETARIAT_PAYMENT_DEVALIDATE') ?? 'De-valider paiement' ?>
+                  data-bs-title="<?= $this->escape($hintDevaliderPaiement) ?>"
+                  title="<?= $this->escape($hintDevaliderPaiement) ?>"
+                  aria-label="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_PAYMENT_DEVALIDATE')) ?>">
+                  <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
                 </button>
               </td>
               <?php $pathPhoto = FileHelper::getImageSrc($item->photo, 'ProfilPhotoPath', 'DefaultProfilPhoto', false); ?>
@@ -103,21 +106,23 @@ $items = $displayData['items'] ?? [];
               </td>
               <td><?= $this->escape((string) ($item->email ?? '')) ?></td>
               <td><?= HTMLHelper::date($item->date_de_naissance, 'd/m/Y') ?></td>
-              <td><?= $this->escape(Text::_('COM_GDA_COTISATION_TARIF_' . ($item->cotisation_code ?? ''))) ?></td>
+              <td><?= $this->escape(CotisationService::getLabel((string) ($item->cotisation_code ?? ''))) ?></td>
               <td><?= $this->escape((string) ($item->categorie ?? '')) ?></td>
               <td><?= HTMLHelper::date($item->date_souscription, 'd/m/Y H:i') ?></td>
-              <td class="text-end">
+              <?php $hintFinaliser = Text::_('COM_GDA_SECRETARIAT_INSCRIPTION_FINALIZE_HINT'); ?>
+              <td class="text-center">
                 <button
                   type="button"
-                  class="btn btn-sm btn-primary js-finalize-inscription"
+                  class="btn btn-sm btn-outline-success gda-btn-step js-finalize-inscription"
                   data-item-id="<?= (int) ($item->id_profil ?? 0) ?>"
                   data-item-campagne="<?= (int) ($item->id_campagne ?? 0) ?>"
                   data-item-licence="<?= $this->escape((string) ($item->username ?? '')) ?>"
                   data-item-name="<?= $this->escape(trim((string) (($item->prenom ?? '') . ' ' . ($item->nom ?? '')))) ?>"
                   data-bs-toggle="tooltip"
-                  data-bs-title="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_INSCRIPTION_FINALIZE_HINT') ?? 'Finaliser l\'inscription') ?>"
-                  title="<?= Text::_('COM_GDA_SECRETARIAT_INSCRIPTION_FINALIZE_HINT') ?? 'Finaliser l\'inscription' ?>">
-                  <?= Text::_('COM_GDA_SECRETARIAT_INSCRIPTION_FINALIZE') ?? 'Inscription finalisée' ?>
+                  data-bs-title="<?= $this->escape($hintFinaliser) ?>"
+                  title="<?= $this->escape($hintFinaliser) ?>"
+                  aria-label="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_INSCRIPTION_FINALIZE')) ?>">
+                  <i class="fa-solid fa-flag-checkered" aria-hidden="true"></i>
                 </button>
               </td>
             </tr>

@@ -55,15 +55,10 @@
 
 
 
-	<field name="reduction" type="list" label="COM_GDA_REDUCTION_LABEL" description="COM_GDA_REDUCTION_DESC" class="inputbox"
-			default ="0">
-		<!-- @TODO remplacer les valeurs par une variable de texte -->
-		<option value="0">COM_GDA_REDUCTION_CHOIX_0</option>
-		<option value="1">COM_GDA_REDUCTION_CHOIX_1</option>
-		<option value="2">COM_GDA_REDUCTION_CHOIX_2</option>
-		<!-- <option value="3">COM_GDA_REDUCTION_CHOIX_3</option> -->
-		<option value="4">COM_GDA_REDUCTION_CHOIX_4</option>
-	</field>
+	<!-- Options construites depuis les tarifs ACTIFS de #__gda_cotisation : le Bureau les pilote
+	     depuis l'onglet "Tarification" de la vue Saisons (models/fields/reductioncotisation.php). -->
+	<field name="reduction" type="ReductionCotisation" label="COM_GDA_REDUCTION_LABEL" description="COM_GDA_REDUCTION_DESC" class="inputbox"
+			default ="0" />
 
 	<field name="nbr_plongee" type="text" label="COM_GDA_NBR_PLONGEE_LABEL" description="COM_GDA_NBR_PLONGEE_DESC" size="10" class="text-end" required="false">
 	</field>

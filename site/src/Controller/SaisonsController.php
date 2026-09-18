@@ -12,6 +12,7 @@ use Joomla\CMS\Response\JsonResponse;
 use Joomla\Database\DatabaseInterface;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
+use NCB\Component\Gda\Site\Service\CotisationService;
 use NCB\Component\Gda\Site\Service\GroupesService;
 
 class SaisonsController extends BaseController
@@ -212,6 +213,94 @@ class SaisonsController extends BaseController
             $Response->success = false;
             $Response->message = $e->getMessage();
             GdaLogger::error('Erreur lors du changement de saison courante : ' . $e->getMessage());
+        }
+
+        echo $Response;
+        $app->close();
+    }
+
+    /**
+     * Ajax : édition inline d'une case du référentiel tarifaire (onglet « Tarification »).
+     *
+     * Renvoie la ligne entière re-rendue plutôt que la valeur enregistrée : le tableau affiche
+     * des données dérivées (montants formatés, aperçu du suffixe « [Hors Agglo] », badge
+     * actif/inactif) dont le calcul appartient au serveur — le JS n'a jamais à formater un
+     * montant ni à dupliquer la règle du suffixe.
+     *
+     * @return void
+     */
+    public function updateTarif(): void
+    {
+        /** @var \Joomla\CMS\Application\SiteApplication $app */
+        $app = Factory::getApplication();
+        $Response = new JsonResponse();
+
+        try {
+            $this->checkToken();
+            $this->guardBureauMember();
+
+            $idTarif = $app->input->getInt('id_tarif', 0);
+            $champ   = $app->input->getCmd('champ', '');
+            // getRaw et non getString : le filtre 'string' supprime silencieusement tout ce qui
+            // ressemble à une balise, si bien qu'un libellé légitime comme « Jeunes <18 ans »
+            // serait tronqué à « Jeunes » sans que le Bureau en soit averti. La protection XSS
+            // est assurée à l'affichage, où tous les points de sortie du libellé échappent
+            // (6 layouts via $this->escape(), htmlspecialchars() dans FormController pour le
+            // récapitulatif injecté en innerHTML, textContent côté secretariat.js).
+            $valeur  = (string) $app->input->getRaw('valeur', '');
+
+            /** @var \NCB\Component\Gda\Site\Model\SaisonsModel $model */
+            $model = $this->getModel('saisons', 'site');
+            $tarif = $model->updateTarif($idTarif, $champ, $valeur);
+
+            $Response->success = true;
+            $Response->message = Text::_('COM_GDA_SAISONS_TARIF_UPDATED');
+
+            // Désactiver un tarif ne retire l'option correspondante du formulaire d'adhésion que
+            // si plus aucun tarif actif ne la porte (A et D partagent « Normal », B et E
+            // « Réduction Famille »). On le dit explicitement plutôt que de laisser le Bureau
+            // constater que le formulaire n'a pas changé.
+            if ($champ === 'actif' && (int) $tarif->actif === 0 && $tarif->reduction !== null) {
+                $autresActifs = CotisationService::getLignesActivesPourReduction(
+                    (int) $tarif->reduction,
+                    (int) $tarif->id_tarif
+                );
+
+                if ($autresActifs !== []) {
+                    $Response->message .= ' ' . Text::sprintf(
+                        'COM_GDA_SAISONS_TARIF_WARN_OPTION_PARTAGEE',
+                        CotisationService::getLibelleOption((int) $tarif->reduction),
+                        implode(', ', $autresActifs)
+                    );
+                }
+            }
+
+            // Modifier un libellé d'option touche toutes les lignes qui partagent cette option
+            // (A/D, B/E) : on renvoie alors le référentiel entier re-rendu, le JS remplaçant
+            // chaque <tr> par son id. Même motif que toggleCourante(), qui fait déjà changer
+            // deux lignes d'un coup.
+            $lignes = $champ === 'option_libelle'
+                ? $model->getTarifs()
+                : [$tarif];
+
+            $html = '';
+
+            foreach ($lignes as $ligne) {
+                $html .= LayoutHelper::render('saisons.tarification_ligne', ['tarif' => $ligne]);
+            }
+
+            $Response->data = base64_encode($html);
+
+            GdaLogger::info(sprintf(
+                'Tarif mis à jour (id_tarif=%d, code=%s, champ=%s).',
+                (int) $tarif->id_tarif,
+                $tarif->code,
+                $champ
+            ));
+        } catch (\Throwable $e) {
+            $Response->success = false;
+            $Response->message = $e->getMessage();
+            GdaLogger::error('Erreur lors de la mise à jour d\'un tarif : ' . $e->getMessage());
         }
 
         echo $Response;

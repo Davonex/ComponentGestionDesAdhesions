@@ -772,8 +772,12 @@ class AdhesionModel extends FormModel
     }
 
     /**
-     * Créer le profil d’un nouvel utilisateur
-     * 
+     * Créer le profil d’un nouvel utilisateur. Valide aussi la clé de réédition du profil créé
+     * pour le reste de la session (voir la fin de la méthode) : un second envoi du formulaire
+     * dans la même session (double-clic sur "Valider", ou retour sur le formulaire avant de
+     * quitter la page) doit pouvoir être traité comme une réédition légitime par
+     * getProfil()/getKey(), pas être rejeté faute d'identité résolue.
+     *
      * @return  bool  True si le profil a été créé avec succès, false sinon
      */
     function createProfil(): bool
@@ -855,6 +859,19 @@ class AdhesionModel extends FormModel
             throw new \Exception('Erreur createProfil(): ' . $e->getMessage(), 500);
         }
 
+        if ($result) {
+            // Valide la clé de réédition pour le reste de cette session, exactement comme
+            // DisplayController::display() le fait pour un accès via lien emailé (?key=...).
+            // Sans cela, un second envoi (double-clic sur "Valider", CBsubmitformAdhesion ayant
+            // déjà mis à jour #jform_id avec l'id nouvellement créé) arrive avec un id non nul,
+            // route AdhesionController::save() vers la branche "réédition" (UpdateProfil()), qui
+            // ne peut résoudre aucune identité côté serveur (ni session connectée, ni clé
+            // validée) et lève COM_GDA_ERROR_UNAUTHORIZED - alors que la personne qui vient de
+            // créer ce profil, dans sa propre session, est légitimement autorisée à continuer à
+            // l'éditer.
+            $app->setUserState('adhesion.key', $data['key']);
+        }
+
         return $result;
     }
 
@@ -893,16 +910,17 @@ class AdhesionModel extends FormModel
         $saison = $this->getSaisonService()->getSaisonOuverte();
         $adhesion = $app->getUserState('adhesion.save');
 
-        // Vérifier que groupes est un array
-        if (empty($adhesion['id_groupes']) || !is_array($adhesion['id_groupes'])) {
-            return true; // Pas de brevets à enregistrer
-        }
+        $groupes = is_array($adhesion['id_groupes'] ?? null) ? $adhesion['id_groupes'] : [];
 
         $db = $this->getDatabase();
 
 
         try {
-            // Supprimer les anciens groupes pour l'utilisateur $adhesion['id']
+            // Supprimer les anciens groupes pour l'utilisateur $adhesion['id'] : toujours, même si
+            // la nouvelle sélection est vide (ex: option "Licence seule", qui ne donne accès à
+            // aucun groupe de formation) - sans ce DELETE inconditionnel, une ancienne association
+            // restait visible côté secrétariat après un changement de tarification ou un simple
+            // retrait de groupe.
             $query = $db->createQuery();
             $query->delete($db->quoteName('#__gda_composition_groupes'))
                 ->where($db->quoteName('id_profil') . ' = :id_profil' .  ' AND ' . $db->quoteName('id_campagne') . ' = :id_campagne')
@@ -910,7 +928,7 @@ class AdhesionModel extends FormModel
                 ->bind(':id_campagne', $saison->id_campagne);
             $db->setQuery($query);
             $db->execute();
-            foreach ($adhesion['id_groupes'] as $id_groupe) {
+            foreach ($groupes as $id_groupe) {
                 $query = $db->createQuery();
                 $columns = array(
                     $db->quoteName('id_profil'),
@@ -960,6 +978,14 @@ class AdhesionModel extends FormModel
             'id_profil' => (int) $adhesion['id'],
             'date_souscription' => $adhesion['last_update'],
             'cotisation_code' => $adhesion['cotisation_code'],
+            // Montant figé recalculé côté serveur depuis le code : $adhesion['cotisation_montant']
+            // vient d'un champ caché du formulaire, donc contrôlé par le client. Pour l'option
+            // "Licence seule", c'est la licence FFESSM due (selon l'âge), pas 0€.
+            'cotisation_montant' => CotisationService::getMontantSouscription(
+                (string) ($adhesion['cotisation_code'] ?? ''),
+                (string) ($adhesion['date_de_naissance'] ?? ''),
+                $this->getDatabase()
+            ),
             'id_order' => $adhesion['helloasso'] ?? 0,
             'categorie' => $categorie
         ];

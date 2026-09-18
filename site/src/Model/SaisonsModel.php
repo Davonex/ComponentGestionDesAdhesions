@@ -7,6 +7,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Form\Form;
 use Joomla\CMS\MVC\Model\ListModel;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
+use NCB\Component\Gda\Site\Service\CotisationService;
 use NCB\Component\Gda\Site\Service\SaisonService;
 
 /**
@@ -114,5 +115,32 @@ class SaisonsModel extends ListModel
     public function toggleCourante(int $idCampagne, bool $courante): bool
     {
         return ConfHelper::getSaisonService()->toggleCourante($idCampagne, $courante);
+    }
+
+    /**
+     * Référentiel tarifaire complet (cotisations club + licences FFESSM), pour l'onglet
+     * « Tarification ». Inclut les lignes inactives : c'est cet écran qui les réactive.
+     *
+     * @return object[] Lignes du référentiel, triées par ordre d'affichage.
+     * @throws \RuntimeException Si le référentiel est inaccessible.
+     */
+    public function getTarifs(): array
+    {
+        return CotisationService::getLignesAdmin($this->getDatabase());
+    }
+
+    /**
+     * Édition inline d'une case du référentiel tarifaire.
+     *
+     * @param int    $idTarif Identifiant de la ligne.
+     * @param string $champ   Champ à modifier.
+     * @param string $valeur  Nouvelle valeur, telle que saisie.
+     * @return object La ligne relue après écriture.
+     * @throws \InvalidArgumentException Si le champ ou la valeur sont invalides.
+     * @throws \RuntimeException Si la ligne est introuvable ou l'écriture échoue.
+     */
+    public function updateTarif(int $idTarif, string $champ, string $valeur): object
+    {
+        return CotisationService::updateLigne($idTarif, $champ, $valeur, $this->getDatabase());
     }
 }

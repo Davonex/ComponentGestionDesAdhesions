@@ -122,9 +122,8 @@ INSERT INTO `#__gda_conf` (`id`, `key`, `value`) VALUES
 (9, 'IdArticleAdhesionClos', '23'),
 (17,'HelloAssoBaseUrl','https://api.helloasso-sandbox.com'),
 (19,'HelloAssoOrganizationSlug','asso-didou'),
-(20,'LicJEUNE','30,50'),
-(21,'LicADULTE','48,50'),
-(22,'LicENFANT','14,00'),
+-- Les tarifs de licence FFESSM (ex LicJEUNE / LicADULTE / LicENFANT, ids 20-22) vivent depuis la
+-- 0.9.17 dans #__gda_cotisation (lignes nature = 'LICENCE'), administrables par le Bureau.
 (23,'DevMailOverride',''),
 (25,'IdTypeLoisir','3'),
 (26,'MoisDebutSaisonFederale','9');
@@ -220,6 +219,7 @@ CREATE TABLE IF NOT EXISTS `#__gda_souscriptions` (
   `id_profil` int NOT NULL,
   `date_souscription` datetime DEFAULT NULL,
   `cotisation_code` varchar(2) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cotisation_montant` decimal(6,2) DEFAULT NULL COMMENT 'Montant de cotisation figé au moment de la souscription',
   `caci_check` tinyint(1) NOT NULL DEFAULT '0',
   `date_caci_check` datetime DEFAULT NULL,
   `cotisation_check` tinyint(1) NOT NULL DEFAULT '0',
@@ -298,22 +298,46 @@ CREATE TABLE IF NOT EXISTS `#__gda_composition_groupes` (
 -- Structure de la table `#__gda_cotisation`
 --
 
-CREATE TABLE `#__gda_cotisation` (
-  `code` varchar(1) DEFAULT NULL,
-  `tarif_vy` int unsigned DEFAULT NULL,
-  `tarif_hvy` int unsigned DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tarif des cotisations';
+CREATE TABLE IF NOT EXISTS `#__gda_cotisation` (
+  `id_tarif` int UNSIGNED NOT NULL AUTO_INCREMENT,
+  `code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nature` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'COTISATION' COMMENT 'COTISATION (cotisation club) | LICENCE (licence FFESSM)',
+  `cible` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'TOUS' COMMENT 'ADULTE | ENFANT | TOUS pour une cotisation ; categorie (ADULTE|JEUNE|ENFANT) pour une licence',
+  `libelle` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT 'Libellé unique du tarif ; le suffixe "[Hors Agglo]" est ajouté à l''affichage',
+  `commentaire` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Note libre du Bureau, jamais affichée côté adhérent',
+  `tarif_vy` decimal(6,2) NOT NULL DEFAULT 0.00,
+  `tarif_hvy` decimal(6,2) NOT NULL DEFAULT 0.00,
+  `reduction` tinyint DEFAULT NULL COMMENT 'Option de la liste "Tarification" du formulaire (CotisationService::REDUCTION_*), NULL = jamais proposée',
+  `option_libelle` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Libellé de l''option dans la liste "Tarification" du formulaire d''adhésion ; partagé par toutes les lignes de même `reduction`',
+  `actif` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Pilote la liste du formulaire d''adhésion ; ne filtre jamais le calcul d''un montant déjà souscrit',
+  `ordre` int UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Tri d''affichage, par pas de 10',
+  PRIMARY KEY (`id_tarif`),
+  UNIQUE KEY `uniq_gda_cotisation_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tarifs cotisation club et licences FFESSM, administrables par le Bureau';
 --
--- Données initiales cotisations (reprise saison courante)
+-- Données initiales : 8 cotisations club (codes A..H, H = Licence seule, sans adhésion au club) + 3 licences FFESSM.
+-- `reduction`/`cible` reproduisent la cascade de CotisationService::getCode() : `reduction` est
+-- l'option de la liste "Tarification" du formulaire d'adhésion, `cible` lève l'ambiguïté des
+-- couples qui partagent une option (A/D sur 0, B/E sur 1).
+-- Le code C (Étudiant) est livré inactif : l'option était commentée dans models/forms/adhesion.xml
+-- avant la 0.9.17 ; le Bureau peut désormais la réactiver depuis l'onglet "Tarification".
 --
-INSERT INTO `#__gda_cotisation` (`code`, `tarif_vy`, `tarif_hvy`) VALUES
-	 ('A',205,220),
-	 ('B',190,205),
-	 ('C',180,190),
-	 ('D',165,165),
-	 ('F',135,135),
-	 ('G',98,98),
-	 ('E',150,150);
+-- `option_libelle` est le libellé de l'option dans la liste "Tarification" du formulaire
+-- d'adhésion. Deux lignes de même `reduction` portent le MÊME libellé (A/D sur "Normal",
+-- B/E sur "Reduction Famille") : l'invariant est tenu par CotisationService::updateLigne(),
+-- qui propage toute modification aux lignes concernées.
+INSERT INTO `#__gda_cotisation` (`code`, `nature`, `cible`, `libelle`, `commentaire`, `tarif_vy`, `tarif_hvy`, `reduction`, `option_libelle`, `actif`, `ordre`) VALUES
+	 ('A','COTISATION','ADULTE','ADULTES ou ADOS (17 et plus)',NULL,205.00,220.00,0,'Normal',1,10),
+	 ('B','COTISATION','ADULTE','2nd ADULTES membres du même foyer',NULL,190.00,205.00,1,'Reduction Famille',1,20),
+	 ('C','COTISATION','ADULTE','ETUDIANTS (de 16 a 25 ans)','Ne bénéficient pas de la réduction familiale',180.00,190.00,3,'Etudiants',0,30),
+	 ('D','COTISATION','ENFANT','ENFANTS (moins de 17ans) ne participant qu''aux entraînements du vendredi',NULL,165.00,165.00,0,'Normal',1,40),
+	 ('E','COTISATION','ENFANT','ENFANTS (moins de 17ans) membres du même foyer',NULL,150.00,150.00,1,'Reduction Famille',1,50),
+	 ('F','COTISATION','TOUS','Encadrant Actif, Membre du bureau ou TIV',NULL,135.00,135.00,2,'Membre du bureau, encadrant ou TIV',1,60),
+	 ('G','COTISATION','TOUS','Plongeur en situation de handicap',NULL,98.00,98.00,4,'Plongeur Handisub',1,70),
+	 ('H','COTISATION','TOUS','Licence FFESSM seule (sans adhésion au club)',NULL,0.00,0.00,5,'Licence FFESSM seule',1,80),
+	 ('LIC_ADULTE','LICENCE','ADULTE','Licence FFESSM ADULTE',NULL,48.50,48.50,NULL,NULL,1,100),
+	 ('LIC_JEUNE','LICENCE','JEUNE','Licence FFESSM JEUNE',NULL,30.50,30.50,NULL,NULL,1,110),
+	 ('LIC_ENFANT','LICENCE','ENFANT','Licence FFESSM ENFANT',NULL,14.00,14.00,NULL,NULL,1,120);
 
 --
 -- Structure de la table `#__gda_mapping_brevets`

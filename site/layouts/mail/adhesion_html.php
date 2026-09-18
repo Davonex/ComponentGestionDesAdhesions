@@ -13,6 +13,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
+use NCB\Component\Gda\Site\Service\CotisationService;
 use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 /** @var object $displayData */
@@ -31,6 +32,7 @@ $titleKey = $mode === 'create' ? 'COM_GDA_EMAIL_PROFILE_CREATE_TITLE' : 'COM_GDA
 $bodyKey = $mode === 'create' ? 'COM_GDA_EMAIL_PROFILE_CREATE_BODY' : 'COM_GDA_EMAIL_PROFILE_UPDATE_BODY';
 $urlHelloAsso = ConfHelper::getSaisonService()->getSaisonOuverte()->url ?? '#';
 $isCaciValidable = (bool) ($displayData->caci_validable ?? true);
+$isLicenceSeule = CotisationService::isCodeLicenceSeule($cotisationCode);
 ?>
 
 <html><body>
@@ -57,6 +59,13 @@ $isCaciValidable = (bool) ($displayData->caci_validable ?? true);
   </p>
   <?php endif; ?>
 
+  <?php if ($isLicenceSeule) : ?>
+    <!-- Avertissement "Licence seule" (meme texte que la popup au moment du choix et l'encadre du recapitulatif) -->
+    <div style="margin: 20px 0; padding: 16px; background-color: #fdf2f2; border: 3px double #dc3545; border-radius: 6px;">
+      <p style="margin: 0; font-weight: 600; color: #dc3545;"><?= $this->escape(Text::_('COM_GDA_ADHESION_LICENCE_SEULE_MESSAGE')) ?></p>
+    </div>
+  <?php endif; ?>
+
   <?php if (!$isCaciValidable) : ?>
     <!-- Rappel CACI (memes textes que la popup de confirmation, adhesion.popup) -->
     <div style="margin: 20px 0; padding: 16px; background-color: #fff8e6; border: 1px solid #f5deb3; border-radius: 6px;">
@@ -75,7 +84,7 @@ $isCaciValidable = (bool) ($displayData->caci_validable ?? true);
       <p style="margin: 0 0 8px; font-weight: 600;"><?= $this->escape(Text::_('COM_GDA_ADHESION_POPUP_LAST_STEP')) ?></p>
       <p style="margin: 0 0 12px; color: #6b7280; font-size: 14px;"><?= $this->escape(Text::_('COM_GDA_ADHESION_POPUP_HELLOASSO_INTRO')) ?></p>
       <ol style="margin: 0 0 16px; padding-left: 20px; color: #6b7280; font-size: 14px;">
-        <li style="margin-bottom: 6px;"><?= Text::sprintf('COM_GDA_ADHESION_POPUP_STEP1', $this->escape(Text::_('COM_GDA_COTISATION_TARIF_' . $cotisationCode))) ?></li>
+        <li style="margin-bottom: 6px;"><?= Text::sprintf('COM_GDA_ADHESION_POPUP_STEP1', $this->escape(CotisationService::getLabel($cotisationCode))) ?></li>
         <li style="margin-bottom: 6px;"><?= Text::sprintf('COM_GDA_ADHESION_POPUP_STEP2', $this->escape($username)) ?></li>
         <li style="margin-bottom: 6px;"><?= $this->escape(Text::_('COM_GDA_ADHESION_POPUP_STEP3')) ?></li>
         <li><?= $this->escape(Text::_('COM_GDA_ADHESION_POPUP_STEP4')) ?></li>

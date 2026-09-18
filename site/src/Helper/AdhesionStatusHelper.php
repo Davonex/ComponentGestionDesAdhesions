@@ -467,7 +467,14 @@ class AdhesionStatusHelper
                 ];
 
             case self::STATUS_PAYMENT_REQUIRED:
-                $montantCotisation = CotisationService::getMontant((string) ($souscription->cotisation_code ?? ''));
+                // Montant figé à la souscription, formaté par le service (le symbole € fait
+                // partie de la chaîne renvoyée, il n'est plus dans la clé de langue).
+                $montantCotisation = CotisationService::formatMontant(
+                    CotisationService::getMontantFige(
+                        $souscription->cotisation_montant ?? null,
+                        (string) ($souscription->cotisation_code ?? '')
+                    )
+                );
                 return [
                     'type'    => $type,
                     'icon'    => 'fa-credit-card',

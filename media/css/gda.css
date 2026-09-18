@@ -695,6 +695,25 @@ main .form-check-input:focus {
     font-style: italic;
 }
 
+/*
+ * Boutons de passage d'etape du wizard secretariat (valider / de-valider).
+ * Icone seule et gabarit compact : le libelle complet de l'action reste porte par
+ * l'infobulle (data-bs-title) et par aria-label pour les lecteurs d'ecran.
+ */
+.btn.gda-btn-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    line-height: 1;
+}
+
+.btn.gda-btn-step i {
+    font-size: .9rem;
+}
+
 
 
 /* style pour helloasso  */
@@ -888,6 +907,16 @@ main .form-check-input:focus {
     background: var(--gda-dt-surface);
     color: var(--body-color, #223041);
     border-bottom: 1px solid var(--gda-dt-border);
+    font-weight: 700;
+}
+
+/* Le <button> genere par simple-datatables pour chaque en-tete triable herite du style navigateur
+   par defaut des elements de formulaire (white-space: pre) : le texte ne revient jamais a la
+   ligne, meme dans une colonne etroite - il deborde ou est coupe au lieu de s'afficher sur deux
+   lignes. Concerne tous les tableaux du composant utilisant simple-datatables, pas seulement le
+   Secretariat. */
+.datatable-sorter {
+    white-space: normal;
 }
 
 /* 3) Lignes + survol pour la lisibilite */
@@ -930,34 +959,66 @@ main .form-check-input:focus {
 /* Cellules éditables (double-clic) - surbrillance au hover */
 .js-editable-date-caci,
 .js-editable-categorie,
+.js-editable-cotisation,
 .js-editable-fonction,
-.js-editable-ordre {
+.js-editable-ordre,
+.js-editable-tarif-libelle,
+.js-editable-tarif-vy,
+.js-editable-tarif-hvy,
+.js-editable-tarif-option,
+.js-editable-tarif-commentaire {
     position: relative;
     transition: background-color 0.15s ease-in-out;
 }
 
-/* Petit triangle en haut a gauche pour signaler un champ editable. */
+/* Petite icone crayon en filigrane (coin bas-droit) pour signaler un champ editable. */
 .js-editable-date-caci::before,
 .js-editable-categorie::before,
+.js-editable-cotisation::before,
 .js-editable-fonction::before,
-.js-editable-ordre::before {
-    content: "";
+.js-editable-ordre::before,
+.js-editable-tarif-libelle::before,
+.js-editable-tarif-vy::before,
+.js-editable-tarif-hvy::before,
+.js-editable-tarif-option::before,
+.js-editable-tarif-commentaire::before {
+    content: "\f303"; /* fa-pencil (Font Awesome, deja charge par le gabarit Cassiopeia) */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 0;
-    height: 0;
-    border-top: 10px solid var(--cassiopeia-color-primary);
-    border-right: 10px solid transparent;
-    opacity: .75;
+    bottom: 2px;
+    right: 4px;
+    font-size: .7rem;
+    color: var(--cassiopeia-color-primary);
+    opacity: .2;
     pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
 }
 
 .js-editable-date-caci:hover,
 .js-editable-categorie:hover,
+.js-editable-cotisation:hover,
 .js-editable-fonction:hover,
-.js-editable-ordre:hover {
+.js-editable-ordre:hover,
+.js-editable-tarif-libelle:hover,
+.js-editable-tarif-vy:hover,
+.js-editable-tarif-hvy:hover,
+.js-editable-tarif-option:hover,
+.js-editable-tarif-commentaire:hover {
     background-color: #fef8e7 !important;
+}
+
+.js-editable-date-caci:hover::before,
+.js-editable-categorie:hover::before,
+.js-editable-cotisation:hover::before,
+.js-editable-fonction:hover::before,
+.js-editable-ordre:hover::before,
+.js-editable-tarif-libelle:hover::before,
+.js-editable-tarif-vy:hover::before,
+.js-editable-tarif-hvy:hover::before,
+.js-editable-tarif-option:hover::before,
+.js-editable-tarif-commentaire:hover::before {
+    opacity: .45;
 }
 
 /* Champ de saisie de l'ordre d'affichage (trombinoscope Bureau) : étroit et centré. */
@@ -1149,4 +1210,63 @@ main .form-check-input:focus {
     background-color: var(--bs-tertiary-bg, #f8f9fa);
     font-weight: 500;
     cursor: default;
+}
+
+
+
+
+
+/*
+ * Tableaux simple-datatables du Secretariat (#step-0, #step-1, #step-3, #step-4,
+ * #step-orphelins-content, tous a l'interieur de #wizardSecretariat).
+ *
+ * Le <colgroup> HTML d'origine ne fonctionne pas avec cette lib : au rendu, simple-datatables
+ * reconstruit entierement le <thead>/<tbody> depuis ses propres donnees et ne recopie jamais le
+ * <colgroup> du tableau source - il est donc silencieusement perdu, quoi qu'on y mette (constate
+ * en devtools : sans lui, table-layout: fixed retombe sur un partage egal entre colonnes). La
+ * largeur des colonnes doit passer par l'option `columns` de simpleDatatables.DataTable
+ * (headerClass/cellClass), qui pose la classe voulue directement sur les <th>/<td> generes -
+ * voir la config `columns` de chaque table dans secretariat.js.
+ *
+ * Echelle de largeurs (en % de la table) reutilisable sur les 4 tableaux a plusieurs colonnes,
+ * pour donner plus de place a un texte libre (Nom, Email, Adresse, Groupes...) qu'a un code court
+ * (Categorie, montant, date). Les sommes par tableau ne visent pas exactement 100% : le
+ * navigateur redistribue l'ecart au prorata sans creer de vide ni d'ascenseur supplementaire.
+ *
+ * En dessous de 1200px, ces tableaux ne tiennent plus meme en repartissant l'espace : on repasse
+ * en table-layout: auto (largeurs au contenu) et on laisse l'ascenseur horizontal du conteneur
+ * simple-datatables (.gda-dt-container, cf. classes.container dans secretariat.js) faire le
+ * reste, plutot que d'ecraser le contenu illisible dans des colonnes trop etroites.
+ */
+#wizardSecretariat .gda-dt-container {
+  overflow-x: auto;
+}
+
+@media (min-width: 1200px) {
+  #wizardSecretariat table.secretariat-table {
+    table-layout: fixed;
+  }
+
+  #wizardSecretariat table.secretariat-table th.col-secretariat-narrow,
+  #wizardSecretariat table.secretariat-table td.col-secretariat-narrow {
+    width: 110px;
+  }
+
+  #wizardSecretariat table.secretariat-table th.col-secretariat-xxs,
+  #wizardSecretariat table.secretariat-table td.col-secretariat-xxs { width: 3%; }
+  #wizardSecretariat table.secretariat-table th.col-secretariat-xs,
+  #wizardSecretariat table.secretariat-table td.col-secretariat-xs { width: 6%; }
+  #wizardSecretariat table.secretariat-table th.col-secretariat-sm,
+  #wizardSecretariat table.secretariat-table td.col-secretariat-sm { width: 9%; }
+  #wizardSecretariat table.secretariat-table th.col-secretariat-md,
+  #wizardSecretariat table.secretariat-table td.col-secretariat-md { width: 12%; }
+  #wizardSecretariat table.secretariat-table th.col-secretariat-lg,
+  #wizardSecretariat table.secretariat-table td.col-secretariat-lg { width: 16%; }
+  #wizardSecretariat table.secretariat-table th.col-secretariat-xl,
+  #wizardSecretariat table.secretariat-table td.col-secretariat-xl { width: 20%; }
+
+  #step-1 table.secretariat-table td.js-editable-cotisation,
+  #step-1 table.secretariat-table td.js-editable-categorie {
+    word-break: break-word;
+  }
 }

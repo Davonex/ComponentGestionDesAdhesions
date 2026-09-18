@@ -204,6 +204,7 @@ class AccueilModel extends ListModel
             $db->quoteName('s.id_profil'),
             $db->quoteName('s.date_souscription'),
             $db->quoteName('s.cotisation_code'),
+            $db->quoteName('s.cotisation_montant'),
             $db->quoteName('s.caci_check'),
             $db->quoteName('s.date_caci_check'),
             $db->quoteName('s.cotisation_check'),
