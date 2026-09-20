@@ -2,7 +2,6 @@
 
 Ce document explique comment fonctionnent les **campagnes** (formations, loisirs, boutique), du point de vue de l'**adhérent** qui s'inscrit et de l'**organisateur** qui les gère.
 
-> Les emplacements « 📷 Capture » indiquent où insérer une capture d'écran.
 
 ---
 
@@ -48,37 +47,53 @@ Une inscription passe par quatre statuts. L'adhérent et l'organisateur voient l
 
 | Ce que voit l'organisateur | Ce que voit l'adhérent | Signification |
 |---|---|---|
-| 🟠 **En cours** | Inscription en cours de validation | La demande est faite, l'organisateur ne l'a pas encore traitée |
-| 🟢 **Validée** | Inscription validée | L'organisateur a accepté |
-| 🔴 **Refusée** | Inscription refusée par le responsable de la campagne | L'organisateur a refusé |
-| ⚪ **Annulée** | (l'adhérent n'est plus inscrit) | L'adhérent s'est lui-même désinscrit |
+| ![Non inscrit](../images/non-inscrit.png)| Pas d'inscription | Vous n'apparaissez pas dans la liste de l'organisateur |
+| ![En cours](../images/en-cours.png) | Inscription en cours de validation | La demande est faite, l'organisateur ne l'a pas encore traitée |
+| ![Validée](../images/validee.png)| Inscription validée | L'organisateur a accepté |
+| ![Non retenue](../images/non-retenue.png)| Inscription non retenue par le responsable de la campagne | L'organisateur n'a pas retenu la demande. **Statut définitif pour l'adhérent**, qui ne peut plus rien changer ; seul l'organisateur peut revenir dessus |
+| ![Annulee](../images/annulee.png) | Annulée | L'adhérent s'est désinscrit alors que son inscription était déjà **validée**. Seule l'oragnisateur peut mettre à jour le status.|
 
-**Refusée** et **Annulée** sont volontairement distinctes : *Refusée* est une décision de l'organisateur, *Annulée* est le choix de l'adhérent.
+**Non retenue** et **Annulée** sont volontairement distinctes : *Non retenue* est une décision de l'organisateur, *Annulée* est le choix de l'adhérent. Une inscription non retenue **clôt la demande** : l'adhérent n'a plus aucune action possible sur cette campagne, seul l'organisateur peut encore faire évoluer le statut.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> EnCours : L'adhérent s'inscrit
-    EnCours --> Validee : L'organisateur valide
-    EnCours --> Refusee : L'organisateur refuse
-    Validee --> Refusee : L'organisateur change d'avis
-    Refusee --> Validee : L'organisateur change d'avis
-    Validee --> EnCours : L'organisateur remet en attente
-    Refusee --> EnCours : L'organisateur remet en attente
-    EnCours --> Annulee : L'adhérent se désinscrit
-    Validee --> Annulee : L'adhérent se désinscrit
-    Annulee --> [*]
-
     state "En cours" as EnCours
     state "Validée" as Validee
-    state "Refusée" as Refusee
+    state "Non retenue (définitif pour l'adhérent)" as Refusee
     state "Annulée" as Annulee
+
+    [*] --> EnCours : Adhérent · s'inscrit
+    EnCours --> Validee : Organisateur · valide
+    EnCours --> Refusee : Organisateur · ne retient pas
+    Validee --> Refusee : Organisateur · change d'avis
+    Validee --> EnCours : Organisateur · remet en attente
+    Refusee --> Validee : Organisateur · seul à pouvoir débloquer
+    Refusee --> EnCours : Organisateur · seul à pouvoir débloquer
+    EnCours --> [*] : Adhérent · se désinscrit (retour à « Non inscrit »)
+    Validee --> Annulee : Adhérent · se désinscrit
+    Annulee --> [*]
+
+    note right of Refusee
+        Définitif côté adhérent :
+        ni modification, ni désinscription,
+        ni nouvelle inscription.
+        Seul l'organisateur peut en sortir.
+    end note
+
+    note right of Annulee
+        Décision de l'adhérent :
+        la ligne reste visible,
+        plus personne ne la modifie.
+    end note
 ```
 
 Points à retenir :
 
-- L'organisateur peut **changer un statut à tout moment** (validée ↔ refusée ↔ en cours).
+- L'organisateur peut **changer un statut à tout moment** (validée ↔ non retenue ↔ en cours).
+- Une inscription **non retenue** est **définitive pour l'adhérent** : elle est verrouillée, il ne peut ni la modifier, ni se désinscrire, ni se réinscrire pour repasser en « En cours ». **Seul l'organisateur** peut encore la faire évoluer (vers « Validée » ou « En cours »).
 - Une inscription **annulée** par l'adhérent ne peut plus être modifiée par l'organisateur : elle reste visible pour mémoire.
-- Un adhérent qui s'est désinscrit peut **se réinscrire** : une nouvelle demande « En cours » est alors créée.
+- Un adhérent qui se désinscrit alors que son inscription est **« En cours »** redevient simplement **« Non inscrit »** (aucune trace côté organisateur) et peut se réinscrire quand il veut.
+- S'il se désinscrit alors que son inscription était **« Validée »**, elle passe à **« Annulée »** : elle est alors **verrouillée** comme une inscription non retenue, et seul l'organisateur peut la rétablir.
 
 ---
 
@@ -94,7 +109,7 @@ Sur votre page **Accueil** (espace Adhérents), vous trouvez des encarts repliab
 
 Un encart n'apparaît que s'il y a au moins une campagne ouverte. Une campagne est visible uniquement entre sa date d'ouverture et sa date de fermeture.
 
-📷 *Capture : la page Accueil avec les encarts Formation, Loisir et Boutique.*
+![la page Accueil avec les encarts Formation, Loisir et Boutique.](../images/Accueil.jpg)
 
 ### 3.2 S'inscrire
 
@@ -107,6 +122,7 @@ Un encart n'apparaît que s'il y a au moins une campagne ouverte. Une campagne e
 4. Validez.
 
 Votre inscription apparaît immédiatement avec le statut **« Inscription en cours de validation »**.
+Un mail sera ensuite à envoyer à l'organisateur pour l'informer de votre inscription.
 
 À savoir :
 
@@ -115,7 +131,7 @@ Votre inscription apparaît immédiatement avec le statut **« Inscription en co
 - Le nombre de places affiché est **indicatif** : c'est l'organisateur qui décide en dernier ressort.
 - Votre **profil adhérent** doit exister pour pouvoir s'inscrire. Si un message vous l'indique, contactez le secrétariat.
 
-📷 *Capture : la fenêtre « Réserver » (rôle, nombre de places, commentaire).*
+![la fenêtre « Réserver » (rôle, nombre de places, commentaire).](../images/reserver.png)
 
 ### 3.3 Suivre son inscription
 
@@ -123,7 +139,7 @@ Sur la ligne de la campagne, vous voyez en permanence votre statut :
 
 - **Inscription en cours de validation** (orange) : patientez, l'organisateur a été prévenu.
 - **Inscription validée** (vert) : vous êtes accepté. Un e-mail de confirmation vous est envoyé.
-- **Inscription refusée par le responsable de la campagne** (rouge) : n'hésitez pas à le contacter.
+- **Inscription non retenue par le responsable de la campagne** (rouge) : la décision est **définitive de votre côté**. Le bouton de modification est **désactivé** (cadenas) et vous ne pouvez plus ni vous désinscrire ni vous réinscrire vous-même. Seul le responsable peut faire évoluer ce statut : contactez-le.
 
 Si vous avez plusieurs places sur des rôles différents, chacune affiche son propre statut (par exemple « Pratiquant ×2 »).
 
@@ -135,7 +151,7 @@ Cliquez sur **Modifier** : vous pouvez changer le nombre de places, le rôle ou 
 
 ### 3.5 Se désinscrire
 
-Dans la fenêtre de modification, cliquez sur **Me désinscrire** et confirmez. Votre inscription passe à **Annulée** et l'organisateur en est informé par e-mail.
+Dans la fenêtre de modification, cliquez sur **Me désinscrire** et confirmez. Si votre inscription était « En cours », vous redevenez **Non inscrit**. Si elle était « Validée », elle passe à **Annulée** (vous ne pouvez plus la modifier vous-même : contactez l'organisateur). Dans les deux cas, l'organisateur en est informé par e-mail.
 
 ### 3.6 L'e-mail de validation
 
@@ -155,7 +171,7 @@ L'encart **Boutique** présente les articles en vente : photo, prix et disponibi
 
 Le bouton **Acheter** (en bas à droite) vous emmène sur la page HelloAsso de la boutique, où se fait le paiement. Le bouton **Rafraîchir** (en haut à droite) met à jour les prix et les stocks.
 
-📷 *Capture : l'encart Boutique.*
+![L'encart Boutique](../images/boutique.png)
 
 ---
 
@@ -174,23 +190,45 @@ C'est l'écran de travail quotidien : il liste les inscrits d'une campagne.
 
 **Filtrer les inscriptions** : deux filtres, **Rôle** et **Statut**, permettent de ne voir que, par exemple, les encadrants « En cours ». Ils se combinent et se remettent à zéro quand on change de campagne.
 
-**Valider ou refuser** : double-cliquez sur le statut d'une ligne (un petit crayon apparaît au survol), choisissez le nouveau statut dans la liste. C'est enregistré aussitôt.
+**Valider ou ne pas retenir** : double-cliquez sur le statut d'une ligne (un petit crayon apparaît au survol), choisissez le nouveau statut dans la liste. C'est enregistré aussitôt.
+
+![Valider](../images/valider.gif)
 
 - Quand vous passez une inscription à **Validée**, l'adhérent reçoit automatiquement son e-mail de confirmation (avec le lien de paiement si nécessaire). Vous êtes averti si l'envoi n'a pas pu se faire.
+
+![Mail de validation](../images/mail-validation.png)
+
 - Repasser plusieurs fois sur « Validée » n'envoie pas de nouvel e-mail.
-- Les inscriptions **Annulées** par l'adhérent sont affichées en gris, en fin de liste, et ne se modifient pas.
+
+- Une inscription non retenue est **définitif pour l'adhérent** : il ne peut plus ni se désinscrire ni se réinscrire. **Vous êtes le seul** à pouvoir revenir dessus, en repassant la ligne en « En cours » ou en « Validée ».
+
+![Non retenue est définitif](../images/non-retenue-definitif.png)
+
+- Les inscriptions **Annulées** par l'adhérent (après validation) sont affichées en gris, en fin de liste. Vous pouvez les rétablir (double-clic, choisir « En cours », « Validée » ou « Non retenue »), ce qui déverrouille l'adhérent.
 
 Cliquer sur le **nom** d'un adhérent ouvre sa fiche ; « Voir tout » affiche tous ses brevets ; cliquer sur le CACI ou la photo les agrandit.
 
-📷 *Capture : l'onglet Suivi avec les filtres Rôle / Statut.*
+![Suivi des inscription](../images/suivi-inscriptions.png)
 
 ### 4.2 Onglet « Gestion des campagnes »
 
-Il liste toutes les campagnes (hors adhésion annuelle) avec, pour chacune :
+Permet de:
+ - Lister les camapgnes
+ - Creer une nouvelle.
+ - Modifier une existante.
+ - Effacer un campagne close.
+ - Ouvrie une campagne à l'inscription.
+ - Clore un campagne
+ - Avoir un rapport succin des inscriptions.
+
+Dans le tableau pour avec la liste des campagnes :
 
 - le titre, le type (suivi du sous-type pour une formation), les dates (événement, ouverture, fermeture) ;
 - la colonne **Places**, détaillée par rôle : ✔ vertes = validées, ⏳ orange = en cours, 👥 = capacité prévue (absente si illimitée). Pour la Boutique : « N/A » ;
-- le lien vers l'article, le bouton **ouvrir / fermer** et les boutons de **rapport**.
+
+
+- le lien vers l'article
+- Un bouton **ouvrir / fermer** et les boutons de **rapport**. ![Ouvrire / Fermer](../images/open-close.png)
 
 **Créer ou modifier une campagne** (bouton crayon, ou bouton d'ajout). Le formulaire présente d'abord le **Titre** et le **Type**, puis le **Responsable** et le **Sous-type**, puis la description, les dates, les rôles, etc. :
 
@@ -201,7 +239,7 @@ Il liste toutes les campagnes (hors adhésion annuelle) avec, pour chacune :
 | **Sous-type** (Formation uniquement) | Précise la nature de la formation : *Fosse Apnée*, *Fosse Technique 20M*, *Fosse Technique 12M* ou *RIFAx*. Champ facultatif, masqué pour les autres types. Il s'affiche sous le titre dans la liste et sert de filtre dans le récapitulatif |
 | Dates d'ouverture et de fermeture | Période pendant laquelle la campagne est visible et ouverte aux inscriptions |
 | Date de l'événement | Rappelée dans l'e-mail de validation |
-| Places par rôle | Capacité **indicative** de chaque rôle (0 = illimité) |
+| Places par rôle | Capacité **indicative** de chaque rôle (0 = non défini). Ne soyez pas originale dans les libellés des rôles, car dans la vue récapitulative, ça peut devenir illisible. |
 | Places multiples | Autorise un adhérent à réserver plusieurs places (Loisir) |
 | Article | Lien vers un article du site, proposé aux adhérents |
 | Événement HelloAsso | Relie la campagne à son formulaire HelloAsso (paiement, rapports) |
@@ -220,14 +258,15 @@ Chaque e-mail indique l'adhérent (nom, licence, téléphone, e-mail), **l'ancie
 
 **Supprimer** : possible uniquement sur une campagne fermée, avec confirmation. La campagne est masquée (les données ne sont pas détruites).
 
-📷 *Capture : l'onglet Gestion et le formulaire de campagne.*
+![Formulaire 1er partie](../images/form-campagnes-1.png)
+![Formulaire 2nd partie](../images/form-campagnes-2.png)
 
 ### 4.3 Les rapports
 
 Chaque ligne propose, **seulement s'ils ont un sens**, jusqu'à deux boutons :
 
-- 📊 **Rapport des réservations** (Formation et Loisir) : adhérent, niveau, rôle, date, statut et commentaire. Les inscriptions annulées y figurent mais ne sont pas comptées dans le total.
-- **Rapport HelloAsso** (si la campagne est reliée à HelloAsso) : les paiements reçus. Pour une formation ou un loisir : qui a payé. Pour la boutique : acheteur, article, montant, date.
+- ![Rapport inscription](../images/rapport.png) **Rapport des réservations** (Formation et Loisir) : adhérent, niveau, rôle, date, statut et commentaire. Les inscriptions annulées y figurent mais ne sont pas comptées dans le total.
+- ![Rapport paiement](../images/helloasso.png) **Rapport HelloAsso** (si la campagne est reliée à HelloAsso) : les paiements reçus. Pour une formation ou un loisir : qui a payé. Pour la boutique : acheteur, article, montant, date.
 
 ### 4.4 Onglet « Récapitulatif formations »
 
@@ -235,12 +274,13 @@ Une vue d'ensemble de **toutes les formations** en un seul tableau, pour voir d'
 
 - **Une ligne par adhérent** ayant réservé au moins une fois une formation (photo, civilité, nom, prénom ; un clic sur le nom ouvre sa fiche).
 - **Une colonne par formation**, avec sa date d'événement.
-- À l'intersection : le **dernier statut** de l'adhérent pour cette formation (*En cours*, *Validée*, *Refusée* ou *Annulée*, avec les mêmes couleurs que dans le Suivi), ou « — » s'il ne s'y est jamais inscrit. Si l'adhérent s'est désinscrit puis réinscrit, c'est son inscription la plus récente qui compte.
+- À l'intersection : le **dernier statut** de l'adhérent pour cette formation (*En cours*, *Validée*, *Non retenue* ou *Annulée*, avec les mêmes couleurs que dans le Suivi), ou « — » s'il ne s'y est jamais inscrit. Si l'adhérent s'est désinscrit puis réinscrit, c'est son inscription la plus récente qui compte.
+- **Filtre Rôle** (sélection multiple) : la liste reprend tous les rôles réellement utilisés (le rôle étant un texte libre, une orthographe différente comme « Encadrant » / « Encadrants » apparaît comme deux choix distincts : cochez-les tous les deux si besoin). Chaque case affiche alors le dernier statut parmi les seuls rôles choisis, et les adhérents sans inscription sur ces rôles disparaissent.
 - **Filtre Sous-type** : n'affiche que les formations d'un sous-type (par exemple *Fosse Apnée*) et retire les adhérents qui n'y ont pas réservé. Le filtre n'apparaît que si au moins une formation a un sous-type ; il revient sur « Tous » à chaque ouverture de l'onglet.
 
 Les données sont relues à chaque ouverture de l'onglet : elles sont toujours à jour.
 
-📷 *Capture : l'onglet Récapitulatif formations.*
+![Onglet récapitulatif](../images/recapitulatif.png)
 
 ---
 
@@ -255,7 +295,7 @@ flowchart LR
     end
 
     subgraph ORG["Organisateur (page Campagnes)"]
-        O1[Suivi : valider / refuser]
+        O1[Suivi : valider / ne pas retenir]
         O2[Gestion : créer, ouvrir, fermer]
         O3[Rapports]
         O4[Récapitulatif formations]
@@ -285,10 +325,10 @@ flowchart LR
 Non, pas avant la validation. « En cours » signifie que l'organisateur doit encore examiner votre demande.
 
 **Il n'y a plus de places affichées, puis-je quand même m'inscrire ?**
-Oui : le nombre de places est indicatif, l'organisateur décide.
+Oui : le nombre de places est indicatif, l'organisateur décide. Afin de pouvoir faire tourner l'effectif, que tout le monde puisse participer aux fosses.
 
-**J'ai été refusé, que faire ?**
-Contactez le responsable de la campagne : il peut revenir sur sa décision.
+**Mon inscription n'a pas été retenue, que faire ?**
+De votre côté, la décision est définitive : vous ne pouvez plus modifier votre inscription, vous désinscrire ni vous réinscrire. Contactez le responsable de la campagne : lui seul peut revenir sur sa décision.
 
 **Je ne vois pas la campagne sur mon Accueil.**
 Elle est peut-être fermée ou pas encore ouverte. Vérifiez ses dates auprès de l'organisateur.

@@ -1,6 +1,6 @@
 # Domaine Campagnes (`com_gdadhesions`)
 
-> Couvre la gestion des campagnes (Saison, Formation, Loisir), les réservations hors saison et la capacité par rôle. Mis à jour lors de la refonte des natures de campagne (0.9.10, 2026-08-27) : réduction à 2 natures hors-Saison, rôles librement éditables et toujours actifs, réservations pouvant mélanger plusieurs rôles.
+> Couvre la gestion des campagnes (Saison, Formation, Loisir, Boutique), les réservations hors saison et la capacité par rôle. Refonte 0.9.10 (rôles librement éditables, réservations mixtes), puis chantier « Campagnes 1.0 » (0.9.18, mis à jour le 2026-09-20) : **validation manuelle des inscriptions** (plus de file d'attente ni de confirmation automatique), statuts `attente`/`confirmee`/`refusee`/`annulee`, verrou des inscriptions refusées/annulées, sous-type de formation, onglet Récapitulatif, nature Boutique.
 
 ## 1. Vue d'ensemble
 
@@ -9,11 +9,12 @@ Une **campagne** (`#__gda_campagnes`) est un événement ou une période gérée
 | Nature | Mécanisme d'inscription | Table |
 |---|---|---|
 | **Saison** | Souscription annuelle, workflow CACI/cotisation/licence du secrétariat | `#__gda_souscriptions` |
-| **Formation / Loisir** | Réservation avec places limitées **par rôle**, file d'attente | `#__gda_reservation` / `#__gda_reservation_places` |
+| **Formation / Loisir** | Réservation par **rôle**, **validée à la main** par le responsable (capacité indicative, pas de file d'attente) | `#__gda_reservation` / `#__gda_reservation_places` |
+| **Boutique** | Vitrine : articles d'un formulaire HelloAsso Shop, aucune réservation | — |
 
 `#__gda_souscriptions` et `#__gda_reservation` sont deux mécanismes **distincts et non interchangeables** (voir cartographie §4) : tout ce qui suit dans ce document ne concerne jamais les campagnes de type Saison.
 
-Depuis 0.9.10, une campagne hors saison propose **toujours** un ou plusieurs rôles par place (Formation : Pratiquant/Encadrant par défaut ; Loisir : Plongeur/Non plongeur par défaut) — il n'existe plus de mode "sans rôle". Les rôles proposés par défaut viennent du gabarit `#__gda_role_de_campagne` (par nature), mais le Bureau peut librement **ajouter, renommer ou supprimer** une ligne rôle+capacité pour une campagne donnée depuis le formulaire d'édition (répercuté dans `#__gda_campagne_roles`). La capacité (nombre de places) est **toujours suivie séparément pour chaque rôle** : chaque rôle a sa propre limite et sa propre file d'attente, indépendante des autres rôles de la même campagne.
+Depuis 0.9.10, une campagne hors saison propose **toujours** un ou plusieurs rôles par place (Formation : Pratiquant/Encadrant par défaut ; Loisir : Plongeur/Non plongeur par défaut) — il n'existe plus de mode "sans rôle". Les rôles proposés par défaut viennent du gabarit `#__gda_role_de_campagne` (par nature), mais le Bureau peut librement **ajouter, renommer ou supprimer** une ligne rôle+capacité pour une campagne donnée depuis le formulaire d'édition (répercuté dans `#__gda_campagne_roles`). La capacité (nombre de places) est renseignée **séparément pour chaque rôle** mais reste **indicative** : elle est affichée (badges du tableau de gestion, « il reste N » sur le dashboard) sans jamais bloquer une inscription.
 
 Différence restante entre les deux natures : **Formation** reste limitée à 1 place par adhérent (quel que soit le rôle choisi). **Loisir** autorise, si `reservation_multiple = 1` (champ explicite, modifiable par le Bureau), la réservation de plusieurs places **potentiellement réparties sur plusieurs rôles différents** en une seule réservation (ex : 2 Plongeur + 1 Non-Plongeur en un seul geste pour un groupe).
 
@@ -28,9 +29,9 @@ Différence restante entre les deux natures : **Formation** reste limitée à 1 
 | Modèle (dashboard adhérent) | `src/Model/AccueilModel.php` |
 | Service (règles de réservation) | `src/Service/ReservationService.php` |
 | Formulaire d'édition | `models/forms/campagnes.xml` (plus de champ `role_actif`) |
-| Layouts (gestion) | `layouts/campagnes/{table,row,rapport,role_row_template,suivi_inscrits}.php` |
+| Layouts (gestion) | `layouts/campagnes/{table,row,rapport,role_row_template,suivi_inscrits,recapitulatif}.php`, `layouts/groupes/detail.php` (tableau du Suivi) |
 | Layout (popup réservation adhérent) | `layouts/reservation/{form,role_row_template,article}.php` |
-| Layout (ligne dashboard) | `layouts/accueil/dash_campagne_reservable_ligne.php` |
+| Layouts (dashboard) | `layouts/accueil/{dash_campagnes_reservables,dash_campagne_reservable_ligne,dash_reservation_modals}.php` (encart rendu une fois par nature : Formation, Loisir) |
 | JS (gestion) | `media/com_gdadhesions/js/campagne.js` |
 | JS (réservation adhérent) | `media/com_gdadhesions/js/reservation.js` |
 | JS (ajout/suppression de lignes rôle+capacité, réutilisable) | `media/com_gdadhesions/js/row_list.js` (factory `RowList`) |
@@ -71,6 +72,8 @@ erDiagram
         tinyint active "Inscription ouverte"
         tinyint courante "Saison de suivi (Saison uniquement)"
         int id_type FK
+        varchar sous_type "Formation : fosse_apnee, fosse_technique_20, fosse_technique_12, rifax"
+        int id_responsable FK "Compte prévenu par mail des demandes"
         int nbr_place "Vestigial depuis 0.9.10, plus utilisée"
         tinyint reservation_multiple "Champ explicite : autorise plusieurs places/rôles en une réservation (Loisir)"
         varchar id_groupes
@@ -97,8 +100,8 @@ erDiagram
         int id_reservation FK
         int id_campagne "Dénormalisé : évite une jointure sur les requêtes d'occupation/rang"
         varchar role "Rôle de cette place"
-        varchar statut "confirmee | attente | annulee"
-        datetime date_rang "Rang FIFO dans la file d'attente de (id_campagne, role)"
+        varchar statut "attente | confirmee | refusee | annulee"
+        datetime date_rang "Date de la demande (ordre d'arrivée)"
         int tri
     }
 
@@ -132,7 +135,7 @@ erDiagram
 
 `CAMPAGNE_ROLES` ne duplique pas `nbr_place` : la capacité totale affichée est calculée à la volée comme la somme de ses lignes (`ReservationService::getCapaciteTotale()`/`getSelectCapaciteTotale()`), `gda_campagnes.nbr_place` restant sans effet (vestigial, conservé pour ne pas casser une éventuelle lecture existante — suppression envisageable en chantier séparé).
 
-`RESERVATION_PLACES` est désormais l'**unité atomique** de statut/rang (avant 0.9.10, ces informations vivaient sur `RESERVATION` elle-même, qui ne pouvait porter qu'un seul rôle/statut). Ce changement était nécessaire pour permettre à une réservation Loisir de mélanger plusieurs rôles avec des statuts indépendants (une place Plongeur confirmée, une place Non-Plongeur en attente, dans la même réservation).
+`RESERVATION_PLACES` est désormais l'**unité atomique** de statut (avant 0.9.10, ces informations vivaient sur `RESERVATION` elle-même, qui ne pouvait porter qu'un seul rôle/statut). Ce changement était nécessaire pour permettre à une réservation Loisir de mélanger plusieurs rôles avec des statuts indépendants (une place Plongeur confirmée, une place Non-Plongeur en attente, dans la même réservation).
 
 ## 4. Méthodes par classe
 
@@ -146,64 +149,69 @@ erDiagram
 | `getRolesDeCampagne()` | Gabarit de rôles par défaut par nature (`#__gda_role_de_campagne`), non administrable (édition SQL directe) — sert uniquement à préremplir une **nouvelle** campagne. |
 | `getRolesCapacite(int[] $idsCampagne)` | Capacité par rôle **réellement configurée** (`#__gda_campagne_roles`) pour une ou plusieurs campagnes : `id_campagne => [role => nbr_place]`. |
 | `saveRolePlaces(int $idCampagne, array $rolePlaces)` *(privée)* | Remplace la répartition par rôle d'une campagne (stratégie table rase, appelée **inconditionnellement** par `Sauver()`). Contrat : tableau indexé `[{role, nbr_place}, ...]` — pas associatif, un rôle est du texte libre renommable. Une ligne `nbr_place = 0` reste persistée (visible/modifiable) ; seules les lignes `role === ''` sont ignorées. |
-| `getInscritsCampagne(int $id_campagne, string $titre)` | Adhérents inscrits (hors annulés), **une ligne par place** (un adhérent avec 2 rôles apparaît en 2 lignes), sous la forme d'un groupe `GroupesModel`, pour l'onglet Suivi (réutilise `layouts/groupes/detail.php`). |
-| `Activer()` / `Sauver()` / `Effacer()` | CRUD campagne. `Sauver()` calcule `reservation_multiple` selon la nature (forcé à 0 pour Formation) et persiste toujours `role_places` via `saveRolePlaces()`. |
-| `getRapport()` / `getRapportHelloAsso()` | Rapport d'inscriptions (popup), une ligne par place, statut + rang de file d'attente via `ReservationService::calculerRangsAttente()`. |
+| `getInscritsCampagne(int $id_campagne, string $titre)` | Inscrits, **une ligne par place** (un adhérent avec 2 rôles apparaît en 2 lignes), **places annulées comprises et classées en dernier**, avec `statut` et `commentaire`, sous la forme d'un groupe `GroupesModel`, pour l'onglet Suivi (réutilise `layouts/groupes/detail.php`). |
+| `getRecapitulatifFormations()` | Onglet Récapitulatif : campagnes Formation (avec `sous_type`) + adhérents ayant au moins une place, `statuts[id_campagne]` = statut de la place la plus récente. |
+| `changerStatutInscription(idPlace, statut)` | Façade sur `ReservationService::changerStatutPlace()` ; retourne le statut précédent (le contrôleur envoie le mail d'acceptation sur la transition vers `confirmee`). |
+| `Activer()` / `Sauver()` / `Effacer()` | CRUD campagne (`Effacer()` = effacement logique). `Sauver()` calcule `reservation_multiple` (forcé à 0 pour Formation), valide `sous_type` (liste `SOUS_TYPES_FORMATION`, Formation uniquement) et `id_responsable`, et persiste `role_places` via `saveRolePlaces()`. |
+| `getRapport()` / `getRapportHelloAsso()` / `getRapportHelloAssoBoutique()` | Rapports (popup) : réservations (une ligne par place, statut, commentaire), paiements HelloAsso Event, achats HelloAsso Shop. |
 
 ### `AccueilModel` (`src/Model/AccueilModel.php`)
 
 | Méthode | Rôle |
 |---|---|
-| `getCampagnesReservables($user)` *(renommée depuis `getFormations()`)* | Campagnes Formation **et** Loisir ouvertes pour le dashboard adhérent, enrichies de `places_occupees`, `capacite_totale`, et de l'état de réservation de l'adhérent connecté — `mesPlaces` : un tableau `{role, statut, rang}` par rôle réservé (potentiellement plusieurs si la réservation est mixte). |
+| `getCampagnesReservables($user)` *(renommée depuis `getFormations()`)* | Campagnes Formation **et** Loisir ouvertes pour le dashboard adhérent, enrichies de `places_occupees`, `capacite_totale`, et de l'état de réservation de l'adhérent connecté — `mes_places` : une entrée `{role, statut}` par place, **places annulées comprises** (l'adhérent voit « Annulée »). |
 
 ### `ReservationController` / `CampagnesController`
 
 | Méthode | Rôle |
 |---|---|
 | `ReservationController::reserver()` | Reconstruit `$demandes` (`{role, quantite}[]`) depuis `role_places[]`. Garde-fous serveur : Formation → tronqué à 1 ligne, quantité forcée à 1 ; Loisir sans `reservation_multiple` → total des quantités ≤ 1 (exception sinon). Résout la capacité par rôle (`CampagnesModel::getRolesCapacite()`) et délègue à `ReservationService::reserver()`. |
-| `ReservationController::annuler()` | Délègue à `ReservationService::annuler()` (annulation + promotion automatique de la file d'attente, scopée par rôle). |
-| `ReservationController::getFormulaire()` | Contenu du popup de réservation : rôles réellement configurés pour la campagne, places restantes **par rôle** (`placesDisponiblesParRole`), préremplissage multi-lignes depuis `$reservation->places` à l'édition. |
+| `ReservationController::annuler()` | Délègue à `ReservationService::annuler()` (voir §5.2) ; prévient le responsable par e-mail. |
+| `ReservationController::getFormulaire()` | Contenu du popup de réservation : rôles configurés, places restantes **par rôle** (avertissement « complet » par rôle), préremplissage multi-lignes. Refusé (403) si la réservation est verrouillée. |
 | `CampagnesController::sauver()` | Lit `jform_campagne[...]` (dont `role_places[]`, tableau indexé généré dynamiquement par `campagne.js`/`RowList`), délègue à `CampagnesModel::Sauver()`. |
-| `CampagnesController::activer()` / `effacer()` / `rapport()` / `suivi()` | CRUD/consultation. `suivi()` élargi aux 2 natures (Formation et Loisir). |
+| `CampagnesController::activer()` / `effacer()` / `rapport()` / `suivi()` / `recapitulatif()` / `changerStatutInscription()` | CRUD/consultation, réservés Bureau ou Responsable de Groupe. `suivi()` couvre Formation et Loisir ; `recapitulatif()` alimente le 3ᵉ onglet. |
 
 ### `ReservationService` (`src/Service/ReservationService.php`)
 
 | Méthode | Rôle |
 |---|---|
-| `getReservation(idCampagne, idProfil)` | Réservation d'un adhérent (enveloppe + `->places[]`), chaque place avec son `role`/`statut`/`date_rang`/`rang` (rang peuplé uniquement si en attente). |
+| `getReservation(idCampagne, idProfil, avecAnnulees = false)` | Réservation d'un adhérent (enveloppe + `->places[]`, chaque place avec `role`/`statut`/`date_rang`) ; les places annulées ne sont incluses que sur demande (dashboard). |
 | `getPlacesOccupeesParRole(idCampagne, role)` / `getPlacesDisponiblesParRole(idCampagne, role, capaciteRole)` | Capacité **par rôle** : chaque rôle a sa propre occupation, lue via `#__gda_reservation_places`. |
 | `getPlacesOccupeesTotal(idCampagne)` / `getPlacesDisponiblesTotal(idCampagne, capaciteTotale)` | Équivalents **tous rôles confondus**, pour l'affichage global (colonne "places occupées" de l'onglet Gestion, dashboard adhérent). |
 | `getSelectPlacesOccupeesTotal(db, alias)` *(statique)* | Fragment SQL (sous-requête corrélée) de la ligne ci-dessus, pour une **liste** de campagnes sans N+1 (`CampagnesModel::getCampagnes()`, `AccueilModel::getCampagnesReservables()`). |
 | `getCapaciteTotale(campagne)` | Capacité totale d'une campagne déjà chargée : somme de `#__gda_campagne_roles`. |
 | `getSelectCapaciteTotale(db, alias)` *(statique)* | Même règle, en fragment SQL pour une liste de campagnes. |
-| `calculerRangsAttente(places)` *(statique)* | Rang de file d'attente (1 = premier), groupé par `role`, ordonné par `date_rang`. |
-| `getRangAttente(idCampagne, role, dateRang)` | Rang de file d'attente pour une seule place (requête ciblée, dashboard adhérent). |
-| `reserver(idCampagne, idProfil, demandes, capacitesParRole, ?commentaire, ?idOrder)` | Crée/met à jour une réservation. `$demandes` décrit l'état **cible** par rôle (stratégie table rase) : un rôle absent de `$demandes` revient à 0 place. Statut confirmée/attente calculé indépendamment pour chaque rôle demandé. Transaction complète. |
-| `annuler(idCampagne, idProfil)` | Marque l'enveloppe et ses places `annulee`, puis `promouvoirFileAttente()` sur les places libérées, dans une transaction. |
-| `ajouterPlaces(...)` / `retirerPlaces(...)` *(privées)* | Écriture des lignes `#__gda_reservation_places` pour un rôle donné (ajout avec calcul confirmée/attente selon la capacité restante ; retrait des places les plus récemment ajoutées de ce rôle, en relançant `promouvoirFileAttente()` si une place confirmée est libérée). |
-| `promouvoirFileAttente(idCampagne, role, placesALiberer)` *(privée)* | Promeut les places `attente` les plus anciennes du même rôle (FIFO). |
+| `reserver(idCampagne, idProfil, demandes, ?commentaire, ?idOrder)` | Crée/met à jour une réservation. `$demandes` décrit l'état **cible** par rôle (table rase) ; toute nouvelle place est créée `attente`. Refusée si la réservation est verrouillée. Transaction. |
+| `annuler(idCampagne, idProfil)` | Désistement (voir §5.2). Refusé si la réservation est verrouillée. |
+| `estVerrouillee(idCampagne, idProfil)` / `assertModifiable(...)` | Verrou : au moins une place `refusee` ou `annulee` ; `assertModifiable()` lève `DomainException` 403 (`COM_GDA_RESERVATION_VERROUILLEE`). |
+| `changerStatutPlace(idPlace, statut)` | Décision du responsable (`attente`/`confirmee`/`refusee`), y compris depuis `annulee` (déverrouille l'adhérent et remet `annulee = 0` sur l'enveloppe). Retourne le statut précédent. |
+| `getPlaceContexte(idPlace)` / `profilExiste(idProfil)` | Contexte d'une place (mails) ; existence du profil (FK). |
+| `ajouterPlaces(...)` / `retirerPlaces(...)` *(privées)* | Insertion de places `attente` ; retrait des places les plus récentes d'un rôle. |
 
 ## 5. Flux métier
 
 ### 5.1 Réservation (Formation ou Loisir)
 
-`AccueilModel::getCampagnesReservables($user)` → `dash_campagne_reservable_ligne.php` (badge unique "Inscrit" si toutes les places sont confirmées, un badge par rôle si la réservation est mixte) → clic "Réserver"/"Modifier" → `ReservationController::getFormulaire()` (popup `reservation.form` : une ligne rôle+quantité par rôle demandé, chaque option de rôle annotée des places restantes **pour ce rôle** via `getPlacesDisponiblesParRole()`) → soumission (`role_places[][role]`/`role_places[][quantite]`) → `ReservationController::reserver()` (garde-fous serveur selon la nature) → `ReservationService::reserver()` (statut confirmée/attente calculé indépendamment pour chaque rôle de la demande) → la ligne du dashboard est ré-rendue sans recharger la page.
+`AccueilModel::getCampagnesReservables($user)` → `dash_campagne_reservable_ligne.php` (un badge de statut, ou un par rôle si la réservation est mixte ; bouton désactivé avec cadenas si verrouillée) → clic "Réserver"/"Modifier" → `ReservationController::getFormulaire()` (popup `reservation.form` : une ligne rôle+quantité par rôle demandé, chaque option de rôle annotée des places restantes **pour ce rôle** via `getPlacesDisponiblesParRole()`) → soumission (`role_places[][role]`/`role_places[][quantite]`) → `ReservationController::reserver()` (garde-fous serveur selon la nature) → `ReservationService::reserver()` (toutes les places créées `attente`, mail au responsable) → la ligne du dashboard est ré-rendue sans recharger la page.
 
 Pour Formation, l'UX reste inchangée par rapport à avant la refonte : un seul `<select>` de rôle, quantité implicite 1 (pas de bouton d'ajout de ligne). Pour Loisir avec `reservation_multiple = 1`, le popup propose d'ajouter/supprimer des lignes rôle+quantité (`RowList`, même motif que les brevets du formulaire d'adhésion) — permettant par exemple de réserver "2 Plongeur + 1 Non-Plongeur" en une seule soumission.
 
-### 5.2 Annulation et promotion automatique
+### 5.2 Statuts, désistement et verrou
 
-`ReservationService::annuler()` :
-1. Lit la réservation existante (places qu'elle libère, par rôle).
-2. Marque l'enveloppe `annulee = 1` et ses places non-annulées `statut = 'annulee'`.
-3. Pour chaque rôle qui avait au moins une place `confirmee` libérée, appelle `promouvoirFileAttente()` : promeut en FIFO les places `attente` de **ce rôle uniquement**, dans l'ordre chronologique d'arrivée (`date_rang`), en comblant chacune avant de passer à la suivante.
-4. Le tout dans une transaction (annulation + promotion atomiques).
+Statuts d'une place : `attente` (« En cours »), `confirmee` (« Validée »), `refusee` (« Non retenue »), `annulee`. Le responsable décide depuis l'onglet Suivi (double-clic sur le statut → `changerStatutInscription()` ; passage à `confirmee` ⇒ mail d'acceptation à l'adhérent).
 
-Côté UI, le bouton "Me désinscrire" (`reservation.js`) demande confirmation (`GdaDialog.confirm`) avant d'envoyer l'annulation, la ou les places étant immédiatement reprises par le(s) premier(s) de chaque file d'attente concernée.
+`ReservationService::annuler()` (bouton « Me désinscrire », confirmation `GdaDialog.confirm`) :
+1. Place `attente` → **supprimée** : l'adhérent redevient « Non inscrit », sans trace côté responsable.
+2. Place `confirmee` → `annulee` : visible « Annulée » pour l'adhérent comme pour le responsable.
+3. Enveloppe `annulee = 1`, le tout dans une transaction ; le responsable est prévenu par mail.
 
-### 5.3 Gestion des campagnes (onglet Gestion, Bureau)
+**Verrou** : dès qu'une place est `refusee` ou `annulee`, l'adhérent ne peut plus modifier, se désinscrire ni se réinscrire (bouton désactivé + 403 côté serveur via `assertModifiable()`) ; seul le responsable peut faire évoluer le statut (y compris depuis « Annulée », ce qui déverrouille).
 
-`CampagnesModel::getCampagnes()` → `layouts/campagnes/table.php` → `campagne.js` adapte le formulaire selon la nature sélectionnée (Formation ou Loisir uniquement) : masque/force `reservation_multiple` à 0 pour Formation, affiche **toujours** le bloc de rôles+capacités (`RowList`, préremplis depuis `role_places`). Soumission → `CampagnesController::sauver()` → `CampagnesModel::Sauver()` : sauvegarde la campagne, calcule `reservation_multiple`, puis `saveRolePlaces()` remplace inconditionnellement `#__gda_campagne_roles` à partir de `role_places[]`.
+### 5.3 Gestion des campagnes, suivi et récapitulatif (Bureau / Responsable de Groupe)
+
+`CampagnesModel::getCampagnes()` → `layouts/campagnes/table.php` → `campagne.js` adapte le formulaire selon la nature sélectionnée (Formation ou Loisir uniquement) : masque/force `reservation_multiple` à 0 pour Formation, affiche **toujours** le bloc de rôles+capacités (`RowList`, préremplis depuis `role_places`). Le champ `sous_type` n'apparaît que pour une Formation. Soumission → `CampagnesController::sauver()` → `CampagnesModel::Sauver()` : sauvegarde la campagne, calcule `reservation_multiple`, valide `sous_type`/`id_responsable`, puis `saveRolePlaces()` remplace inconditionnellement `#__gda_campagne_roles` à partir de `role_places[]`.
+
+La page Campagnes a trois onglets : **Suivi des inscriptions** (filtres Rôle/Statut côté client, colonne Commentaire), **Gestion des campagnes**, **Récapitulatif formations** (adhérents × formations, dernier statut, filtre Sous-type).
 
 ## 6. Décisions d'architecture (rappel)
 
@@ -214,4 +222,10 @@ Décisions validées lors de la refonte Formation/Loisir (0.9.10, 2026-08-27) :
 3. **`role_actif` supprimée** : vérifié qu'aucun autre usage n'en dépendait avant suppression de la colonne. Les rôles sont désormais toujours actifs pour Formation et Loisir — il n'existe plus de campagne "sans rôle" hors Saison.
 4. **`reservation_multiple` reste un champ explicite**, modifiable par le Bureau (pas implicite à la nature) : Loisir peut être configuré à 1 place par adhérent si souhaité, Formation reste toujours forcée à 0.
 5. **Rôles librement éditables par occurrence de campagne** : le gabarit `#__gda_role_de_campagne` ne fournit que les valeurs par défaut d'une nouvelle campagne ; le Bureau peut ensuite ajouter/renommer/supprimer une ligne rôle+capacité depuis le formulaire (motif UI repris des brevets du formulaire d'adhésion, factorisé dans `media/com_gdadhesions/js/row_list.js`).
-6. **Natures réduites à 2 hors-Saison** : Sortie/Soirée/Boutique supprimées (peu abouties, pas de vraie vue Suivi ni de dashboard adhérent) ; leurs éventuelles campagnes existantes remappées sur Loisir (id_type=3 réutilisé). La gestion des groupes (`gda_groupes`/`gda_composition_groupes`) reste hors-scope de cette refonte, non touchée.
+6. **Natures hors-Saison** : Formation et Loisir (réservation) ; la nature **Boutique** a été ajoutée en 0.9.18 comme simple vitrine HelloAsso Shop.
+
+Décisions du chantier « Campagnes 1.0 » (0.9.18) :
+
+7. **Validation manuelle** : toute inscription part `attente` ; plus de confirmation automatique ni de file d'attente (`promouvoirFileAttente()`, rangs supprimés). La capacité par rôle est indicative.
+8. **Statuts distincts** : `refusee` (« Non retenue », décision du responsable) ≠ `annulee` (désistement après validation) ; un désistement « En cours » ne laisse aucune trace.
+9. **Verrou** des réservations comportant une place non retenue ou annulée, levé uniquement par le responsable.
