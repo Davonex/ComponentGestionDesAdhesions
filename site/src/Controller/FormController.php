@@ -12,7 +12,7 @@ use NCB\Component\Gda\Site\Service\SouscriptionService;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Layout\LayoutHelper;
 
-class FormController extends BaseController
+class FormController extends AjaxController
 {
     public function checkEmail(): void
     {

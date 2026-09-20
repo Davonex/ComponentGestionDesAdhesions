@@ -14,6 +14,7 @@ use Joomla\CMS\Language\Text;
 use NCB\Component\Gda\Site\Helper\AdhesionHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
+use NCB\Component\Gda\Site\Helper\GdaLogger;
 // use NCB\Component\Gda\Site\Model\AdhesionModel;
 use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\Database\DatabaseInterface;
@@ -25,7 +26,7 @@ use NCB\Component\Gda\Site\Service\SouscriptionService;
 
 
 
-class AdhesionController extends BaseController
+class AdhesionController extends AjaxController
 {
 
     /**
@@ -158,44 +159,90 @@ class AdhesionController extends BaseController
             $app->setUserState('adhesion.brevets', $arr_brevets);
 
 
-            // Il serai mieux de faire une verification de la la Lience users.username  et de la users.id  
-            if (empty($session) || !$session['username']) { // Pas de connexion
-                // cas d'une nouvelle adhesion sont entre dans la tablea users
-                if ($data['id'] === "0") { // ID à 0, c'est une nouvelle adhésion
-                    if ($model->isCheckCreation()) { //verif si le profil peut être créé
+            // Branche empruntée, conservée pour le journal de diagnostic (voir getContexteDiagnostic()).
+            $branche = 'inconnue';
+
+            try {
+                // Il serai mieux de faire une verification de la la Lience users.username  et de la users.id
+                if (empty($session) || !$session['username']) { // Pas de connexion
+                    // cas d'une nouvelle adhesion sont entre dans la tablea users
+                    if ($data['id'] === "0") { // ID à 0, c'est une nouvelle adhésion
+                        $branche = 'nouvelle_adhesion';
+
+                        if (!$model->isCheckCreation()) { // verif si le profil peut être créé
+                            throw new \DomainException(Text::_('COM_GDA_ADHESION_SAVE_CREATION_REFUSEE'));
+                        }
+
                         // creer user et profil
-                        if ($model->createUser()) {
-                            // creer le nouveau profil
-                            $model->createProfil();
-                            $model->sendWelcomeMail();
-                        };
+                        if (!$model->createUser()) {
+                            // Compte déjà existant : mêmes explications que les contrôles en direct du
+                            // formulaire (FormController::checkUserName()/checkEmail()), qui ont pu être
+                            // contournés (autocomplétion sans passage par le champ, double envoi...).
+                            $doublonLicence = !empty($data['username']) && UsersHelper::userExists((string) $data['username']);
+                            $cleMessage = $doublonLicence ? 'COM_GDA_ADHESION_LICENCE_EXISTS_MESSAGE' : 'COM_GDA_ADHESION_EMAIL_EXISTS_MESSAGE';
+
+                            throw new \DomainException(Text::_($cleMessage) . ' ' . Text::_('COM_GDA_ADHESION_SAVE_COMPTE_EXISTANT_AIDE'));
+                        }
+
+                        // creer le nouveau profil
+                        $model->createProfil();
+                        $model->sendWelcomeMail();
+                    } else { // un profile existe re-edition grace au token
+                        $branche = 'reedition_token';
+                        $model->UpdateProfil();
+                        $model->UpdateUser();
+                        // essayer de recuperer le message que le mail n'est pas envoyer !
+                        // et le transmettre au formulaire
+                        $model->sendUpdateMail();
                     }
-                } else { // un profile existe re-edition grace au token
-                    $model->UpdateProfil();
+                } else {
+                    $branche = 'membre_connecte';
+                    // A l'installation du component, le profil peut ne pas être créé.
+                    // verifier si le profil existe avant de faire la mise à jour.
+                    if (!$model->isProfilExiste()) {
+                        $model->createProfil();
+                    } else {
+                        $model->UpdateProfil();
+                    }
                     $model->UpdateUser();
-                    // essayer de recuperer le message que le mail n'est pas envoyer !
-                    // et le transmettre au formulaire
                     $model->sendUpdateMail();
                 }
-            } else {
-                // A l'installation du component, le profil peut ne pas être créé.
-                // verifier si le profil existe avant de faire la mise à jour.
-                if (!$model->isProfilExiste()) {
-                    $model->createProfil();
-                } else {
-                    $model->UpdateProfil();
+
+                // Garde-fou : sans profil résolu (id 0), les insertions suivantes violeraient les clés
+                // étrangères vers #__gda_profils et l'erreur SQL brute serait renvoyée à l'adhérent.
+                if ((int) ($app->getUserState('adhesion.save')['id'] ?? 0) === 0) {
+                    throw new \DomainException(Text::_('COM_GDA_ADHESION_SAVE_PROFIL_INTROUVABLE'));
                 }
-                $model->UpdateUser();
-                $model->sendUpdateMail();
+
+                /* sauveagarde les brevets  (Anule & remplace) */
+                $model->saveInBrevets();
+                /* sauvegarde de l'adhésion dans les groupes  selectionnés*/
+                $model->saveInGroupes();
+                /* mettre dans la table de souscription la campagne d'adhésion active pour le profil */
+                $model->saveSouscription();
+            } catch (\DomainException $e) {
+                // Refus métier : message destiné à l'adhérent, conservé tel quel.
+                GdaLogger::warning('AdhesionController::save() refusée : ' . $e->getMessage() . ' | ' . $this->getContexteDiagnostic($branche));
+                throw $e;
+            } catch (\Exception $e) {
+                if ($e->getCode() === 403) {
+                    // Refus d'autorisation : le message est déjà destiné à l'adhérent.
+                    GdaLogger::warning('AdhesionController::save() non autorisée : ' . $e->getMessage() . ' | ' . $this->getContexteDiagnostic($branche));
+                    throw $e;
+                }
+
+                // Erreur technique (SQL, fichier...) : détail complet dans le journal, message
+                // générique pour l'adhérent afin de ne jamais exposer de requête ni de schéma.
+                GdaLogger::error(sprintf(
+                    'AdhesionController::save() erreur technique : %s (%s:%d) | %s | trace : %s',
+                    $e->getMessage(),
+                    basename($e->getFile()),
+                    $e->getLine(),
+                    $this->getContexteDiagnostic($branche),
+                    str_replace("\n", ' <- ', $e->getTraceAsString())
+                ));
+                throw new \Exception(Text::_('COM_GDA_ADHESION_SAVE_ERREUR_TECHNIQUE'), 500, $e);
             }
-
-
-            /* sauveagarde les brevets  (Anule & remplace) */
-            $model->saveInBrevets();
-            /* sauvegarde de l'adhésion dans les groupes  selectionnés*/
-            $model->saveInGroupes();
-            /* mettre dans la table de souscription la campagne d'adhésion active pour le profil */
-            $model->saveSouscription();
 
 
 
@@ -225,5 +272,47 @@ class AdhesionController extends BaseController
         } catch (\Exception $e) {
             echo new JsonResponse($e);
         }
+    }
+
+    /**
+     * Rassemble les éléments utiles pour diagnostiquer un échec d'enregistrement de l'adhésion
+     * depuis le journal : branche empruntée, identifiants postés et résolus, session, clé de
+     * réédition (préfixe seulement), volumétrie des brevets/groupes, client.
+     *
+     * @param   string  $branche  Branche de save() empruntée (nouvelle_adhesion, reedition_token, membre_connecte).
+     * @return  string  Contexte sur une ligne, au format « clé=valeur ».
+     */
+    private function getContexteDiagnostic(string $branche): string
+    {
+        $app = Factory::getApplication();
+        $adhesion = (array) $app->getUserState('adhesion.save');
+        $session = (array) $app->getUserState('session');
+        $brevets = $app->getUserState('adhesion.brevets');
+        $cle = (string) ($adhesion['key'] ?? $app->getUserState('adhesion.key') ?? '');
+        $serveur = $app->getInput()->server;
+
+        $elements = [
+            'branche' => $branche,
+            'id_formulaire' => $adhesion['id'] ?? 'n/a',
+            'username' => $adhesion['username'] ?? 'n/a',
+            'email' => $adhesion['email'] ?? 'n/a',
+            'nom' => trim(($adhesion['prenom'] ?? '') . ' ' . ($adhesion['nom'] ?? '')),
+            'reduction' => $adhesion['reduction'] ?? 'n/a',
+            'nb_groupes' => is_array($adhesion['id_groupes'] ?? null) ? count($adhesion['id_groupes']) : 0,
+            'nb_brevets' => is_array($brevets) ? count($brevets) : 0,
+            'session_id' => $session['id'] ?? 'aucune',
+            'session_username' => $session['username'] ?? 'aucune',
+            'cle_prefixe' => $cle !== '' ? substr($cle, 0, 4) . '...' : 'aucune',
+            'user_joomla' => $app->getIdentity()->id,
+            'ip' => $serveur->getString('REMOTE_ADDR', ''),
+            'user_agent' => $serveur->getString('HTTP_USER_AGENT', ''),
+        ];
+
+        $lignes = [];
+        foreach ($elements as $nom => $valeur) {
+            $lignes[] = $nom . '=' . $valeur;
+        }
+
+        return implode(' ; ', $lignes);
     }
 }

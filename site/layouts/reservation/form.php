@@ -28,7 +28,13 @@ $placesDisponiblesParRole = $displayData['placesDisponiblesParRole'] ?? [];
 // l'adhérent revient, ses anciennes places restées 'annulee' ne comptent pas).
 $mesPlaces   = ($reservation !== null && !$reservation->annulee) ? $reservation->places : [];
 $dejaReserve = !empty($mesPlaces);
-$complet     = $placesDisponibles !== null && $placesDisponibles === 0;
+
+// Rôles pour lesquels il ne reste plus de place (le total de la campagne ne suffit pas : un rôle
+// peut être plein alors qu'un autre reste ouvert).
+$rolesComplets = array_keys(array_filter(
+    $placesDisponiblesParRole,
+    static fn ($places) => $places !== null && (int) $places === 0
+));
 
 $enAttente = false;
 foreach ($mesPlaces as $place) {
@@ -63,10 +69,10 @@ foreach ($mesPlaces as $place) {
         <p class="text-muted"><?= (string) $campagne->description ?></p>
     <?php endif; ?>
 
-    <?php if ($complet && !$dejaReserve) : ?>
-        <div class="alert alert-warning d-flex align-items-center" role="alert">
-            <i class="fa-solid fa-hourglass-half me-2" aria-hidden="true"></i>
-            <span><?= Text::_('COM_GDA_RESERVATION_ALERTE_COMPLET') ?></span>
+    <?php if (!empty($rolesComplets) && !$dejaReserve) : ?>
+        <div class="alert alert-info d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-info me-2" aria-hidden="true"></i>
+            <span><?= Text::sprintf('COM_GDA_RESERVATION_ALERTE_COMPLET_ROLES', htmlspecialchars(implode(', ', $rolesComplets), ENT_QUOTES, 'UTF-8')) ?></span>
         </div>
     <?php endif; ?>
 
@@ -114,7 +120,6 @@ foreach ($mesPlaces as $place) {
         <i class="fa-solid fa-check me-1" aria-hidden="true"></i>
         <?= $dejaReserve ? Text::_('COM_GDA_RESERVATION_METTRE_A_JOUR') : Text::_('COM_GDA_RESERVATION_RESERVER') ?>
     </button>
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= Text::_('COM_GDA_CANCEL') ?></button>
 </div>
 
 <?= LayoutHelper::render('reservation.role_row_template', [

@@ -40,10 +40,10 @@ $groupes = $this->groupes;
 
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <div class="btn-group" role="group" aria-label="<?= $this->escape(Text::_('COM_GDA_GROUPES_DISPLAY_MODE')) ?>">
-                <button type="button" class="btn btn-sm btn-outline-primary active" id="btnGroupesDisplayDetail" data-display-mode="detail">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnGroupesDisplayDetail" data-display-mode="detail">
                     <i class="fa-solid fa-table-list me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_GROUPES_DISPLAY_DETAIL') ?>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="btnGroupesDisplayVignette" data-display-mode="vignette">
+                <button type="button" class="btn btn-sm btn-outline-primary active" id="btnGroupesDisplayVignette" data-display-mode="vignette">
                     <i class="fa-solid fa-grip me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_GROUPES_DISPLAY_VIGNETTE') ?>
                 </button>
             </div>
@@ -96,10 +96,10 @@ $groupes = $this->groupes;
                         </button>
                     </div>
 
-                    <div class="gda-groupes-view gda-groupes-view--detail" data-view-mode="detail">
+                    <div class="gda-groupes-view gda-groupes-view--detail d-none" data-view-mode="detail">
                         <?= LayoutHelper::render('groupes.detail', ['groupe' => $groupe]) ?>
                     </div>
-                    <div class="gda-groupes-view gda-groupes-view--vignette d-none" data-view-mode="vignette">
+                    <div class="gda-groupes-view gda-groupes-view--vignette" data-view-mode="vignette">
                         <?= LayoutHelper::render('groupes.vignette', ['groupe' => $groupe]) ?>
                     </div>
                 </div>

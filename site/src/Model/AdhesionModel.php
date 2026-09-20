@@ -368,11 +368,15 @@ class AdhesionModel extends FormModel
 
 
     /**
-     * Get profile of one username
+     * Brevets déjà enregistrés du profil (session) ou de la clé d'adhésion en cours, préchargés
+     * dans le formulaire d'adhésion (com_gdadhesions.brevets, voir tmpl/adhesion/default.php).
      *
-     * @return  array
+     * id_mapping est sélectionné pour que Brevets.addBrevet() (brevets.js) verrouille en lecture
+     * seule les brevets déjà rattachés au référentiel FFESSM, comme le fait déjà la vue Profil via
+     * BrevetService::getBrevets() — jusqu'ici absent d'ici, ces brevets restaient éditables à tort
+     * dans le formulaire d'adhésion alors qu'ils l'étaient déjà dans la fiche Profil.
      *
-     * @since   4.0.0
+     * @return object[]|null Objets {nom, obtention, lieu, id_mapping}, ou null si ni session ni clé.
      */
     public function getBrevets()
     {
@@ -396,7 +400,7 @@ class AdhesionModel extends FormModel
                 // recuperer les brevet avec la key
                 $value_key = $this->getKey();
 
-                $query->select('b.nom,b.obtention,b.lieu');
+                $query->select('b.nom,b.obtention,b.lieu,b.id_mapping');
                 $query->from($db->quoteName('#__gda_brevets', 'b'));
                 $query->leftjoin($db->quoteName('#__gda_profils', 'p'), 'p.id_profil = b.id_profil');
                 $query->where($db->quoteName('p.key') . ' = :value_key')
@@ -405,7 +409,7 @@ class AdhesionModel extends FormModel
             }
         } else {
 
-            $query->select('b.nom,b.obtention,b.lieu');
+            $query->select('b.nom,b.obtention,b.lieu,b.id_mapping');
             $query->from($db->quoteName('#__gda_brevets', 'b'));
             $query->where($db->quoteName('id_profil') . ' = :value_id_profil')
                 ->order($db->quoteName('b.obtention') . ' DESC')

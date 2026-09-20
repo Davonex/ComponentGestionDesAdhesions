@@ -101,6 +101,14 @@ final class HelloAssoService
         if ($this->accessToken !== '' && $this->tokenExpiresAt > time() + 60) {
             return $this->accessToken;
         }
+
+        // Jeton partagé entre requêtes : sans lui, chaque requête HTTP du site qui touche HelloAsso
+        // (chaque affichage du dashboard après expiration d'un cache, chaque clic sur Rafraîchir)
+        // paierait un aller-retour OAuth supplémentaire avant son appel utile.
+        if ($this->loadCachedToken()) {
+            return $this->accessToken;
+        }
+
         $http = (new HttpFactory())->getHttp();
         $response = $http->post(
             $this->oauthBaseUrl . '/token',
@@ -128,7 +136,102 @@ final class HelloAssoService
         // Retourne aussi refresh_token/expires_in pour votre stockage
                 $this->accessToken    = (string) $data['access_token'];
         $this->tokenExpiresAt = time() + (int) ($data['expires_in'] ?? 1800);
+        $this->storeCachedToken();
+
         return $this->accessToken;
+    }
+
+    /**
+     * GET authentifié vers l'API HelloAsso, avec un unique nouvel essai si le jeton est refusé (401) :
+     * un jeton peut être invalidé côté HelloAsso avant son expiration annoncée, et depuis sa mise en
+     * cache entre requêtes (getAccessToken()) un jeton périmé serait sinon réutilisé jusqu'à
+     * l'expiration locale.
+     *
+     * @param  string $url URL complète de l'endpoint.
+     * @return \Joomla\Http\Response Réponse HTTP brute (le contrôle du statut reste à l'appelant).
+     * @throws RuntimeException Si l'obtention du jeton échoue.
+     */
+    private function apiGet(string $url): \Joomla\Http\Response
+    {
+        $http = (new HttpFactory())->getHttp();
+
+        for ($tentative = 1; ; $tentative++) {
+            if ($this->accessToken === '' || $this->tokenExpiresAt <= time() + 60) {
+                $this->getAccessToken();
+            }
+
+            $response = $http->get($url, [
+                'Authorization' => 'Bearer ' . $this->accessToken,
+                'Accept' => 'application/json',
+            ]);
+
+            if ($response->getStatusCode() === 401 && $tentative === 1) {
+                $this->accessToken    = '';
+                $this->tokenExpiresAt = 0;
+                @unlink($this->getTokenCacheFile());
+
+                continue;
+            }
+
+            return $response;
+        }
+    }
+
+    /**
+     * Chemin du fichier de cache du jeton OAuth. Le nom dépend de l'environnement (URL OAuth) et du
+     * client : un site qui bascule du sandbox à la production ne réutilise jamais le jeton de l'autre.
+     */
+    private function getTokenCacheFile(): string
+    {
+        return $this->getCacheDir() . '/oauth_' . md5($this->oauthBaseUrl . '|' . $this->clientId) . '.bin';
+    }
+
+    /**
+     * Recharge un jeton encore valide depuis le cache fichier (voir getAccessToken()). Le fichier
+     * est chiffré (CryptoHelper) : le répertoire de cache est sous la racine web, un jeton en clair
+     * y donnerait accès aux données HelloAsso de l'association à quiconque en devinerait le nom.
+     *
+     * @return bool True si un jeton valide (au moins 60 s de marge) a été chargé.
+     */
+    private function loadCachedToken(): bool
+    {
+        $file = $this->getTokenCacheFile();
+
+        if (!is_file($file)) {
+            return false;
+        }
+
+        try {
+            $data = json_decode(CryptoHelper::decrypt((string) file_get_contents($file)), true);
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        if (!is_array($data) || empty($data['token']) || (int) ($data['expires_at'] ?? 0) <= time() + 60) {
+            return false;
+        }
+
+        $this->accessToken    = (string) $data['token'];
+        $this->tokenExpiresAt = (int) $data['expires_at'];
+
+        return true;
+    }
+
+    /**
+     * Persiste le jeton courant (chiffré) pour les requêtes suivantes. Un échec d'écriture n'est
+     * pas bloquant : le jeton reste utilisable pour la requête en cours.
+     */
+    private function storeCachedToken(): void
+    {
+        try {
+            file_put_contents(
+                $this->getTokenCacheFile(),
+                CryptoHelper::encrypt((string) json_encode(['token' => $this->accessToken, 'expires_at' => $this->tokenExpiresAt])),
+                LOCK_EX
+            );
+        } catch (\Throwable $e) {
+            GdaLogger::warning('HelloAssoService : jeton OAuth non mis en cache - ' . $e->getMessage());
+        }
     }
 
 
@@ -197,11 +300,130 @@ final class HelloAssoService
      */
     public function getFormsPublic( string $formType, string $formSlug): array
     {
-       
+
         $url = $this->apiBaseUrl . '/organizations/' . rawurlencode($this->organizationSlug) . '/forms/' . rawurlencode($formType) . '/' . rawurlencode($formSlug) . '/public'    ;
 
         return $this->getAPIWithoutPagination($url);
 
+    }
+
+    /**
+     * Variante mise en cache (fichier, 30 min) de getFormsPublic(), même motif que
+     * getFormsOrders(). Les données publiques d'un formulaire (titre, dates, tiers/prix d'une
+     * Boutique) ne changent pas assez souvent pour justifier un appel à l'API HelloAsso à chaque
+     * affichage du dashboard Accueil par chaque adhérent - contrairement à getFormsPublic(), qui
+     * reste appelée sans cache par CampagnesController::getformDetailHelloAsso() (action ponctuelle
+     * du Bureau, pas un affichage répété).
+     *
+     * @param string $formType     Le type de formulaire.
+     * @param string $formSlug     Le slug du formulaire.
+     * @param bool   $forceRefresh Forcer l'appel à l'API en ignorant le cache.
+     * @return array Les données publiques du formulaire.
+     * @throws RuntimeException Si la requête échoue ou si la réponse est invalide.
+     */
+    public function getFormsPublicCached(string $formType, string $formSlug, bool $forceRefresh = false): array
+    {
+        return $this->getCachedOrFetch(
+            'public_' . md5($formType . '_' . $formSlug),
+            fn(): array => $this->getFormsPublic($formType, $formSlug),
+            $forceRefresh
+        );
+    }
+
+    /**
+     * Obtenir les statistiques de vente d'un formulaire HelloAsso (FormStatsModel : quantité
+     * vendue/max par tarif, entre autres). Utilisée pour calculer le stock restant d'un article de
+     * Boutique (maxEntries - entriesTaken), absent du formulaire public (getFormsPublic()).
+     *
+     * @param string $formType Le type de formulaire.
+     * @param string $formSlug Le slug du formulaire.
+     * @return array Les statistiques du formulaire (unGroupedTiers, additionalOptions, totalParticipant).
+     * @throws RuntimeException Si la requête échoue ou si la réponse est invalide.
+     * URL de l'API : https://api.helloasso.com/v5/organizations/{organizationSlug}/forms/{formType}/{formSlug}/stats
+     * Documentation de l'API : https://dev.helloasso.com/reference/get_organizations-organizationslug-forms-formtype-formslug-stats
+     */
+    public function getFormsStats(string $formType, string $formSlug): array
+    {
+        $url = $this->apiBaseUrl . '/organizations/' . rawurlencode($this->organizationSlug) . '/forms/' . rawurlencode($formType) . '/' . rawurlencode($formSlug) . '/stats';
+
+        return $this->getAPIWithoutPagination($url);
+    }
+
+    /**
+     * Variante mise en cache (fichier, 30 min) de getFormsStats(), même motif que
+     * getFormsPublicCached().
+     *
+     * @param string $formType     Le type de formulaire.
+     * @param string $formSlug     Le slug du formulaire.
+     * @param bool   $forceRefresh Forcer l'appel à l'API en ignorant le cache.
+     * @return array Les statistiques du formulaire.
+     * @throws RuntimeException Si la requête échoue ou si la réponse est invalide.
+     */
+    public function getFormsStatsCached(string $formType, string $formSlug, bool $forceRefresh = false): array
+    {
+        return $this->getCachedOrFetch(
+            'stats_' . md5($formType . '_' . $formSlug),
+            fn(): array => $this->getFormsStats($formType, $formSlug),
+            $forceRefresh
+        );
+    }
+
+    /**
+     * Lecture avec cache fichier des données publiques d'un formulaire (getFormsPublicCached(),
+     * getFormsStatsCached()), pensée pour un affichage répété (dashboard de chaque adhérent) :
+     *  - cache de 30 min ; un rafraîchissement forcé est, lui, limité à un appel HelloAsso par
+     *    minute et par formulaire (chaque adhérent connecté peut cliquer sur "Rafraîchir") : en deçà,
+     *    la donnée déjà en cache est renvoyée ;
+     *  - un échec est mémorisé 5 min (1 min après un rafraîchissement forcé) pour ne pas refaire
+     *    attendre un timeout à chaque affichage tant que HelloAsso ou le lien du formulaire est en
+     *    panne ;
+     *  - en cas d'échec, la dernière donnée connue - même expirée - est servie plutôt que rien.
+     *
+     * @param  string   $cacheKey     Clé du cache (préfixe + md5 formType/formSlug).
+     * @param  callable $fetch        Appel API à effectuer, retourne le tableau à mettre en cache.
+     * @param  bool     $forceRefresh True si l'appel vient du bouton "Rafraîchir".
+     * @return array Données du formulaire.
+     * @throws RuntimeException Si l'appel échoue et qu'aucune donnée n'est disponible en cache.
+     */
+    private function getCachedOrFetch(string $cacheKey, callable $fetch, bool $forceRefresh): array
+    {
+        $ttl            = 30 * 60;
+        $ttlRefresh     = 60;
+        $ttlErreur      = $forceRefresh ? $ttlRefresh : 5 * 60;
+        $cached         = $this->getCache($cacheKey, $forceRefresh ? $ttlRefresh : $ttl);
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $erreurRecente = $this->getCache($cacheKey . '_err', $ttlErreur);
+        $derniereValeur = $this->getCache($cacheKey, PHP_INT_MAX);
+
+        if ($erreurRecente !== null) {
+            if ($derniereValeur !== null) {
+                return $derniereValeur;
+            }
+
+            throw new RuntimeException((string) ($erreurRecente['message'] ?? 'HelloAsso indisponible (échec récent)'));
+        }
+
+        try {
+            $data = $fetch();
+        } catch (\Throwable $e) {
+            $this->setCache($cacheKey . '_err', ['message' => $e->getMessage()]);
+            GdaLogger::warning('HelloAssoService : ' . $cacheKey . ' indisponible - ' . $e->getMessage());
+
+            if ($derniereValeur !== null) {
+                return $derniereValeur;
+            }
+
+            throw $e;
+        }
+
+        $this->setCache($cacheKey, $data);
+        @unlink($this->getCacheDir() . '/' . $cacheKey . '_err.json');
+
+        return $data;
     }
 
 
@@ -406,11 +628,6 @@ final class HelloAssoService
      */
     private function getAPIWithPagination($endpoint, $options = []): array
     {
-        if ($this->accessToken === '' || $this->tokenExpiresAt <= time() + 60) {
-                        // throw new RuntimeException('Access token is required to get.');
-            $this->getAccessToken(); // Tenter de récupérer un nouveau token
-        }
-        $http = (new HttpFactory())->getHttp();
         $allData = [];
         $continuationToken = "";
         if (isset($options['withDetails']) && $options['withDetails']) {
@@ -420,10 +637,7 @@ final class HelloAssoService
 
             $url = $endpoint . ($continuationToken ? (str_contains($endpoint, '?') ? '&' : '?') . 'continuationToken=' . rawurlencode($continuationToken) : '');
 
-            $response = $http->get($url, [
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Accept' => 'application/json',
-            ]);
+            $response = $this->apiGet($url);
 
             $statusCode = $response->getStatusCode();
             $reasonPhrase = $response->getReasonPhrase();
@@ -465,16 +679,7 @@ final class HelloAssoService
      */
     private function getAPIWithoutPagination($endpoint): array
     {
-        if ($this->accessToken === '' || $this->tokenExpiresAt <= time() + 60) {
-            // throw new RuntimeException('Access token is required to get.');
-            $this->getAccessToken(); // Tenter de récupérer un nouveau token
-        }
-        $http = (new HttpFactory())->getHttp();
-
-        $response = $http->get($endpoint, [
-            'Authorization' => 'Bearer ' . $this->accessToken,
-            'Accept' => 'application/json',
-        ]);
+        $response = $this->apiGet($endpoint);
 
         $statusCode = $response->getStatusCode();
         $body = (string) $response->getBody();

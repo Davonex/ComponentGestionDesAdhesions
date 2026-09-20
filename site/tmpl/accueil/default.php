@@ -10,8 +10,6 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Layout\LayoutHelper;
 
 use Joomla\CMS\HTML\Helpers\Bootstrap;
-use NCB\Component\Gda\Site\Helper\ConfHelper;
-use NCB\Component\Gda\Site\Helper\UsersHelper;
 
 Bootstrap::framework();
 
@@ -30,6 +28,7 @@ $wa->useScript('com_gdadhesions.row_list');
 $wa->useScript('com_gdadhesions.campagne');
 $wa->useScript('com_gdadhesions.dialog');
 $wa->useScript('com_gdadhesions.reservation');
+$wa->useScript('com_gdadhesions.boutique');
 // tom-select
 $wa->useStyle('com_gdadhesions.tom-select');
 $wa->useScript('com_gdadhesions.tom-select');
@@ -58,9 +57,8 @@ Text::script('COM_GDA_CONFIRM');
       <?php echo $this->user->name . " [" . $this->user->username . "]"; ?>
     </h5>
 
-    <?php $userRole = UsersHelper::getCurrentUserRole(); ?>
     <span class="badge gda-role-badge bg-secondary ms-auto">
-      <i class="<?php echo $this->escape($userRole['icon']); ?>" aria-hidden="true"></i><?php echo $this->escape(Text::_($userRole['label'])); ?>
+      <i class="<?php echo $this->escape($this->userRole['icon']); ?>" aria-hidden="true"></i><?php echo $this->escape(Text::_($this->userRole['label'])); ?>
     </span>
 
   </div>
@@ -85,57 +83,72 @@ Text::script('COM_GDA_CONFIRM');
   <!-- container dashboard py-4 -->
 
 
-  <!-- ALERTES - Suivi Adhésion et CACI -->
   <?php
-  // Récupérer les données de souscription
-
-  $model = $this->getModel();
-
-  // Déterminer la saison courante (suivi CACI/licence, indépendant de l'ouverture des inscriptions)
-  $saisonCourante = ConfHelper::getSaisonService()->getSaisonCourante();
-
-  $souscription = null;
-  $statusEnum = \NCB\Component\Gda\Site\Helper\AdhesionStatusHelper::STATUS_NOT_SUBSCRIBED;
-
-  if ($saisonCourante !== null && $this->user !== null && $this->user->id > 0) {
-    $souscription = $model->getAdhesionStatus($this->user->id, $saisonCourante->id_campagne);
-    $statusEnum = \NCB\Component\Gda\Site\Helper\AdhesionStatusHelper::getStatusEnum($souscription);
-  }
-
-  // Afficher le layout avec les données
-  echo LayoutHelper::render('accueil.dash_status_adhesion', [
-    'souscription' => $souscription,
-    'statusEnum'   => $statusEnum,
-    'user'         => $this->user,
-    'itemid'       => $this->itemid ?? 0
-  ]);
+  // Deux colonnes explicitement empilées (plutôt qu'un simple enchaînement de "col-lg-6" laissé
+  // au wrap automatique de la grille Bootstrap) : chaque encart est repliable (.toggle-card), et
+  // un wrap flex "à plat" ne fait pas remonter un encart de la colonne de droite quand celui du
+  // dessus, à gauche, se replie (la grille Bootstrap n'est pas un masonry). Les deux cartes de
+  // gauche (Suivi Adhésion + Boutique) doivent donc rester dans le même flux vertical, indépendant
+  // de la hauteur de la colonne de droite.
   ?>
+  <div class="col-12 col-lg-6 d-flex flex-column gap-2">
+    <!-- ALERTES - Suivi Adhésion et CACI -->
+    <?php echo LayoutHelper::render('accueil.dash_status_adhesion', [
+      'souscription' => $this->souscription,
+      'statusEnum'   => $this->statusEnum,
+      'user'         => $this->user,
+      'itemid'       => $this->itemid ?? 0
+    ]);
+    ?>
 
-  <!-- Messages -->
+    <!-- Boutique -->
+    <?php echo LayoutHelper::render(
+      'accueil.dash_boutique',
+      ['campagnes' => $this->campagnesBoutique]
+    );
+    ?>
+  </div>
 
-  <!-- <div class="card col-12 col-md-4 col-lg-6">
+  <div class="col-12 col-lg-6 d-flex flex-column gap-2">
+    <!-- Messages -->
 
-    <div class="card-header">💬 Messages du club</div>
+    <!-- <div class="card col-12 col-md-4 col-lg-6">
 
-    <p class="ncb_texte">
-      La seance de vendredi prochain est annulée. La piscine est fermée pour cause de travaux.
-    </p>
+      <div class="card-header">💬 Messages du club</div>
 
-    <p class="ncb_texte">
-      Rappel que sur boussys st antoine les vestiares doivent rester propres.
-    </p>
+      <p class="ncb_texte">
+        La seance de vendredi prochain est annulée. La piscine est fermée pour cause de travaux.
+      </p>
 
-  </div> -->
+      <p class="ncb_texte">
+        Rappel que sur boussys st antoine les vestiares doivent rester propres.
+      </p>
 
-  <!-- Campagnes réservables (Formation et Loisir) -->
+    </div> -->
 
-  <?php echo LayoutHelper::render(
-    'accueil.dash_campagnes_reservables',
-    ['formations' => $this->formations, 'user' => $this->user]
-  );
-  ?>
+    <!-- Campagnes réservables : un encart par nature (Formation, Loisir) -->
+    <?php echo LayoutHelper::render('accueil.dash_campagnes_reservables', [
+      'campagnes' => $this->campagnesFormation,
+      'user'      => $this->user,
+      'cardId'    => 'formationsCard',
+      'titleKey'  => 'COM_GDA_RESERVATION_FORMATIONS_TITRE',
+      'icon'      => 'fa-solid fa-graduation-cap',
+    ]);
+    ?>
 
-  <!-- Campagnes (layout générique, en attente des layouts Sortie / Soirée / Boutique) -->
+    <?php echo LayoutHelper::render('accueil.dash_campagnes_reservables', [
+      'campagnes' => $this->campagnesLoisir,
+      'user'      => $this->user,
+      'cardId'    => 'loisirsCard',
+      'titleKey'  => 'COM_GDA_RESERVATION_LOISIRS_TITRE',
+      'icon'      => 'fa-solid fa-umbrella-beach',
+    ]);
+    ?>
+
+    <?php echo LayoutHelper::render('accueil.dash_reservation_modals'); ?>
+  </div>
+
+  <!-- Campagnes (layout générique, en attente des layouts Sortie / Soirée) -->
 
 
 

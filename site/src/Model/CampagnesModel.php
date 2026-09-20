@@ -7,21 +7,30 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ListModel;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Mail\MailerFactoryInterface;
+use Joomla\Database\ParameterType;
 
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
+use NCB\Component\Gda\Site\Helper\UsersHelper;
 use NCB\Component\Gda\Site\Service\BrevetService;
+use NCB\Component\Gda\Site\Service\NotificationMailService;
 use NCB\Component\Gda\Site\Service\ReservationService;
 use NCB\Component\Gda\Site\Service\SouscriptionService;
 
 
 class CampagnesModel extends ListModel
 {
+    /** Sous-types autorisés pour une campagne Formation (valeurs stockées ; libellés COM_GDA_CAMPAGNE_SOUS_TYPE_*). */
+    public const SOUS_TYPES_FORMATION = ['fosse_apnee', 'fosse_technique_20', 'fosse_technique_12', 'rifax'];
+
 
     protected $_item = null;
 
     private ?BrevetService $brevetService = null;
+
+    private ?ReservationService $reservationService = null;
 
     function getCampagne($id_campagne)
     {
@@ -55,7 +64,7 @@ class CampagnesModel extends ListModel
                     // Factory::getApplication()->enqueueMessage("Erreur de chargement des campagne, Contacter votre administrateur", 'error');
                 }
             if (count($item) !== 1) {
-             throw new \Exception("Bizard  il y a 0 ou plusieurs campagne avec l'ID:".$id_campagne, 500);
+             throw new \Exception("Anomalie : 0 ou plusieurs campagnes portent l'ID ".$id_campagne, 500);
             }
 
             // Capacité par rôle, pour préremplir le formulaire d'édition.
@@ -93,14 +102,17 @@ class CampagnesModel extends ListModel
                 // $select->__toString()
             }
 
-        // Capacité par rôle, pour préremplir la modal d'édition de chaque ligne : une seule
-        // requête groupée plutôt qu'un appel par campagne (pas de N+1).
+        // Capacité et occupation par rôle, pour préremplir la modal d'édition et détailler la
+        // colonne "Places" de chaque ligne : deux requêtes groupées plutôt qu'un appel par
+        // campagne (pas de N+1).
         if (!empty($this->_items)) {
             $idsCampagne = array_map(static fn($item) => (int) $item->id_campagne, $this->_items);
             $rolesParCampagne = $this->getRolesCapacite($idsCampagne);
+            $rolesOccupeesParCampagne = $this->getRolesOccupees($idsCampagne);
 
             foreach ($this->_items as $item) {
                 $item->role_places = $rolesParCampagne[(int) $item->id_campagne] ?? [];
+                $item->role_occupees = $rolesOccupeesParCampagne[(int) $item->id_campagne] ?? [];
             }
         }
 
@@ -160,6 +172,29 @@ class CampagnesModel extends ListModel
     }
 
     /**
+     * Type de formulaire HelloAsso attendu pour chaque nature de campagne, utilisé pour restreindre
+     * la liste déroulante "Event HelloAsso" du formulaire Campagnes (models/fields/eventshelloasso.php,
+     * filtrage côté client dans campagne.js selon la nature sélectionnée). Formation et Loisir
+     * pointent vers un événement HelloAsso ("Event") ; Boutique vers une boutique ("Shop") — sans
+     * rôles ni réservation, voir la vue Accueil et l'onglet Suivi des inscriptions qui l'excluent
+     * déjà. La Saison a son propre champ, filtré statiquement sur "Membership"
+     * (models/forms/saison_courante.xml), indépendant de cette méthode.
+     *
+     * Règle métier fixe, non administrable (même motif que getRolesDeCampagne()) : à faire évoluer
+     * ici si HelloAsso expose un jour un autre type de formulaire pertinent pour une nature future.
+     *
+     * @return array<string, string> type_name => formType HelloAsso attendu
+     */
+    function getHelloAssoFormTypeParNature(): array
+    {
+        return [
+            'Formation' => 'Event',
+            'Loisir'    => 'Event',
+            'Boutique'  => 'Shop',
+        ];
+    }
+
+    /**
      * Capacité par rôle (#__gda_campagne_roles) pour une ou plusieurs campagnes, à la fois pour
      * préremplir le formulaire d'édition (une campagne) et pour enrichir une liste sans N+1
      * (plusieurs campagnes en une seule requête, groupées ensuite en PHP).
@@ -204,6 +239,56 @@ class CampagnesModel extends ListModel
         }
 
         return $capacites;
+    }
+
+    /**
+     * Places occupées par rôle, réparties par statut (confirmée / en cours de validation), pour
+     * une ou plusieurs campagnes, à mettre en regard de getRolesCapacite() pour détailler la
+     * colonne "Places" de la liste (ex: "Encadrant : ✔ 1, ⏳ 2 / 5") sans N+1 (une seule requête
+     * groupée pour toute la liste). STATUT_REFUSEE et STATUT_ANNULEE ne comptent pas comme
+     * occupation d'une place.
+     *
+     * @param  int[] $idsCampagne Identifiants des campagnes concernées.
+     * @return array<int, array<string, array{confirmee: int, attente: int}>> id_campagne => [role => [...]].
+     */
+    function getRolesOccupees(array $idsCampagne): array
+    {
+        if (empty($idsCampagne)) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $statutConfirmee = ReservationService::STATUT_CONFIRMEE;
+        $statutAttente   = ReservationService::STATUT_ATTENTE;
+
+        $query = $db->createQuery()
+            ->select($db->quoteName(['id_campagne', 'role', 'statut']))
+            ->select('COUNT(*) AS ' . $db->quoteName('occupees'))
+            ->from($db->quoteName('#__gda_reservation_places'))
+            ->whereIn($db->quoteName('statut'), [$statutConfirmee, $statutAttente], ParameterType::STRING)
+            ->whereIn($db->quoteName('id_campagne'), $idsCampagne)
+            ->group($db->quoteName(['id_campagne', 'role', 'statut']));
+
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+
+        $occupees = [];
+        foreach ($rows as $row) {
+            $idCampagne = (int) $row->id_campagne;
+            $role       = (string) $row->role;
+
+            if (!isset($occupees[$idCampagne][$role])) {
+                $occupees[$idCampagne][$role] = ['confirmee' => 0, 'attente' => 0];
+            }
+
+            if ($row->statut === $statutConfirmee) {
+                $occupees[$idCampagne][$role]['confirmee'] = (int) $row->occupees;
+            } else {
+                $occupees[$idCampagne][$role]['attente'] = (int) $row->occupees;
+            }
+        }
+
+        return $occupees;
     }
 
     /**
@@ -261,6 +346,80 @@ class CampagnesModel extends ListModel
     }
 
     /**
+     * Récapitulatif des réservations de toutes les campagnes Formation : une ligne par adhérent ayant
+     * réservé au moins une fois, une colonne par campagne, et à leur croisement le dernier statut
+     * connu (place la plus récente de l'adhérent sur cette campagne, désistement compris).
+     *
+     * @return array{campagnes: object[], adherents: object[]} `campagnes` : id_campagne, titre,
+     *         date_evenement, active, sous_type ; `adherents` : id_profil, civilite, nom, prenom, photo et
+     *         `statuts` (id_campagne => statut), `places` (id_campagne => [[rôle, statut], ...] chronologique), triés par nom puis prénom.
+     * @throws \Exception Si une requête échoue.
+     */
+    public function getRecapitulatifFormations(): array
+    {
+        $db = $this->getDatabase();
+        $idTypeFormation = (int) ConfHelper::getValue('IdTypeFormation');
+
+        $query = $db->createQuery()
+            ->select($db->quoteName(['id_campagne', 'titre', 'date_evenement', 'active', 'sous_type']))
+            ->from($db->quoteName('#__gda_campagnes'))
+            ->where($db->quoteName('id_type') . ' = :id_type')
+            ->where($db->quoteName('effacer') . ' = 0')
+            ->order($db->quoteName('date_debut') . ' ASC, ' . $db->quoteName('id_campagne') . ' ASC')
+            ->bind(':id_type', $idTypeFormation, ParameterType::INTEGER);
+
+        try {
+            $campagnes = $db->setQuery($query)->loadObjectList() ?: [];
+
+            if (empty($campagnes)) {
+                return ['campagnes' => [], 'adherents' => []];
+            }
+
+            $idsCampagne = array_map(static fn ($campagne) => (int) $campagne->id_campagne, $campagnes);
+
+            $query = $db->createQuery()
+                ->select($db->quoteName(['rp.id_campagne', 'rp.id_place', 'rp.role', 'rp.statut', 'rp.date_rang', 'p.id_profil', 'p.civilite', 'p.nom', 'p.prenom', 'p.photo']))
+                ->from($db->quoteName('#__gda_reservation_places', 'rp'))
+                ->innerJoin($db->quoteName('#__gda_reservation', 'r') . ' ON ' . $db->quoteName('r.id_reservation') . ' = ' . $db->quoteName('rp.id_reservation'))
+                ->innerJoin($db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('r.id_profil'))
+                ->whereIn($db->quoteName('rp.id_campagne'), $idsCampagne, ParameterType::INTEGER)
+                ->order($db->quoteName('rp.date_rang') . ' ASC, ' . $db->quoteName('rp.id_place') . ' ASC');
+
+            $places = $db->setQuery($query)->loadObjectList() ?: [];
+        } catch (\RuntimeException $e) {
+            throw new \Exception($e->getMessage(), 500);
+        }
+
+        // Tri chronologique : la dernière place rencontrée pour un couple adhérent/campagne l'emporte.
+        $adherents = [];
+
+        foreach ($places as $place) {
+            $idProfil = (int) $place->id_profil;
+
+            if (!isset($adherents[$idProfil])) {
+                $adherent = new \stdClass();
+                $adherent->id_profil = $idProfil;
+                $adherent->civilite = (string) ($place->civilite ?? '');
+                $adherent->nom = (string) ($place->nom ?? '');
+                $adherent->prenom = (string) ($place->prenom ?? '');
+                $adherent->photo = $place->photo;
+                $adherent->statuts = [];
+                $adherent->places = [];
+                $adherents[$idProfil] = $adherent;
+            }
+
+            $adherents[$idProfil]->statuts[(int) $place->id_campagne] = (string) $place->statut;
+            // Historique chronologique [rôle, statut] : permet au filtre Rôle du récapitulatif de
+            // recalculer le dernier statut sur un sous-ensemble de rôles (le rôle est un texte libre).
+            $adherents[$idProfil]->places[(int) $place->id_campagne][] = [(string) $place->role, (string) $place->statut];
+        }
+
+        usort($adherents, static fn ($a, $b) => strcasecmp($a->nom . ' ' . $a->prenom, $b->nom . ' ' . $b->prenom));
+
+        return ['campagnes' => $campagnes, 'adherents' => $adherents];
+    }
+
+    /**
      * Retourne les adhérents ayant réservé une place sur une campagne (hors saison), sous la même
      * forme qu'un groupe issu de GroupesModel::getGroupesAvecAdherents() afin de pouvoir réutiliser
      * tel quel les layouts groupes.detail / groupes.vignette pour l'onglet "Suivi des inscriptions".
@@ -269,13 +428,13 @@ class CampagnesModel extends ListModel
     {
         $db = $this->getDatabase();
         $statut_annulee = ReservationService::STATUT_ANNULEE;
-        $statut_attente = ReservationService::STATUT_ATTENTE;
 
         // Une ligne par PLACE (#__gda_reservation_places), pas par réservation : depuis la fusion
         // Formation/Loisir, une réservation peut porter plusieurs rôles à la fois, chacun avec
         // son propre statut. Un adhérent avec 2 places confirmées + 1 en attente apparaît donc en
         // 3 lignes ici, chacune avec son rôle/statut propre — layout groupes.detail inchangé, il
-        // affiche déjà un rôle/statut par ligne.
+        // affiche déjà un rôle/statut par ligne. STATUT_REFUSEE (décision du responsable) apparaît
+        // aussi ici, ainsi que STATUT_ANNULEE (désistement de l'adhérent), classé en dernier.
         $query = $db->createQuery()
             ->select([
                 $db->quoteName('p.id_profil'),
@@ -290,13 +449,13 @@ class CampagnesModel extends ListModel
                 $db->quoteName('rp.role'),
                 $db->quoteName('rp.statut'),
                 $db->quoteName('rp.date_rang'),
+                $db->quoteName('r.commentaire'),
             ])
             ->from($db->quoteName('#__gda_reservation_places', 'rp'))
             ->innerJoin($db->quoteName('#__gda_reservation', 'r') . ' ON ' . $db->quoteName('r.id_reservation') . ' = ' . $db->quoteName('rp.id_reservation'))
             ->innerJoin($db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('r.id_profil'))
             ->where($db->quoteName('rp.id_campagne') . ' = :id_campagne')
-            ->where($db->quoteName('rp.statut') . ' != :statut_annulee')
-            ->order($db->quoteName('p.nom') . ' ASC, ' . $db->quoteName('p.prenom') . ' ASC, ' . $db->quoteName('rp.role') . ' ASC')
+            ->order($db->quoteName('p.nom') . ' ASC, ' . $db->quoteName('p.prenom') . ' ASC, (' . $db->quoteName('rp.statut') . ' = :statut_annulee) ASC, ' . $db->quoteName('rp.role') . ' ASC')
             ->bind(':id_campagne', $id_campagne, \Joomla\Database\ParameterType::INTEGER)
             ->bind(':statut_annulee', $statut_annulee);
 
@@ -307,9 +466,6 @@ class CampagnesModel extends ListModel
         } catch (\RuntimeException $e) {
             throw new \Exception($e->getMessage(), 500);
         }
-
-        // Rang de file d'attente : indépendant de l'ordre alphabétique d'affichage ci-dessous.
-        $rangAttenteParPlace = ReservationService::calculerRangsAttente($rows);
 
         $groupe = new \stdClass();
         $groupe->id_groupe = 0;
@@ -331,8 +487,9 @@ class CampagnesModel extends ListModel
             $adherent->licence_status = AdhesionStatusHelper::getLicenceValidityStatus($row->date_licence);
             $adherent->role = $row->role;
             $adherent->date_reservation = $row->date_rang;
-            $adherent->en_attente = $row->statut === $statut_attente;
-            $adherent->rang_attente = $rangAttenteParPlace[(int) $row->id_place] ?? null;
+            $adherent->id_place = (int) $row->id_place;
+            $adherent->statut = (string) $row->statut;
+            $adherent->commentaire = trim((string) ($row->commentaire ?? ""));
 
             $groupe->adherents[] = $adherent;
         }
@@ -352,6 +509,115 @@ class CampagnesModel extends ListModel
         }
 
         return $groupe;
+    }
+
+    /**
+     * Change le statut d'une inscription (place) depuis l'onglet "Suivi des inscriptions" :
+     * décision du responsable de campagne — voir ReservationService::changerStatutPlace().
+     *
+     * @param  int    $idPlace Place concernée (#__gda_reservation_places.id_place).
+     * @param  string $statut  Nouveau statut, parmi ReservationService::STATUT_ATTENTE,
+     *                         STATUT_CONFIRMEE, STATUT_REFUSEE.
+     * @return void
+     * @throws \InvalidArgumentException Si $statut n'est pas une des trois valeurs autorisées.
+     * @throws \RuntimeException Si l'écriture en base échoue.
+     */
+    function changerStatutInscription(int $idPlace, string $statut): string
+    {
+        return $this->getReservationService()->changerStatutPlace($idPlace, $statut);
+    }
+
+    /**
+     * Prévient l'adhérent que sa place vient d'être acceptée (mail « inscription validée », voir
+     * NotificationMailService::sendReservationAcceptedEmail()). Si la campagne est liée à HelloAsso et
+     * qu'aucun paiement n'est retrouvé pour l'adhérent (ReservationService::resolveIdOrder(), recherche
+     * directe), le mail porte en plus le lien du formulaire HelloAsso.
+     *
+     * @param  int $idPlace Place acceptée.
+     * @return bool True si le mail est parti.
+     * @throws \RuntimeException Si la place est introuvable.
+     */
+    function notifierInscriptionAcceptee(int $idPlace): bool
+    {
+        $contexte = $this->getReservationService()->getPlaceContexte($idPlace);
+
+        if ($contexte === null) {
+            throw new \RuntimeException('Inscription introuvable pour la notification', 404);
+        }
+
+        return $this->getNotificationMailService()->sendReservationAcceptedEmail($idPlace, $this->getUrlPaiementHelloAsso($contexte));
+    }
+
+    /**
+     * Prévient le responsable de la campagne (#__gda_campagnes.id_responsable) d'un mouvement sur
+     * l'inscription d'un adhérent : inscription, désinscription, modification ou commentaire (voir
+     * NotificationMailService::sendReservationActivityEmail()). Sans effet si la campagne n'a pas de
+     * responsable désigné.
+     *
+     * @param  int         $idCampagne         Campagne concernée.
+     * @param  int         $idProfil           Adhérent concerné.
+     * @param  string      $evenement          'inscription' | 'desinscription' | 'modification' | 'commentaire'.
+     * @param  array       $lignes             Par rôle modifié : role, avant et apres (statut => nombre de places).
+     * @param  string|null $commentaire        Commentaire actuel de l'adhérent.
+     * @param  bool        $commentaireModifie True si le commentaire vient d'être écrit ou changé.
+     * @return bool True si le mail est parti.
+     */
+    function notifierActiviteInscription(int $idCampagne, int $idProfil, string $evenement, array $lignes, ?string $commentaire = null, bool $commentaireModifie = false): bool
+    {
+        return $this->getNotificationMailService()->sendReservationActivityEmail($idCampagne, $idProfil, $evenement, $lignes, $commentaire, $commentaireModifie);
+    }
+
+    /**
+     * Lien HelloAsso à envoyer à l'adhérent, ou null s'il n'y a rien à payer : campagne sans lien
+     * HelloAsso exploitable, ou paiement déjà retrouvé.
+     *
+     * @param  object $contexte Résultat de ReservationService::getPlaceContexte().
+     * @return string|null URL du formulaire HelloAsso de la campagne, si le paiement reste à faire.
+     */
+    private function getUrlPaiementHelloAsso(object $contexte): ?string
+    {
+        $event = json_decode((string) $contexte->event_helloasso, true);
+
+        if (!is_array($event) || empty($event['url']) || empty($event['formType']) || empty($event['formSlug'])) {
+            return null;
+        }
+
+        $idOrder = $this->getReservationService()->resolveIdOrder(
+            (int) $contexte->id_campagne,
+            (int) $contexte->id_profil,
+            (string) ($contexte->id_order ?? ''),
+            (string) $event['formType'],
+            (string) $event['formSlug'],
+            (string) $contexte->username
+        );
+
+        return $idOrder === '' ? (string) $event['url'] : null;
+    }
+
+    /**
+     * Service de notification mail (lazy, non partagé par le conteneur DI — même motif que
+     * SecretariatModel::getNotificationMailService()).
+     */
+    private function getNotificationMailService(): NotificationMailService
+    {
+        return new NotificationMailService(
+            $this->getDatabase(),
+            Factory::getContainer()->get(MailerFactoryInterface::class),
+            ConfHelper::getConfigService()
+        );
+    }
+
+    /**
+     * Getter pour obtenir le service Réservation (lazy loading, pas dans le conteneur DI du
+     * composant). Même motif que getBrevetService() ci-dessous.
+     */
+    private function getReservationService(): ReservationService
+    {
+        if ($this->reservationService === null) {
+            $this->reservationService = new ReservationService($this->getDatabase());
+        }
+
+        return $this->reservationService;
     }
 
     /**
@@ -464,6 +730,25 @@ class CampagnesModel extends ListModel
             ? 0
             : (empty($data['reservation_multiple']) ? 0 : 1);
 
+        // Sous-type : propre à la nature Formation, valeur validée contre la liste fermée (l'id vient du navigateur).
+        $value_sous_type = ((int) $data['id_type'] === $idTypeFormation && in_array($data['sous_type'] ?? '', self::SOUS_TYPES_FORMATION, true))
+            ? $data['sous_type']
+            : null;
+
+        // Responsable prévenu des demandes d'inscription : sans objet pour Boutique (pas de
+        // réservation), et refusé hors de la liste Bureau / Responsables de Groupe (l'id vient du
+        // navigateur, la liste déroulante n'est pas une garantie).
+        $value_id_responsable = null;
+        $idResponsablePoste   = (int) ($data['id_responsable'] ?? 0);
+
+        if ($idResponsablePoste > 0 && (int) $data['id_type'] !== (int) ConfHelper::getValue('IdTypeBoutique')) {
+            if (!in_array($idResponsablePoste, array_map('intval', array_column(UsersHelper::getResponsablesCampagne(), 'id')), true)) {
+                throw new \Exception(Text::_('COM_GDA_CAMPAGNE_RESPONSABLE_INVALIDE'), 400);
+            }
+
+            $value_id_responsable = $idResponsablePoste;
+        }
+
        if ($data['id_campagne']) {
             // Update Item 
             $value_active = intval( $data['active']);
@@ -476,7 +761,9 @@ class CampagnesModel extends ListModel
                 $db->quoteName('date_evenement') . '= :value_date_evenement',
                 $db->quoteName('id_article') . '= :value_id_article',
                 $db->quoteName('id_type') . '= :value_id_type',
+                $db->quoteName('sous_type') . '= :value_sous_type',
                 $db->quoteName('id_groupes') . '= :value_id_groupes',
+                $db->quoteName('id_responsable') . '= :value_id_responsable',
                 $db->quoteName('nbr_place') . '= :value_nbr_place',
                 $db->quoteName('reservation_multiple') . '= :value_reservation_multiple',
                 $db->quoteName('active') . '= :value_active',
@@ -489,10 +776,10 @@ class CampagnesModel extends ListModel
             $value_active = (int) 0;
 
                 // Insert
-            $columns = array('titre','description', 'event_helloasso','date_debut', 'date_fin', 'date_evenement', 'active', 'id_article','id_type','id_groupes','nbr_place','reservation_multiple');
+            $columns = array('titre','description', 'event_helloasso','date_debut', 'date_fin', 'date_evenement', 'active', 'id_article','id_type','sous_type','id_groupes','id_responsable','nbr_place','reservation_multiple');
             $query->insert($db->quoteName('#__gda_campagnes'));
             $query->columns($db->quoteName($columns));
-            $query->values(':value_titre, :value_description, :value_event_helloasso, :value_date_debut, :value_date_fin, :value_date_evenement, :value_active, :value_id_article, :value_id_type, :value_id_groupes, :value_nbr_place, :value_reservation_multiple');
+            $query->values(':value_titre, :value_description, :value_event_helloasso, :value_date_debut, :value_date_fin, :value_date_evenement, :value_active, :value_id_article, :value_id_type, :value_sous_type, :value_id_groupes, :value_id_responsable, :value_nbr_place, :value_reservation_multiple');
        }
 
         // Bind values
@@ -505,7 +792,9 @@ class CampagnesModel extends ListModel
         $query->bind(':value_active',  $value_active);
         $query->bind(':value_id_article',  $data['id_article']);
         $query->bind(':value_id_type',  $data['id_type']);
+        $query->bind(':value_sous_type', $value_sous_type);
         $query->bind(':value_id_groupes', $value_id_groupes);
+        $query->bind(':value_id_responsable', $value_id_responsable, \Joomla\Database\ParameterType::INTEGER);
 
         // Champ retiré du formulaire (remplacé par la répartition par rôle ci-dessous, toujours
         // active) : absent du POST, d'où le repli à 0. Variable locale obligatoire :
@@ -601,6 +890,47 @@ class CampagnesModel extends ListModel
 
 
     /**
+     * Déterminer si une valeur de `#__gda_campagnes.event_helloasso` désigne un vrai lien HelloAsso.
+     *
+     * « Pas de lien » s'écrit de trois façons dans le système et les trois coexistent en base et
+     * dans les formulaires : SQL `NULL`, chaîne vide, et la chaîne littérale `"null"` postée par le
+     * navigateur pour l'option vide du champ. Point de test unique, utilisable aussi depuis un
+     * layout (`layouts/campagnes/row.php`), pour éviter que chaque appelant réinvente la condition
+     * et en oublie une forme.
+     *
+     * @param mixed $eventHelloAsso Valeur brute de la colonne ou du champ de formulaire.
+     * @return bool True si la valeur désigne un formulaire HelloAsso.
+     */
+    public static function aUnLienHelloAsso($eventHelloAsso): bool
+    {
+        return !empty($eventHelloAsso) && (string) $eventHelloAsso !== 'null';
+    }
+
+    /**
+     * Formulaire HelloAsso (formType/formSlug) de la campagne dont on génère le rapport, lu dans
+     * l'état utilisateur posé par CampagnesController::rapport(). "null" (chaîne littérale postée
+     * par le navigateur pour une campagne sans lien HelloAsso, ou une colonne SQL NULL) et tout
+     * JSON sans formType/formSlug sont refusés ici, plutôt que de laisser un TypeError (HTTP 500,
+     * message PHP interne exposé) remonter depuis HelloAssoService.
+     *
+     * @return object Objet décodé portant au moins formType et formSlug (chaînes non vides).
+     * @throws \RuntimeException (404) Si la campagne n'est pas liée à un formulaire HelloAsso.
+     */
+    private function getFormHelloAssoDuRapport(): object
+    {
+        /** @var SiteApplication $app */
+        $app  = Factory::getApplication();
+        $data = $app->getUserState('campagne.rapport');
+        $form = json_decode((string) ($data['event_helloasso'] ?? ''));
+
+        if (!is_object($form) || empty($form->formType) || empty($form->formSlug)) {
+            throw new \RuntimeException("Cette campagne n'est pas liée à un formulaire HelloAsso", 404);
+        }
+
+        return $form;
+    }
+
+    /**
     * Retourne le rapport HelloAsso pour une campagne
     * @throws \RuntimeException si la campagne n'est pas liée à un event HelloAsso ou en cas d'erreur de récupération des données
      * @return array Tableau associatif contenant les données du rapport HelloAsso
@@ -612,13 +942,7 @@ class CampagnesModel extends ListModel
     */
     function getRapportHelloAsso():array
     {
-               /** @var SiteApplication $app */
-        $app = Factory::getApplication();
-        $data = $app->getUserState('campagne.rapport');
-        if ( !$data['event_helloasso']) {
-            throw new \RuntimeException("Cette campagne n'est pas liée à un event HelloAsso", 404);
-        }
-        $form= json_decode($data['event_helloasso']);
+        $form = $this->getFormHelloAssoDuRapport();
         $data_response = [];
 
         $service = new \NCB\Component\Gda\Site\Service\HelloAssoService();
@@ -642,13 +966,54 @@ class CampagnesModel extends ListModel
     }
 
     /**
+    * Retourne le rapport HelloAsso pour une campagne de nature Boutique (formulaire "Shop").
+    * La structure des items retournés par l'API HelloAsso diffère de celle d'un formulaire "Event"
+    * (getRapportHelloAsso()) : pas de bloc "user", un achat n'étant pas lié à un adhérent inscrit
+    * mais à un produit acheté - d'où une méthode dédiée plutôt qu'une branche supplémentaire dans
+    * getRapportHelloAsso(). Un item = une ligne de produit achetée (une commande peut contenir
+    * plusieurs produits, donc plusieurs items partageant le même payeur/date de commande).
+    * @throws \RuntimeException si la campagne n'est pas liée à un formulaire HelloAsso ou en cas d'erreur de récupération des données
+     * @return array Tableau associatif contenant les données du rapport HelloAsso Boutique.
+     * Chaque entrée du tableau correspond à un produit acheté et contient les clés suivantes :
+     * - 'Acheteur' : Nom complet de l'acheteur (prénom + nom)
+     * - 'EmailAcheteur' : Adresse email de l'acheteur
+     * - 'Produit' : Nom du produit acheté
+     * - 'Montant' : Montant payé pour ce produit, formaté en euros
+     * - 'Date' : Date de la commande au format UTC
+    */
+    function getRapportHelloAssoBoutique(): array
+    {
+        $form = $this->getFormHelloAssoDuRapport();
+        $data_response = [];
+
+        $service = new \NCB\Component\Gda\Site\Service\HelloAssoService();
+        $Items = $service->getFormsItems($form->formType, $form->formSlug);
+        foreach ($Items as $key => $Item) {
+            $Acheteur = trim(($Item['payer']['firstName'] ?? '') . ' ' . ($Item['payer']['lastName'] ?? ''));
+            // Montant HelloAsso renvoyé en centimes (cf. cartographie §9 "ne pas confondre les unites").
+            $Montant = number_format(((int) ($Item['amount'] ?? 0)) / 100, 2, ',', ' ') . ' €';
+
+            $data_response[$key] = [
+                'Acheteur'      => $Acheteur,
+                'EmailAcheteur' => $Item['payer']['email'] ?? '',
+                'Produit'       => $Item['name'] ?? '',
+                'Montant'       => $Montant,
+                'Date'          => ToolsHelper::isoToUtcFormatted($Item['order']['date'] ?? null),
+            ];
+        }
+
+        return $data_response;
+    }
+
+    /**
      * Rapport rapide des réservations d'une campagne (hors HelloAsso, cf. getRapportHelloAsso).
      * Une ligne par PLACE non annulée (#__gda_reservation_places) : identité, niveau de plongée,
-     * rôle et rang dans la liste d'attente le cas échéant. Depuis la fusion Formation/Loisir, un
+     * rôle et statut (attente / confirmee / refusee, décidé manuellement par le responsable de
+     * campagne - plus de file d'attente automatique). Depuis la fusion Formation/Loisir, un
      * adhérent ayant réservé plusieurs rôles à la fois apparaît en plusieurs lignes.
      *
      * @return array<int, array{nom_complet: string, username: string, niveau: string, role: string,
-     *                           date_reservation: ?string, en_attente: bool, rang_attente: ?int}>
+     *                           date_reservation: ?string, statut: string}>
      */
     function getRapport(): array
     {
@@ -659,11 +1024,10 @@ class CampagnesModel extends ListModel
 
         $db = $this->getDatabase();
         $statut_annulee = ReservationService::STATUT_ANNULEE;
-        $statut_attente = ReservationService::STATUT_ATTENTE;
 
         $query = $db->createQuery()
             ->select($db->quoteName([
-                'rp.id_place', 'rp.role', 'rp.statut', 'rp.date_rang',
+                'rp.id_place', 'rp.role', 'rp.statut', 'rp.date_rang', 'r.commentaire',
                 'p.id_profil', 'p.nom', 'p.prenom', 'u.username',
             ]))
             ->from($db->quoteName('#__gda_reservation_places', 'rp'))
@@ -671,9 +1035,8 @@ class CampagnesModel extends ListModel
             ->innerJoin($db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('r.id_profil'))
             ->innerJoin($db->quoteName('#__users', 'u') . ' ON ' . $db->quoteName('u.id') . ' = ' . $db->quoteName('p.id_profil'))
             ->where($db->quoteName('rp.id_campagne') . ' = :id_campagne')
-            ->where($db->quoteName('rp.statut') . ' != :statut_annulee')
-            // Ordre = ordre d'arrivée dans la file d'attente, pour un affichage chronologique.
-            ->order($db->quoteName('rp.date_rang') . ' ASC')
+            // Ordre = ordre d'arrivée dans la file d'attente ; les désistements (annulee) en dernier.
+            ->order('(' . $db->quoteName('rp.statut') . ' = :statut_annulee) ASC, ' . $db->quoteName('rp.date_rang') . ' ASC')
             ->bind(':id_campagne', $idCampagne, \Joomla\Database\ParameterType::INTEGER)
             ->bind(':statut_annulee', $statut_annulee);
 
@@ -692,8 +1055,6 @@ class CampagnesModel extends ListModel
         $idsProfil = array_values(array_unique(array_map(fn($row) => (int) $row->id_profil, $rows)));
         $niveauxParProfil = $this->getNiveauxParProfil($idsProfil);
 
-        $rangAttenteParPlace = ReservationService::calculerRangsAttente($rows);
-
         $rapport = [];
 
         foreach ($rows as $row) {
@@ -703,8 +1064,8 @@ class CampagnesModel extends ListModel
                 'niveau'           => $niveauxParProfil[(int) $row->id_profil] ?? '',
                 'role'             => $row->role,
                 'date_reservation' => $row->date_rang,
-                'en_attente'       => $row->statut === $statut_attente,
-                'rang_attente'     => $rangAttenteParPlace[(int) $row->id_place] ?? null,
+                'statut'           => (string) $row->statut,
+                'commentaire'      => trim((string) $row->commentaire),
             ];
         }
 

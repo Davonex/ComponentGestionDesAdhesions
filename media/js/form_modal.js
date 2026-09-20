@@ -269,7 +269,7 @@ const refreshPreview = function (img) {
                         triggerButton.disabled = false;
                     }
 
-                    const response = JSON.parse(data);
+                    const response = parseAjaxResponse(data);
                     if (response.success) {
                         // console.log("submitform: success")
                         //.log(atob(response.data));
@@ -292,7 +292,7 @@ const refreshPreview = function (img) {
                     triggerButton.disabled = false;
                 }
 
-                const response = JSON.parse(xhr.response);
+                const response = parseAjaxResponse(xhr.response);
                 //console.error("error: " + response.message);
                 Joomla.renderMessages( {"error": [response.message]} );
             }
@@ -499,6 +499,28 @@ document.addEventListener('click', function (event) {
 });
 
 /**
+ * Décode une réponse ajax JSON. Une réponse illisible (page HTML de connexion ou d'erreur reçue à la place
+ * du JSON) est presque toujours due à une session expirée : elle devient un échec avec un message clair.
+ *
+ * @param {string} raw Corps brut de la réponse.
+ * @returns {{success: boolean, message: string}}
+ */
+const parseAjaxResponse = (raw) => {
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+            return parsed;
+        }
+    } catch (e) {
+        // réponse non JSON : traitée ci-dessous
+    }
+    return {
+        success: false,
+        message: Joomla.Text._('COM_GDA_SESSION_EXPIREE', 'Votre session a expiré. Rechargez la page (F5) puis recommencez.')
+    };
+};
+
+/**
  * simpleCallAjax
  *
  * @param {Object|FormData} data Soit un objet clé/valeur (ex: {task: 'x.y', 'jform[champ]': 'valeur'}),
@@ -525,7 +547,7 @@ const simpleCallAjax = (data, cbPostRequest = null, renderMessage = true, cbOnFa
                 promise: false,
                 data: formData,
             onSuccess: (data) => {
-                    const response = JSON.parse(data);
+                    const response = parseAjaxResponse(data);
                     if (response.success) {
                         // console.log("simpleCallAjax: success")
                         if (renderMessage) {
@@ -546,7 +568,7 @@ const simpleCallAjax = (data, cbPostRequest = null, renderMessage = true, cbOnFa
 
                 },
             onError: (xhr) => {
-                const response = JSON.parse(xhr.response);
+                const response = parseAjaxResponse(xhr.response);
                 console.error("error: " + response.message);
                 Joomla.renderMessages( {"error": [response.message]} );
                 if (cbOnFailure !== null) {

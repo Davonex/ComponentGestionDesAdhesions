@@ -85,17 +85,16 @@ Text::script('COM_GDA_CONFIRM');
       ); ?>
     </div>
 
-    <!-- STEP 1 Carousel  -->
+    <!-- STEP 1 Carousel (contenu chargé en ajax par secretariat.js) -->
     <div class="carousel-item" id="step-1">
-        toto
     </div>
 
-    <!-- STEP 2 Carousel  -->
+    <!-- STEP 2 Carousel (contenu chargé en ajax par secretariat.js) -->
+    <div class="carousel-item" id="step-2">
+    </div>
+
+    <!-- STEP 3 Carousel (contenu chargé en ajax par secretariat.js) -->
     <div class="carousel-item" id="step-3">
-    </div>
-
-    <!-- STEP 3 Carousel  -->
-    <div class="carousel-item" id="step-4">
     </div>
 
     <!-- STEP 4 Carousel (paiements HelloAsso orphelins) -->

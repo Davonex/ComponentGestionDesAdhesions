@@ -20,9 +20,14 @@ class DisplayController extends BaseController
 {
 
     protected $default_view = 'gdadhesion';
+
+    /**
+     * Niveau d'accès Joomla natif « Registered » (id 2, stable sur toute installation).
+     * Les niveaux métier « NA Bureau » / « NA Responsable de Groupe » / « NA Moniteur » ne sont
+     * volontairement pas listés ici : leurs ids sont générés à l'installation et se résolvent par
+     * titre via UsersHelper, la garde étant portée par chaque vue et chaque task ajax.
+     */
     protected $Registred = 2;
-    protected $Bureau = 7;
-    protected $Responsable = 8;
 
 
     /**
@@ -44,20 +49,6 @@ class DisplayController extends BaseController
         $viewType   = $document->getType();
 
 
-        // $plainClientSecret = "";
-        // $encrypted = \NCB\Component\Gda\Site\Helper\CryptoHelper::encrypt($plainClientSecret);
-        // $service = new \NCB\Component\Gda\Site\Service\HelloAssoService();
-        // $service->getAccessToken();
-        // // $forms = $service->getForms('asso-didou');
-        // $Asso='asso-didou';
-        // $FormType='event';
-        // $FormName ='test-de-l-api';
-
-        // $data = $service->getFormsOrders($Asso, $FormType, $FormName);
-
-
-
-        // $viewName   = $this->input->get('view', $this->default_view); // Deprecated
         $viewName   = $this->app->getInput()->get('view', $this->default_view);
 
         $user =  $this->app->getIdentity();
@@ -77,6 +68,7 @@ class DisplayController extends BaseController
          */
         $wa = $document->getWebAssetManager();
         $wa->useScript('com_gdadhesions.gda');
+        \Joomla\CMS\Language\Text::script('COM_GDA_SESSION_EXPIREE');
 
         // $viewLayout = $this->input->get('layout', 'default', 'string');
         /** @var HtmlView $view */

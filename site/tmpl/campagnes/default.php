@@ -20,6 +20,12 @@ $wa->useScript('core');
 $wa->useScript('com_gdadhesions.form_modal');
 $wa->useScript('com_gdadhesions.row_list');
 $wa->useScript('com_gdadhesions.campagne');
+$wa->useScript('com_gdadhesions.dialog');
+
+Text::script('COM_GDA_CANCEL');
+Text::script('COM_GDA_CONFIRM');
+Text::script('COM_GDA_CAMPAGNE_REMOVE_CONFIRM_TITRE');
+Text::script('COM_GDA_CAMPAGNE_REMOVE_CONFIRM_MESSAGE');
 $wa->useScript('form.validate');
 
 // Réutilisé pour le rendu "Suivi des inscriptions" (onglet Formation) : gère la
@@ -42,11 +48,12 @@ $wa->useStyle('simple-datatables');
 $task = 'sauver';
 
 $layoutData = [
-    'campagnes' => $this->lstCampagnes,
-    'types'     => $this->types,
-    'roles'     => $this->roles,
-    'task'      => $task,
-    'form'      => $this->form,
+    'campagnes'                  => $this->lstCampagnes,
+    'types'                      => $this->types,
+    'roles'                      => $this->roles,
+    'helloAssoFormTypeParNature' => $this->helloAssoFormTypeParNature,
+    'task'                       => $task,
+    'form'                       => $this->form,
 ];
 ?>
 
@@ -54,29 +61,31 @@ $layoutData = [
 
     <ul class="nav nav-tabs" id="campagnesTabNav" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="campagnes-tab-gestion" data-bs-toggle="tab"
+            <button class="nav-link active" id="campagnes-tab-suivi" data-bs-toggle="tab"
+                data-bs-target="#campagnes-pane-suivi" type="button" role="tab"
+                aria-controls="campagnes-pane-suivi" aria-selected="true">
+                <?= Text::_('COM_GDA_CAMPAGNES_TAB_SUIVI') ?>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="campagnes-tab-gestion" data-bs-toggle="tab"
                 data-bs-target="#campagnes-pane-gestion" type="button" role="tab"
-                aria-controls="campagnes-pane-gestion" aria-selected="true">
+                aria-controls="campagnes-pane-gestion" aria-selected="false">
                 <?= Text::_('COM_GDA_CAMPAGNES_TAB_GESTION') ?>
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="campagnes-tab-suivi" data-bs-toggle="tab"
-                data-bs-target="#campagnes-pane-suivi" type="button" role="tab"
-                aria-controls="campagnes-pane-suivi" aria-selected="false">
-                <?= Text::_('COM_GDA_CAMPAGNES_TAB_SUIVI') ?>
+            <button class="nav-link" id="campagnes-tab-recap" data-bs-toggle="tab"
+                data-bs-target="#campagnes-pane-recap" type="button" role="tab"
+                aria-controls="campagnes-pane-recap" aria-selected="false">
+                <?= Text::_('COM_GDA_CAMPAGNES_TAB_RECAP') ?>
             </button>
         </li>
     </ul>
 
     <div class="tab-content border border-top-0 p-3" id="campagnesTabContent">
 
-        <div class="tab-pane fade show active" id="campagnes-pane-gestion" role="tabpanel"
-            aria-labelledby="campagnes-tab-gestion">
-            <?= LayoutHelper::render('campagnes.table', $layoutData) ?>
-        </div>
-
-        <div class="tab-pane fade" id="campagnes-pane-suivi" role="tabpanel"
+        <div class="tab-pane fade show active" id="campagnes-pane-suivi" role="tabpanel"
             aria-labelledby="campagnes-tab-suivi">
 
             <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
@@ -91,9 +100,9 @@ $layoutData = [
                     <label class="btn btn-outline-dark btn-sm" for="campagneSuiviFilterActiveFermees"><?= Text::_('COM_GDA_CAMPAGNE_FILTER_FERMEES') ?></label>
                 </div>
 
-                <div class="col-sm-6 col-md-4">
-                    <label for="campagneSuiviSelect" class="form-label"><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_SELECT_LABEL') ?></label>
-                    <select class="form-select" id="campagneSuiviSelect"
+                <div class="d-flex align-items-center gap-2">
+                    <label for="campagneSuiviSelect" class="form-label mb-0 text-nowrap"><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_SELECT_LABEL') ?></label>
+                    <select class="form-select w-auto" id="campagneSuiviSelect"
                         data-empty-label="<?= $this->escape(Text::_('COM_GDA_CAMPAGNES_SUIVI_EMPTY')) ?>">
                         <option value=""><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_SELECT_EMPTY') ?></option>
                         <?php foreach ($this->lstSuiviCampagnes as $campagne) : ?>
@@ -103,11 +112,39 @@ $layoutData = [
                         <?php endforeach; ?>
                     </select>
                 </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <label for="campagneSuiviFilterRole" class="form-label mb-0 text-nowrap"><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_FILTRE_ROLE') ?></label>
+                    <select class="form-select w-auto" id="campagneSuiviFilterRole" disabled>
+                        <option value=""><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_FILTRE_TOUS') ?></option>
+                    </select>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <label for="campagneSuiviFilterStatut" class="form-label mb-0 text-nowrap"><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_FILTRE_STATUT') ?></label>
+                    <select class="form-select w-auto" id="campagneSuiviFilterStatut" disabled>
+                        <option value=""><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_FILTRE_TOUS') ?></option>
+                        <option value="attente"><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_STATUT_ATTENTE') ?></option>
+                        <option value="confirmee"><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_STATUT_CONFIRMEE') ?></option>
+                        <option value="refusee"><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_STATUT_REFUSEE') ?></option>
+                        <option value="annulee"><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_STATUT_ANNULEE') ?></option>
+                    </select>
+                </div>
             </div>
 
             <div id="campagneSuiviContent">
                 <p class="text-muted"><?= Text::_('COM_GDA_CAMPAGNES_SUIVI_EMPTY') ?></p>
             </div>
+        </div>
+
+        <div class="tab-pane fade" id="campagnes-pane-gestion" role="tabpanel"
+            aria-labelledby="campagnes-tab-gestion">
+            <?= LayoutHelper::render('campagnes.table', $layoutData) ?>
+        </div>
+
+        <div class="tab-pane fade" id="campagnes-pane-recap" role="tabpanel"
+            aria-labelledby="campagnes-tab-recap">
+            <div id="campagneRecapContent"></div>
         </div>
 
     </div>

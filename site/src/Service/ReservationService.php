@@ -4,6 +4,7 @@ namespace NCB\Component\Gda\Site\Service;
 
 \defined('_JEXEC') or die;
 
+use Joomla\CMS\Language\Text;
 use Joomla\Database\DatabaseInterface;
 use Joomla\Database\ParameterType;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
@@ -17,32 +18,40 @@ use NCB\Component\Gda\Site\Helper\ToolsHelper;
  * (#__gda_souscriptions, workflow CACI / cotisation / licence du secrétariat).
  *
  * Architecture (depuis la fusion des natures Formation/Loisir) : toute campagne hors Saison
- * demande systématiquement un rôle par place, et la capacité est toujours suivie PAR RÔLE
- * (#__gda_campagne_roles) — chaque rôle a sa propre file d'attente, indépendante des autres
- * rôles de la même campagne. Une réservation Loisir peut désormais mélanger plusieurs rôles en
- * une seule fois (ex: 2 Plongeur + 1 Non-Plongeur), et être confirmée sur l'un pendant qu'elle
- * est en attente sur l'autre : le statut ne peut donc plus être porté par la réservation entière.
+ * demande systématiquement un rôle par place. Une réservation Loisir peut mélanger plusieurs
+ * rôles en une seule fois (ex: 2 Plongeur + 1 Non-Plongeur), chacun avec son propre statut : le
+ * statut ne peut donc pas être porté par la réservation entière.
  *
- * #__gda_reservation_places est en conséquence l'unité ATOMIQUE de capacité/statut/rang : une
- * ligne = une place = un rôle = un statut ('confirmee'|'attente'|'annulee'), toujours qté 1.
+ * #__gda_reservation_places est en conséquence l'unité ATOMIQUE de statut : une ligne = une place
+ * = un rôle = un statut ('attente'|'confirmee'|'refusee'|'annulee'), toujours qté 1.
  * #__gda_reservation redevient une simple enveloppe (qui, quand, commentaire, commande HelloAsso,
  * annulée ou non — colonne booléenne `annulee`, pas de statut détaillé).
+ *
+ * Depuis le chantier "Campagnes 1.0" : la confirmation n'est plus automatique par capacité. Toute
+ * nouvelle place est créée au statut STATUT_ATTENTE ("en attente de validation par le responsable
+ * de campagne", et non plus "en liste d'attente faute de place"). La capacité par rôle
+ * (#__gda_campagne_roles) reste calculée et affichée à titre indicatif (voir
+ * getPlacesDisponiblesParRole()), mais ne conditionne plus l'attribution d'une place : c'est le
+ * responsable qui décide, depuis l'onglet "Suivi des inscriptions" de la vue Campagnes
+ * (CampagnesController::changerStatutInscription() → changerStatutPlace() ci-dessous), en faisant
+ * passer une place de STATUT_ATTENTE à STATUT_CONFIRMEE ou STATUT_REFUSEE (et réciproquement).
+ * STATUT_ANNULEE reste réservé au désistement de l'adhérent lui-même (voir annuler()) : le
+ * responsable ne peut ni l'atteindre ni en sortir depuis son écran de validation.
  *
  * Règles portées ici :
  *  - une réservation (enveloppe) par adhérent et par campagne (contrainte UNIQUE en base) ;
  *  - reserver() applique une stratégie "table rase par rôle" : $demandes décrit l'état CIBLE de
  *    la réservation, un rôle absent (ou à quantité 0) revient à 0 place ;
- *  - pour un rôle donné, les places sont accordées dans la limite de sa capacité
- *    (#__gda_campagne_roles), le surplus part en liste d'attente ;
- *  - en cas de retrait de places sur un rôle, ce sont les places les plus récemment ajoutées qui
- *    partent en premier (préserve le rang des adhérents en attente depuis le plus longtemps) ;
+ *  - toute place ajoutée est créée en STATUT_ATTENTE (en attente de validation), quelle que soit
+ *    la capacité restante du rôle ;
  *  - une annulation complète (annuler()) passe l'enveloppe et toutes ses places actives à
- *    'annulee', puis promeut immédiatement la file d'attente de chaque rôle libéré.
+ *    'annulee'.
  */
 final class ReservationService
 {
     public const STATUT_CONFIRMEE = 'confirmee';
     public const STATUT_ATTENTE   = 'attente';
+    public const STATUT_REFUSEE   = 'refusee';
     public const STATUT_ANNULEE   = 'annulee';
 
     private DatabaseInterface $db;
@@ -65,7 +74,7 @@ final class ReservationService
      * @return object|null L'enveloppe (avec ->annulee bool et ->places, voir getPlaces()), ou
      *                      null si l'adhérent n'a jamais réservé.
      */
-    public function getReservation(int $idCampagne, int $idProfil): ?object
+    public function getReservation(int $idCampagne, int $idProfil, bool $avecAnnulees = false): ?object
     {
         $query = $this->db->createQuery()
             ->select('*')
@@ -83,7 +92,7 @@ final class ReservationService
         }
 
         $reservation->annulee = (bool) $reservation->annulee;
-        $reservation->places  = $this->getPlaces((int) $reservation->id_reservation);
+        $reservation->places  = $this->getPlaces((int) $reservation->id_reservation, $avecAnnulees);
 
         return $reservation;
     }
@@ -184,36 +193,32 @@ final class ReservationService
     }
 
     /**
-     * Places (hors annulées) d'une réservation, avec leur rang de file d'attente le cas échéant.
+     * Places (hors annulées) d'une réservation. Depuis le chantier "Campagnes 1.0", STATUT_ATTENTE
+     * n'est plus une file d'attente par capacité mais une attente de validation par le responsable
+     * de campagne : ces places n'ont donc plus de rang à calculer ici (voir le docblock de classe).
      *
      * @param  int $idReservation Réservation concernée.
-     * @return object[] Chaque élément expose id_place, id_campagne, role, statut, date_rang, tri,
-     *                   et rang (int|null, peuplé uniquement si statut = STATUT_ATTENTE).
+     * @return object[] Chaque élément expose id_place, id_campagne, role, statut, date_rang, tri.
      */
-    private function getPlaces(int $idReservation): array
+    private function getPlaces(int $idReservation, bool $avecAnnulees = false): array
     {
         $statutAnnulee = self::STATUT_ANNULEE;
-        $statutAttente = self::STATUT_ATTENTE;
 
         $query = $this->db->createQuery()
             ->select($this->db->quoteName(['id_place', 'id_campagne', 'role', 'statut', 'date_rang', 'tri']))
             ->from($this->db->quoteName('#__gda_reservation_places'))
             ->where($this->db->quoteName('id_reservation') . ' = :id_reservation')
-            ->where($this->db->quoteName('statut') . ' != :statut_annulee')
             ->order($this->db->quoteName('role') . ' ASC, ' . $this->db->quoteName('tri') . ' ASC')
-            ->bind(':id_reservation', $idReservation, ParameterType::INTEGER)
-            ->bind(':statut_annulee', $statutAnnulee);
+            ->bind(':id_reservation', $idReservation, ParameterType::INTEGER);
 
-        $this->db->setQuery($query);
-        $places = $this->db->loadObjectList() ?: [];
-
-        foreach ($places as $place) {
-            $place->rang = $place->statut === $statutAttente
-                ? $this->getRangAttente((int) $place->id_campagne, $place->role, $place->date_rang)
-                : null;
+        if (!$avecAnnulees) {
+            $query->where($this->db->quoteName('statut') . ' != :statut_annulee')
+                ->bind(':statut_annulee', $statutAnnulee);
         }
 
-        return $places;
+        $this->db->setQuery($query);
+
+        return $this->db->loadObjectList() ?: [];
     }
 
     /**
@@ -460,71 +465,6 @@ final class ReservationService
     }
 
     /**
-     * Calcule le rang de file d'attente (1 = premier) de chaque place en statut 'attente' au sein
-     * d'un même jeu de places déjà chargées, groupé par rôle et ordonné chronologiquement
-     * (date_rang). Fonction pure, sans accès base : point d'extension unique pour tout écran
-     * affichant plusieurs places d'une même campagne (rapport de campagne, suivi des
-     * inscriptions), pour éviter de dupliquer ce calcul à chaque nouvel écran.
-     *
-     * @param  object[] $places Chaque élément doit exposer id_place, role, statut, date_rang.
-     * @return array<int, int> id_place => rang (1-based), uniquement pour les places en attente.
-     */
-    public static function calculerRangsAttente(array $places): array
-    {
-        $parRole = [];
-
-        foreach ($places as $place) {
-            if ($place->statut === self::STATUT_ATTENTE) {
-                $parRole[$place->role][] = $place;
-            }
-        }
-
-        $rangs = [];
-
-        foreach ($parRole as $placesDuRole) {
-            usort($placesDuRole, static fn($a, $b) => strcmp((string) $a->date_rang, (string) $b->date_rang));
-
-            $rang = 0;
-            foreach ($placesDuRole as $place) {
-                $rangs[(int) $place->id_place] = ++$rang;
-            }
-        }
-
-        return $rangs;
-    }
-
-    /**
-     * Rang dans la file d'attente d'un rôle (1 = premier) à une date de rang donnée. Requête
-     * ciblée (COUNT), à préférer à calculerRangsAttente() ici : l'appelant n'a besoin que du rang
-     * d'une place précise, pas de la liste complète des places de la campagne.
-     *
-     * @param  int    $idCampagne Campagne concernée.
-     * @param  string $role       Rôle concerné.
-     * @param  string $dateRang   Horodatage de la place (rang à calculer pour cette date).
-     * @return int Rang dans la file d'attente de ce rôle (1-based).
-     */
-    public function getRangAttente(int $idCampagne, string $role, string $dateRang): int
-    {
-        $statutAttente = self::STATUT_ATTENTE;
-
-        $query = $this->db->createQuery()
-            ->select('COUNT(*)')
-            ->from($this->db->quoteName('#__gda_reservation_places'))
-            ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
-            ->where($this->db->quoteName('role') . ' = :role')
-            ->where($this->db->quoteName('statut') . ' = :statut_attente')
-            ->where($this->db->quoteName('date_rang') . ' <= :date_rang')
-            ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER)
-            ->bind(':role', $role)
-            ->bind(':statut_attente', $statutAttente)
-            ->bind(':date_rang', $dateRang);
-
-        $this->db->setQuery($query);
-
-        return (int) $this->db->loadResult();
-    }
-
-    /**
      * Crée ou met à jour la réservation d'un adhérent : une enveloppe (#__gda_reservation) et une
      * ou plusieurs places (#__gda_reservation_places), une ligne par place. $demandes décrit
      * l'état CIBLE de la réservation (stratégie "table rase" par rôle) : un rôle absent de
@@ -533,21 +473,22 @@ final class ReservationService
      * est alors traité comme un ajout pur, reparti en fin de file — cohérent avec le principe
      * "annuler puis re-réserver ne double personne".
      *
-     * @param  int                                                $idCampagne       Campagne concernée.
-     * @param  int                                                $idProfil         Adhérent concerné.
-     * @param  array<int, array{role: string, quantite: int}>     $demandes         État cible par rôle.
-     * @param  array<string, int>                                 $capacitesParRole role => capacité configurée (0 = illimité).
-     * @param  string|null                                        $commentaire      Commentaire libre de l'adhérent.
-     * @param  string|null                                        $idOrder          Commande HelloAsso, si connue.
+     * @param  int                                                $idCampagne   Campagne concernée.
+     * @param  int                                                $idProfil     Adhérent concerné.
+     * @param  array<int, array{role: string, quantite: int}>     $demandes     État cible par rôle.
+     * @param  string|null                                        $commentaire  Commentaire libre de l'adhérent.
+     * @param  string|null                                        $idOrder      Commande HelloAsso, si connue.
      * @return object La réservation rechargée (voir getReservation()).
      * @throws \InvalidArgumentException Si id_campagne ou id_profil est absent/invalide.
      * @throws \RuntimeException Si l'écriture en base échoue.
      */
-    public function reserver(int $idCampagne, int $idProfil, array $demandes, array $capacitesParRole, ?string $commentaire = null, ?string $idOrder = null): object
+    public function reserver(int $idCampagne, int $idProfil, array $demandes, ?string $commentaire = null, ?string $idOrder = null): object
     {
         if (!$idCampagne || !$idProfil) {
             throw new \InvalidArgumentException('id_campagne et id_profil sont requis pour réserver');
         }
+
+        $this->assertModifiable($idCampagne, $idProfil);
 
         $demandesParRole = [];
 
@@ -648,9 +589,9 @@ final class ReservationService
                 $delta = ($demandesParRole[$role] ?? 0) - ($existantesParRole[$role] ?? 0);
 
                 if ($delta > 0) {
-                    $this->ajouterPlaces($idCampagne, $idReservation, $role, $delta, (int) ($capacitesParRole[$role] ?? 0), $maintenant, $triCounter);
+                    $this->ajouterPlaces($idCampagne, $idReservation, $role, $delta, $maintenant, $triCounter);
                 } elseif ($delta < 0) {
-                    $this->retirerPlaces($idCampagne, $role, $idReservation, -$delta);
+                    $this->retirerPlaces($role, $idReservation, -$delta);
                 }
             }
 
@@ -665,18 +606,62 @@ final class ReservationService
     }
 
     /**
-     * Annule la réservation d'un adhérent : enveloppe passée à annulee = 1 (jamais de DELETE, pour
-     * conserver l'historique et le rang initial), en cascade sur ses places actives (statut =
-     * 'annulee'). Les places libérées sont aussitôt proposées au(x) premier(s) de la file
-     * d'attente de leur rôle (voir promouvoirFileAttente()) : sans cela, la place resterait
-     * affichée "disponible" alors que des adhérents attendent déjà.
+     * Indique si la réservation de l'adhérent est verrouillée : dès qu'une de ses places est
+     * refusée par le responsable, ou annulée par l'adhérent après avoir été validée, seul le
+     * responsable peut la faire évoluer. L'adhérent ne peut alors ni modifier, ni se désinscrire,
+     * ni se réinscrire (ce qui ferait repasser la demande en attente).
      *
      * @param  int $idCampagne Campagne concernée.
      * @param  int $idProfil   Adhérent concerné.
-     * @throws \RuntimeException Si l'écriture en base échoue (annulation et promotion annulées ensemble).
+     * @return bool True si au moins une place de l'adhérent est au statut refusée ou annulée.
+     */
+    public function estVerrouillee(int $idCampagne, int $idProfil): bool
+    {
+        $statutsVerrouilles = [self::STATUT_REFUSEE, self::STATUT_ANNULEE];
+
+        $query = $this->db->createQuery()
+            ->select('COUNT(*)')
+            ->from($this->db->quoteName('#__gda_reservation_places', 'rp'))
+            ->innerJoin($this->db->quoteName('#__gda_reservation', 'r') . ' ON ' . $this->db->quoteName('r.id_reservation') . ' = ' . $this->db->quoteName('rp.id_reservation'))
+            ->where($this->db->quoteName('r.id_campagne') . ' = :id_campagne')
+            ->where($this->db->quoteName('r.id_profil') . ' = :id_profil')
+            ->whereIn($this->db->quoteName('rp.statut'), $statutsVerrouilles, ParameterType::STRING)
+            ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER)
+            ->bind(':id_profil', $idProfil, ParameterType::INTEGER);
+
+        $this->db->setQuery($query);
+
+        return (int) $this->db->loadResult() > 0;
+    }
+
+    /**
+     * Refuse toute action de l'adhérent sur une réservation verrouillée (voir estVerrouillee()).
+     *
+     * @param  int $idCampagne Campagne concernée.
+     * @param  int $idProfil   Adhérent concerné.
+     * @return void
+     * @throws \DomainException Si la réservation contient une place refusée ou annulée.
+     */
+    public function assertModifiable(int $idCampagne, int $idProfil): void
+    {
+        if ($this->estVerrouillee($idCampagne, $idProfil)) {
+            throw new \DomainException(Text::_('COM_GDA_RESERVATION_VERROUILLEE'), 403);
+        }
+    }
+
+    /**
+     * Annule la réservation d'un adhérent : enveloppe passée à annulee = 1 (jamais de DELETE, pour
+     * conserver l'historique et le rang initial), en cascade sur ses places actives (statut =
+     * 'annulee').
+     *
+     * @param  int $idCampagne Campagne concernée.
+     * @param  int $idProfil   Adhérent concerné.
+     * @throws \RuntimeException Si l'écriture en base échoue.
      */
     public function annuler(int $idCampagne, int $idProfil): void
     {
+        $this->assertModifiable($idCampagne, $idProfil);
+
         $query = $this->db->createQuery()
             ->select($this->db->quoteName('id_reservation'))
             ->from($this->db->quoteName('#__gda_reservation'))
@@ -692,30 +677,12 @@ final class ReservationService
             return;
         }
 
-        $maintenant      = ToolsHelper::now();
-        $statutAnnulee   = self::STATUT_ANNULEE;
-        $statutConfirmee = self::STATUT_CONFIRMEE;
+        $maintenant    = ToolsHelper::now();
+        $statutAnnulee = self::STATUT_ANNULEE;
 
         $this->db->transactionStart();
 
         try {
-            // Places confirmées à libérer, comptées par rôle (pour promouvoir la bonne file).
-            $query = $this->db->createQuery()
-                ->select($this->db->quoteName('role'))
-                ->select('COUNT(*) AS nb')
-                ->from($this->db->quoteName('#__gda_reservation_places'))
-                ->where($this->db->quoteName('id_reservation') . ' = :id_reservation')
-                ->where($this->db->quoteName('statut') . ' = :statut_confirmee')
-                ->group($this->db->quoteName('role'))
-                ->bind(':id_reservation', $idReservation, ParameterType::INTEGER)
-                ->bind(':statut_confirmee', $statutConfirmee);
-
-            $this->db->setQuery($query);
-            $placesLibereesParRole = [];
-            foreach ($this->db->loadObjectList() ?: [] as $row) {
-                $placesLibereesParRole[$row->role] = (int) $row->nb;
-            }
-
             $update = $this->db->createQuery()
                 ->update($this->db->quoteName('#__gda_reservation'))
                 ->set($this->db->quoteName('annulee') . ' = 1')
@@ -727,21 +694,32 @@ final class ReservationService
             $this->db->setQuery($update);
             $this->db->execute();
 
+            // Désistement : une place encore « En cours » disparaît (retour à « Non inscrit », sans
+            // trace) ; une place « Validée » passe à « Annulée » et reste visible pour le responsable.
+            $statutAttente   = self::STATUT_ATTENTE;
+            $statutConfirmee = self::STATUT_CONFIRMEE;
+
+            $deletePlaces = $this->db->createQuery()
+                ->delete($this->db->quoteName('#__gda_reservation_places'))
+                ->where($this->db->quoteName('id_reservation') . ' = :id_reservation')
+                ->where($this->db->quoteName('statut') . ' = :statut_attente')
+                ->bind(':id_reservation', $idReservation, ParameterType::INTEGER)
+                ->bind(':statut_attente', $statutAttente);
+
+            $this->db->setQuery($deletePlaces);
+            $this->db->execute();
+
             $updatePlaces = $this->db->createQuery()
                 ->update($this->db->quoteName('#__gda_reservation_places'))
                 ->set($this->db->quoteName('statut') . ' = :statut_annulee')
                 ->where($this->db->quoteName('id_reservation') . ' = :id_reservation')
-                ->where($this->db->quoteName('statut') . ' != :statut_annulee2')
+                ->where($this->db->quoteName('statut') . ' = :statut_confirmee')
                 ->bind(':statut_annulee', $statutAnnulee)
                 ->bind(':id_reservation', $idReservation, ParameterType::INTEGER)
-                ->bind(':statut_annulee2', $statutAnnulee);
+                ->bind(':statut_confirmee', $statutConfirmee);
 
             $this->db->setQuery($updatePlaces);
             $this->db->execute();
-
-            foreach ($placesLibereesParRole as $role => $nb) {
-                $this->promouvoirFileAttente($idCampagne, $role, $nb);
-            }
 
             $this->db->transactionCommit();
         } catch (\Throwable $e) {
@@ -752,30 +730,151 @@ final class ReservationService
     }
 
     /**
-     * Insère $quantite nouvelles places pour un rôle d'une réservation, dans la limite de la
-     * capacité restante de ce rôle (le surplus part en attente). Chaque place vaut toujours 1 :
-     * plus de calcul de remplissage partiel au niveau réservation, juste un partage confirmée/
-     * attente sur les lignes nouvellement insérées.
+     * Indique si l'adhérent a un profil (#__gda_profils) : une réservation référence ce profil par
+     * clé étrangère, un compte Joomla sans profil (adhésion jamais démarrée) ne peut donc pas réserver.
      *
-     * @param  int    $idCampagne     Campagne concernée.
+     * @param  int $idProfil Identifiant du profil (= #__users.id).
+     * @return bool True si le profil existe.
+     */
+    public function profilExiste(int $idProfil): bool
+    {
+        $query = $this->db->createQuery()
+            ->select('1')
+            ->from($this->db->quoteName('#__gda_profils'))
+            ->where($this->db->quoteName('id_profil') . ' = :id_profil')
+            ->bind(':id_profil', $idProfil, ParameterType::INTEGER);
+
+        $this->db->setQuery($query);
+
+        return $this->db->loadResult() !== null;
+    }
+
+    /**
+     * Contexte d'une place pour la notifier à l'adhérent (voir CampagnesModel::notifierInscriptionAcceptee()) :
+     * à qui elle appartient, sur quelle campagne, et où en est le paiement HelloAsso.
+     *
+     * @param  int $idPlace Place concernée (#__gda_reservation_places.id_place).
+     * @return object|null {id_campagne, id_profil, id_order, role, statut, event_helloasso, username}, ou null si la place n'existe pas.
+     */
+    public function getPlaceContexte(int $idPlace): ?object
+    {
+        $query = $this->db->createQuery()
+            ->select([
+                $this->db->quoteName('rp.id_campagne'),
+                $this->db->quoteName('r.id_profil'),
+                $this->db->quoteName('r.id_order'),
+                $this->db->quoteName('rp.role'),
+                $this->db->quoteName('rp.statut'),
+                $this->db->quoteName('c.event_helloasso'),
+                $this->db->quoteName('u.username'),
+            ])
+            ->from($this->db->quoteName('#__gda_reservation_places', 'rp'))
+            ->join('INNER', $this->db->quoteName('#__gda_reservation', 'r') . ' ON ' . $this->db->quoteName('r.id_reservation') . ' = ' . $this->db->quoteName('rp.id_reservation'))
+            ->join('INNER', $this->db->quoteName('#__gda_campagnes', 'c') . ' ON ' . $this->db->quoteName('c.id_campagne') . ' = ' . $this->db->quoteName('rp.id_campagne'))
+            ->join('INNER', $this->db->quoteName('#__users', 'u') . ' ON ' . $this->db->quoteName('u.id') . ' = ' . $this->db->quoteName('r.id_profil'))
+            ->where($this->db->quoteName('rp.id_place') . ' = :id_place')
+            ->bind(':id_place', $idPlace, ParameterType::INTEGER);
+
+        $this->db->setQuery($query);
+
+        return $this->db->loadObject() ?: null;
+    }
+
+    /**
+     * Change le statut d'une place, décision du responsable de campagne depuis l'onglet "Suivi
+     * des inscriptions" (voir CampagnesController::changerStatutInscription()) : fait passer une
+     * inscription de STATUT_ATTENTE à STATUT_CONFIRMEE ou STATUT_REFUSEE, ou permet de revenir en
+     * arrière entre ces trois valeurs. STATUT_ANNULEE (désistement de l'adhérent, voir annuler())
+     * n'est jamais une cible ni une origine acceptée ici : le WHERE exclut toute place déjà
+     * annulée, pour qu'un onglet resté ouvert ne puisse pas réinscrire quelqu'un qui s'est désisté
+     * entre-temps.
+     *
+     * @param  int    $idPlace Place concernée (#__gda_reservation_places.id_place).
+     * @param  string $statut  Nouveau statut, parmi STATUT_ATTENTE, STATUT_CONFIRMEE, STATUT_REFUSEE.
+     * @return string Statut de la place AVANT le changement (permet à l'appelant de détecter une
+     *                vraie transition, ex: notifier l'adhérent seulement à l'entrée en STATUT_CONFIRMEE).
+     * @throws \InvalidArgumentException Si $statut n'est pas une des trois valeurs autorisées.
+     * @throws \RuntimeException (404) Si la place n'existe pas ou est déjà annulée : sans ce contrôle
+     *                           explicite, l'UPDATE ci-dessous ne touche alors aucune ligne et
+     *                           l'appelant afficherait un faux "statut mis à jour".
+     * @throws \RuntimeException Si l'écriture en base échoue.
+     */
+    public function changerStatutPlace(int $idPlace, string $statut): string
+    {
+        $statutsAutorises = [self::STATUT_ATTENTE, self::STATUT_CONFIRMEE, self::STATUT_REFUSEE];
+
+        if (!in_array($statut, $statutsAutorises, true)) {
+            throw new \InvalidArgumentException('Statut de place invalide : ' . $statut);
+        }
+
+        // Pas de contrôle sur le nombre de lignes modifiées de l'UPDATE : MySQL renvoie 0 aussi
+        // quand la valeur est déjà celle demandée, ce qui n'est pas une erreur. Une place annulée
+        // par l'adhérent peut être rétablie par le responsable (c'est ce qui déverrouille l'adhérent).
+        $existe = $this->db->createQuery()
+            ->select($this->db->quoteName(['statut', 'id_reservation']))
+            ->from($this->db->quoteName('#__gda_reservation_places'))
+            ->where($this->db->quoteName('id_place') . ' = :id_place')
+            ->bind(':id_place', $idPlace, ParameterType::INTEGER);
+
+        $this->db->setQuery($existe);
+
+        $place = $this->db->loadObject();
+
+        if (!$place) {
+            throw new \RuntimeException('Cette inscription est introuvable', 404);
+        }
+
+        $statutPrecedent = $place->statut;
+
+        $query = $this->db->createQuery()
+            ->update($this->db->quoteName('#__gda_reservation_places'))
+            ->set($this->db->quoteName('statut') . ' = :statut')
+            ->where($this->db->quoteName('id_place') . ' = :id_place')
+            ->bind(':statut', $statut)
+            ->bind(':id_place', $idPlace, ParameterType::INTEGER);
+
+        $this->db->setQuery($query);
+
+        try {
+            $this->db->execute();
+
+            if ($statutPrecedent === self::STATUT_ANNULEE) {
+                $idReservation = (int) $place->id_reservation;
+                $reactive = $this->db->createQuery()
+                    ->update($this->db->quoteName('#__gda_reservation'))
+                    ->set($this->db->quoteName('annulee') . ' = 0')
+                    ->where($this->db->quoteName('id_reservation') . ' = :id_reservation')
+                    ->bind(':id_reservation', $idReservation, ParameterType::INTEGER);
+
+                $this->db->setQuery($reactive);
+                $this->db->execute();
+            }
+        } catch (\RuntimeException $e) {
+            throw new \RuntimeException('Erreur mise à jour du statut de la place : ' . $e->getMessage(), 500, $e);
+        }
+
+        return (string) $statutPrecedent;
+    }
+
+    /**
+     * Insère $quantite nouvelles places pour un rôle d'une réservation, toutes créées au statut
+     * STATUT_ATTENTE (en attente de validation par le responsable de campagne — voir le docblock
+     * de classe). La capacité du rôle n'est plus consultée ici : elle reste affichée à titre
+     * indicatif ailleurs (getPlacesDisponiblesParRole()) mais ne conditionne plus l'insertion.
+     *
+     * @param  int    $idCampagne     Campagne concernée (dénormalisée sur chaque place, voir
+     *                                le docblock de classe).
      * @param  int    $idReservation  Réservation concernée.
      * @param  string $role           Rôle concerné.
      * @param  int    $quantite       Nombre de places à ajouter.
-     * @param  int    $capaciteRole   Capacité configurée pour ce rôle (0 = illimité).
      * @param  string $maintenant     Horodatage à utiliser pour ces nouvelles places (date_rang).
      * @param  int    &$triCounter    Compteur d'ordre d'affichage, incrémenté à chaque ligne insérée.
      */
-    private function ajouterPlaces(int $idCampagne, int $idReservation, string $role, int $quantite, int $capaciteRole, string $maintenant, int &$triCounter): void
+    private function ajouterPlaces(int $idCampagne, int $idReservation, string $role, int $quantite, string $maintenant, int &$triCounter): void
     {
-        if ($capaciteRole > 0) {
-            $restantes  = max(0, $capaciteRole - $this->getPlacesOccupeesParRole($idCampagne, $role));
-            $confirmees = min($quantite, $restantes);
-        } else {
-            $confirmees = $quantite;
-        }
+        $statutAttente = self::STATUT_ATTENTE;
 
         for ($i = 0; $i < $quantite; $i++) {
-            $statut = $i < $confirmees ? self::STATUT_CONFIRMEE : self::STATUT_ATTENTE;
             $triCounter++;
 
             $insert = $this->db->createQuery()
@@ -785,7 +884,7 @@ final class ReservationService
                 ->bind(':id_reservation', $idReservation, ParameterType::INTEGER)
                 ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER)
                 ->bind(':role', $role)
-                ->bind(':statut', $statut)
+                ->bind(':statut', $statutAttente)
                 ->bind(':date_rang', $maintenant)
                 ->bind(':tri', $triCounter, ParameterType::INTEGER);
 
@@ -795,23 +894,18 @@ final class ReservationService
     }
 
     /**
-     * Supprime $quantite places d'un rôle d'une réservation : les plus RÉCEMMENT ajoutées d'abord
-     * (préserve le rang des adhérents en attente depuis le plus longtemps, sur ce même rôle et
-     * les autres réservations). Si une place supprimée était confirmée, la place qu'elle libère
-     * est aussitôt proposée au premier de la file d'attente de ce rôle.
+     * Supprime $quantite places d'un rôle d'une réservation : les plus RÉCEMMENT ajoutées d'abord.
      *
-     * @param  int    $idCampagne    Campagne concernée.
      * @param  string $role          Rôle concerné.
      * @param  int    $idReservation Réservation concernée.
      * @param  int    $quantite      Nombre de places à retirer.
      */
-    private function retirerPlaces(int $idCampagne, string $role, int $idReservation, int $quantite): void
+    private function retirerPlaces(string $role, int $idReservation, int $quantite): void
     {
-        $statutAnnulee   = self::STATUT_ANNULEE;
-        $statutConfirmee = self::STATUT_CONFIRMEE;
+        $statutAnnulee = self::STATUT_ANNULEE;
 
         $query = $this->db->createQuery()
-            ->select($this->db->quoteName(['id_place', 'statut']))
+            ->select($this->db->quoteName('id_place'))
             ->from($this->db->quoteName('#__gda_reservation_places'))
             ->where($this->db->quoteName('id_reservation') . ' = :id_reservation')
             ->where($this->db->quoteName('role') . ' = :role')
@@ -823,73 +917,17 @@ final class ReservationService
             ->bind(':statut_annulee', $statutAnnulee);
 
         $this->db->setQuery($query);
-        $aRetirer = $this->db->loadObjectList() ?: [];
+        $idsPlaces = array_map('intval', $this->db->loadColumn() ?: []);
 
-        if (!$aRetirer) {
+        if (!$idsPlaces) {
             return;
         }
-
-        $idsPlaces            = array_map(static fn($p) => (int) $p->id_place, $aRetirer);
-        $nbConfirmeesLiberees = count(array_filter($aRetirer, static fn($p) => $p->statut === $statutConfirmee));
 
         $delete = $this->db->createQuery()
             ->delete($this->db->quoteName('#__gda_reservation_places'))
             ->whereIn($this->db->quoteName('id_place'), $idsPlaces);
 
         $this->db->setQuery($delete);
-        $this->db->execute();
-
-        if ($nbConfirmeesLiberees > 0) {
-            $this->promouvoirFileAttente($idCampagne, $role, $nbConfirmeesLiberees);
-        }
-    }
-
-    /**
-     * Fait avancer la file d'attente d'un rôle après libération de places : promeut en FIFO
-     * (date_rang le plus ancien d'abord) les $placesALiberer places 'attente' les plus anciennes
-     * de ce rôle. Chaque place valant toujours 1, il n'y a plus de calcul de remplissage partiel :
-     * un simple top-N puis un UPDATE en masse.
-     *
-     * @param  int    $idCampagne     Campagne concernée.
-     * @param  string $role           Rôle concerné.
-     * @param  int    $placesALiberer Nombre de places redevenues disponibles pour ce rôle.
-     */
-    private function promouvoirFileAttente(int $idCampagne, string $role, int $placesALiberer): void
-    {
-        if ($placesALiberer <= 0) {
-            return;
-        }
-
-        $statutAttente = self::STATUT_ATTENTE;
-
-        $query = $this->db->createQuery()
-            ->select($this->db->quoteName('id_place'))
-            ->from($this->db->quoteName('#__gda_reservation_places'))
-            ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
-            ->where($this->db->quoteName('role') . ' = :role')
-            ->where($this->db->quoteName('statut') . ' = :statut_attente')
-            ->order($this->db->quoteName('date_rang') . ' ASC, ' . $this->db->quoteName('id_place') . ' ASC')
-            ->setLimit($placesALiberer)
-            ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER)
-            ->bind(':role', $role)
-            ->bind(':statut_attente', $statutAttente);
-
-        $this->db->setQuery($query);
-        $idsAPromouvoir = array_map('intval', $this->db->loadColumn() ?: []);
-
-        if (!$idsAPromouvoir) {
-            return;
-        }
-
-        $statutConfirmee = self::STATUT_CONFIRMEE;
-
-        $update = $this->db->createQuery()
-            ->update($this->db->quoteName('#__gda_reservation_places'))
-            ->set($this->db->quoteName('statut') . ' = :statut_confirmee')
-            ->whereIn($this->db->quoteName('id_place'), $idsAPromouvoir)
-            ->bind(':statut_confirmee', $statutConfirmee);
-
-        $this->db->setQuery($update);
         $this->db->execute();
     }
 }

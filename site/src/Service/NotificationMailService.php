@@ -94,6 +94,245 @@ class NotificationMailService
   }
 
   /**
+   * Envoie le mail « inscription validée » à l'adhérent dont le responsable de campagne vient
+   * d'accepter une place (Formation / Loisir, voir CampagnesController::changerStatutInscription()).
+   * Le mail récapitule la campagne (titre, description, date, lien de l'article s'il y en a un) ;
+   * si $urlPaiement est fourni (campagne liée à HelloAsso et paiement non encore retrouvé), il porte
+   * en plus le lien vers le formulaire HelloAsso pour régler.
+   *
+   * @param int         $idPlace     Place acceptée (#__gda_reservation_places.id_place).
+   * @param string|null $urlPaiement Lien HelloAsso de la campagne si le paiement reste à faire, sinon null.
+   *
+   * @return bool True si le mail est parti, false sur échec d'envoi (journalisé, jamais levé : un mail
+   *              en échec ne doit pas annuler la décision du responsable).
+   * @throws \InvalidArgumentException Si l'identifiant est invalide.
+   * @throws \RuntimeException Si la place ou son destinataire sont introuvables.
+   */
+  public function sendReservationAcceptedEmail(int $idPlace, ?string $urlPaiement = null): bool
+  {
+    if ($idPlace <= 0) {
+      throw new \InvalidArgumentException('Identifiant de place invalide pour envoi mail d\'inscription validée.');
+    }
+
+    $data = $this->getReservationAcceptedMailData($idPlace);
+
+    if (!$data || empty($data->email)) {
+      throw new \RuntimeException('Destinataire introuvable pour le mail d\'inscription validée.');
+    }
+
+    $data->payment_url = $urlPaiement !== null && trim($urlPaiement) !== '' ? trim($urlPaiement) : null;
+
+    $htmlBody = $this->renderTemplateOrFallback('mail.reservation_accepted_html', $data, true, [$this, 'buildReservationAcceptedFallbackHtml']);
+    $textBody = $this->renderTemplateOrFallback('mail.reservation_accepted_text', $data, false, [$this, 'buildReservationAcceptedFallbackText']);
+
+    try {
+      $app = Factory::getApplication();
+      /** @var Mail $mailer */
+      $mailer = $this->mailerFactory->createMailer();
+
+      $mailer->setSender([(string) $app->get('mailfrom'), (string) $app->get('fromname')]);
+      $mailer->addRecipient($this->resolveRecipientEmail((string) $data->email));
+      $mailer->setSubject(Text::sprintf('COM_GDA_EMAIL_RESERVATION_ACCEPTED_SUBJECT', (string) $data->campagne_titre));
+      $mailer->isHtml(true);
+      $mailer->setBody($htmlBody);
+      $mailer->AltBody = $textBody;
+      $mailer->send();
+
+      GdaLogger::info('Envoi mail inscription validée (id_place=' . $idPlace . ', paiement HelloAsso à faire=' . ($data->payment_url !== null ? 'oui' : 'non') . ')');
+
+      return true;
+    } catch (\Throwable $e) {
+      GdaLogger::error('Echec envoi mail inscription validée (id_place=' . $idPlace . '): ' . $e->getMessage());
+
+      return false;
+    }
+  }
+
+  /**
+   * Prévient le responsable d'une campagne d'un mouvement sur l'inscription d'un adhérent :
+   * demande d'inscription, désinscription, modification des places, ou nouveau commentaire (voir
+   * ReservationController::reserver() et annuler()). Le mail donne les éléments de l'adhérent, l'ancien
+   * et le nouveau statut de ses places par rôle, et son commentaire.
+   *
+   * @param int         $idCampagne          Campagne concernée.
+   * @param int         $idProfil            Adhérent concerné.
+   * @param string      $evenement           'inscription' | 'desinscription' | 'modification' | 'commentaire'.
+   * @param array       $lignes              Une entrée par rôle modifié : ['role' => string, 'avant' => array<statut, int>,
+   *                                         'apres' => array<statut, int>] (tableau vide = aucune place active).
+   * @param string|null $commentaire         Commentaire actuel de l'adhérent, le cas échéant.
+   * @param bool        $commentaireModifie  True si le commentaire vient d'être écrit ou changé.
+   *
+   * @return bool True si le mail est parti ; false si la campagne n'a pas de responsable (rien à
+   *              envoyer, pas une erreur) ou sur échec d'envoi (journalisé, jamais levé : le mouvement
+   *              de l'adhérent est déjà enregistré).
+   */
+  public function sendReservationActivityEmail(
+    int $idCampagne,
+    int $idProfil,
+    string $evenement,
+    array $lignes,
+    ?string $commentaire = null,
+    bool $commentaireModifie = false
+  ): bool {
+    $data = $this->getReservationActivityMailData($idCampagne, $idProfil);
+
+    if (!$data || empty($data->responsable_email)) {
+      return false;
+    }
+
+    $data->evenement = $evenement;
+    $data->lignes = $lignes;
+    $data->commentaire = $commentaire !== null ? trim($commentaire) : '';
+    $data->commentaire_modifie = $commentaireModifie;
+
+    $htmlBody = $this->renderTemplateOrFallback('mail.reservation_activity_html', $data, true, [$this, 'buildReservationActivityFallbackHtml']);
+    $textBody = $this->renderTemplateOrFallback('mail.reservation_activity_text', $data, false, [$this, 'buildReservationActivityFallbackText']);
+
+    try {
+      $app = Factory::getApplication();
+      /** @var Mail $mailer */
+      $mailer = $this->mailerFactory->createMailer();
+
+      $mailer->setSender([(string) $app->get('mailfrom'), (string) $app->get('fromname')]);
+      $mailer->addRecipient($this->resolveRecipientEmail((string) $data->responsable_email));
+      $mailer->setSubject(Text::sprintf('COM_GDA_EMAIL_RESERVATION_ACTIVITY_SUBJECT_' . strtoupper($evenement), (string) $data->campagne_titre));
+      $mailer->isHtml(true);
+      $mailer->setBody($htmlBody);
+      $mailer->AltBody = $textBody;
+      $mailer->send();
+
+      GdaLogger::info('Envoi mail ' . $evenement . ' au responsable (id_campagne=' . $idCampagne . ', id_profil=' . $idProfil . ')');
+
+      return true;
+    } catch (\Throwable $e) {
+      GdaLogger::error('Echec envoi mail ' . $evenement . ' au responsable (id_campagne=' . $idCampagne . ', id_profil=' . $idProfil . '): ' . $e->getMessage());
+
+      return false;
+    }
+  }
+
+  /**
+   * Charge les données du mail au responsable : campagne, responsable (destinataire) et éléments de
+   * l'adhérent (identité, licence, e-mail, téléphone).
+   *
+   * @return object|null null si la campagne, le profil ou le compte responsable sont introuvables.
+   */
+  private function getReservationActivityMailData(int $idCampagne, int $idProfil): ?object
+  {
+    $query = $this->db->createQuery()
+      ->select([
+        $this->db->quoteName('c.titre', 'campagne_titre'),
+        $this->db->quoteName('ur.name', 'responsable_nom'),
+        $this->db->quoteName('ur.email', 'responsable_email'),
+        $this->db->quoteName('p.civilite'),
+        $this->db->quoteName('p.nom'),
+        $this->db->quoteName('p.prenom'),
+        $this->db->quoteName('p.telephone'),
+        $this->db->quoteName('ua.username'),
+        $this->db->quoteName('ua.email', 'adherent_email'),
+      ])
+      ->from($this->db->quoteName('#__gda_campagnes', 'c'))
+      ->join('INNER', $this->db->quoteName('#__users', 'ur') . ' ON ' . $this->db->quoteName('ur.id') . ' = ' . $this->db->quoteName('c.id_responsable'))
+      ->join('INNER', $this->db->quoteName('#__gda_profils', 'p') . ' ON ' . $this->db->quoteName('p.id_profil') . ' = :id_profil')
+      ->join('INNER', $this->db->quoteName('#__users', 'ua') . ' ON ' . $this->db->quoteName('ua.id') . ' = ' . $this->db->quoteName('p.id_profil'))
+      ->where($this->db->quoteName('c.id_campagne') . ' = :id_campagne')
+      ->bind(':id_profil', $idProfil, \Joomla\Database\ParameterType::INTEGER)
+      ->bind(':id_campagne', $idCampagne, \Joomla\Database\ParameterType::INTEGER);
+
+    $this->db->setQuery($query);
+
+    return $this->db->loadObject() ?: null;
+  }
+
+  /**
+   * Fallback HTML minimal si le layout mail.reservation_activity_html est introuvable.
+   */
+  private function buildReservationActivityFallbackHtml(object $displayData): string
+  {
+    return '<html><body><h2>' . htmlspecialchars((string) ($displayData->campagne_titre ?? '')) . '</h2><p>'
+      . htmlspecialchars(trim((string) ($displayData->prenom ?? '') . ' ' . (string) ($displayData->nom ?? '')))
+      . ' : ' . htmlspecialchars((string) ($displayData->evenement ?? '')) . '</p></body></html>';
+  }
+
+  /**
+   * Fallback texte minimal si le layout mail.reservation_activity_text est introuvable.
+   */
+  private function buildReservationActivityFallbackText(object $displayData): string
+  {
+    return (string) ($displayData->campagne_titre ?? '') . "\n"
+      . trim((string) ($displayData->prenom ?? '') . ' ' . (string) ($displayData->nom ?? ''))
+      . ' : ' . (string) ($displayData->evenement ?? '') . "\n";
+  }
+
+  /**
+   * Charge les données du mail « inscription validée ».
+   *
+   * @param int $idPlace Place acceptée.
+   *
+   * @return object|null Destinataire (civilite, nom, prenom, email, username), campagne (campagne_titre,
+   *                     campagne_description, id_article, date_evenement) et rôle de la place.
+   */
+  private function getReservationAcceptedMailData(int $idPlace): ?object
+  {
+    $query = $this->db->createQuery()
+      ->select([
+        $this->db->quoteName('p.civilite'),
+        $this->db->quoteName('p.nom'),
+        $this->db->quoteName('p.prenom'),
+        $this->db->quoteName('u.email'),
+        $this->db->quoteName('u.username'),
+        $this->db->quoteName('c.titre', 'campagne_titre'),
+        $this->db->quoteName('c.description', 'campagne_description'),
+        $this->db->quoteName('c.id_article'),
+        $this->db->quoteName('c.date_evenement'),
+        $this->db->quoteName('rp.role'),
+      ])
+      ->from($this->db->quoteName('#__gda_reservation_places', 'rp'))
+      ->join('INNER', $this->db->quoteName('#__gda_reservation', 'r') . ' ON ' . $this->db->quoteName('r.id_reservation') . ' = ' . $this->db->quoteName('rp.id_reservation'))
+      ->join('INNER', $this->db->quoteName('#__gda_profils', 'p') . ' ON ' . $this->db->quoteName('p.id_profil') . ' = ' . $this->db->quoteName('r.id_profil'))
+      ->join('INNER', $this->db->quoteName('#__users', 'u') . ' ON ' . $this->db->quoteName('u.id') . ' = ' . $this->db->quoteName('r.id_profil'))
+      ->join('INNER', $this->db->quoteName('#__gda_campagnes', 'c') . ' ON ' . $this->db->quoteName('c.id_campagne') . ' = ' . $this->db->quoteName('rp.id_campagne'))
+      ->where($this->db->quoteName('rp.id_place') . ' = :id_place')
+      ->bind(':id_place', $idPlace, \Joomla\Database\ParameterType::INTEGER);
+
+    $this->db->setQuery($query);
+
+    return $this->db->loadObject() ?: null;
+  }
+
+  /**
+   * Fallback HTML minimal si le layout mail.reservation_accepted_html est introuvable.
+   */
+  private function buildReservationAcceptedFallbackHtml(object $displayData): string
+  {
+    $html = '<html><body>'
+      . '<h2>' . Text::_('COM_GDA_EMAIL_RESERVATION_ACCEPTED_TITLE') . '</h2>'
+      . '<p>' . Text::sprintf('COM_GDA_EMAIL_RESERVATION_ACCEPTED_BODY', htmlspecialchars((string) ($displayData->campagne_titre ?? ''))) . '</p>';
+
+    if (!empty($displayData->payment_url)) {
+      $url = htmlspecialchars((string) $displayData->payment_url);
+      $html .= '<p>' . Text::_('COM_GDA_EMAIL_RESERVATION_ACCEPTED_PAYMENT_BODY') . ' <a href="' . $url . '">' . $url . '</a></p>';
+    }
+
+    return $html . '<p>' . Text::_('COM_GDA_EMAIL_FINALIZE_FOOTER') . '</p></body></html>';
+  }
+
+  /**
+   * Fallback texte minimal si le layout mail.reservation_accepted_text est introuvable.
+   */
+  private function buildReservationAcceptedFallbackText(object $displayData): string
+  {
+    $text = Text::_('COM_GDA_EMAIL_RESERVATION_ACCEPTED_TITLE') . "\n\n"
+      . Text::sprintf('COM_GDA_EMAIL_RESERVATION_ACCEPTED_BODY', (string) ($displayData->campagne_titre ?? '')) . "\n\n";
+
+    if (!empty($displayData->payment_url)) {
+      $text .= Text::_('COM_GDA_EMAIL_RESERVATION_ACCEPTED_PAYMENT_BODY') . ' ' . $displayData->payment_url . "\n\n";
+    }
+
+    return $text . Text::_('COM_GDA_EMAIL_FINALIZE_FOOTER') . "\n";
+  }
+
+  /**
    * Envoie le mail de reinitialisation de mot de passe (mot de passe temporaire + changement
    * obligatoire a la prochaine connexion).
    *

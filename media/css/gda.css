@@ -37,6 +37,23 @@
     background-color: var(--white);
 }
 
+/*
+** Encart "Boutique" du dashboard Accueil (layouts/accueil/dash_boutique.php) : vignette d'un
+** article HelloAsso (photo + libelle + prix + badge de disponibilite). Largeur fixe pour un
+** alignement propre en flex-wrap, quel que soit le nombre d'articles d'une campagne.
+**/
+.gda-boutique-article {
+    width: 96px;
+}
+
+.gda-boutique-article-photo {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: .25rem;
+    border: 1px solid var(--border-color, #dee2e6);
+}
+
 .text-header {
     color: var(--body-bg);
 }
@@ -130,6 +147,61 @@ fieldset:disabled .switcher {
    Oui/Non décalé de 70px). */
 .control-group.gda-field-inline .switcher {
     width: 10.5rem;
+}
+
+/* Champ verrouillé (non modifiable, valeur toujours soumise) : traitement visuel commun à deux
+   cas dans le composant, sur le principe qu'un utilisateur ne doit jamais avoir à comparer des
+   nuances de gris pour deviner qu'un champ n'est pas éditable (retour utilisateur : un simple
+   ".form-select:disabled"/input readonly grisé restait trop proche visuellement d'un champ actif) :
+    1) .gda-field-locked - posée en JS sur un <select> qui doit garder sa valeur soumise avec le
+       formulaire (ex: "Type de campagne" en modification, cf. campagne.js applyTypeLock()) :
+       l'attribut "disabled" natif est exclu de FormData, il viderait le champ à l'enregistrement,
+       d'où un verrou purement visuel + une interception JS des évènements d'ouverture/clavier.
+    2) input[readonly]/textarea[readonly] - attribut HTML natif, déjà géré côté navigateur (aucune
+       saisie possible, valeur toujours soumise) : seul l'habillage visuel manquait (ex: "Licence :
+       Fin de validité" du formulaire Adhésion, models/forms/adhesion.xml).
+   Dans les deux cas : fond et bordure nettement plus sombres que le fond de page, texte grisé, et
+   surtout un cadenas remplace le chevron/l'espace libre à droite - un changement de FORME, pas
+   seulement de teinte. Ni <select> ni <input readonly> ne supportent les pseudo-éléments ::before/
+   ::after de façon fiable (éléments remplacés) : le cadenas est une image de fond SVG plutôt qu'un
+   ::after comme pour .js-editable-*. Le focus ring (bleu/violet, signal "actif" par excellence)
+   est neutralisé pour ne pas contredire ce message. */
+.gda-field-locked,
+input[readonly],
+textarea[readonly] {
+    background-color: #dde1e5 !important;
+    border-color: #adb5bd !important;
+    color: #495057 !important;
+    cursor: not-allowed;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath d='M5 7V4.5a3 3 0 0 1 6 0V7' fill='none' stroke='%236c757d' stroke-width='1.5' stroke-linecap='round'/%3e%3crect x='3' y='7' width='10' height='7' rx='1.5' fill='%236c757d'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right .7rem center !important;
+    background-size: 15px 15px !important;
+}
+
+/* .form-select réserve déjà l'espace du chevron ; un <input>/<textarea> non, sans quoi le texte
+   saisi (ou pré-rempli) chevaucherait le cadenas. */
+input[readonly],
+textarea[readonly] {
+    padding-right: 2.25rem !important;
+}
+
+/* Sans ceci, cliquer dans un champ readonly affiche le même liseré bleu/violet "actif" qu'un champ
+   éditable en focus (constaté sur "Licence : Fin de validité") - contredit directement le message
+   visuel ci-dessus. */
+.gda-field-locked:focus,
+input[readonly]:focus,
+textarea[readonly]:focus {
+    box-shadow: none !important;
+    border-color: #adb5bd !important;
+}
+
+/* input[type=date][readonly] (ex: date d'obtention d'un brevet officiel, cf. brevets.js) :
+   Chrome/Edge/Safari dessinent leur propre icône calendrier par-dessus le contenu, indépendamment
+   du background-image CSS ci-dessus - sans quoi elle se superposerait au cadenas. Firefox n'a pas
+   ce pseudo-élément, la règle y est simplement sans effet. */
+input[readonly]::-webkit-calendar-picker-indicator {
+    display: none;
 }
 
 th {
@@ -433,12 +505,22 @@ select.tomselected {
 
 .gda-vignette-photo {
     width: 100%;
-    height: 160px;
-    object-fit: cover;
+    height: 200px;
+    object-fit: contain;
+    background-color: #f7f9fc;
 }
 
 .gda-vignette-photo--empty {
     background-color: #f7f9fc;
+}
+
+.gda-vignette-badges {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: .375rem .5rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, .55), rgba(0, 0, 0, 0));
 }
 
 /* Trombinoscope : styles deplaces dans media/com_gdadhesions/css/trombinoscope.css
@@ -966,7 +1048,8 @@ main .form-check-input:focus {
 .js-editable-tarif-vy,
 .js-editable-tarif-hvy,
 .js-editable-tarif-option,
-.js-editable-tarif-commentaire {
+.js-editable-tarif-commentaire,
+.js-editable-statut-inscription {
     position: relative;
     transition: background-color 0.15s ease-in-out;
 }
@@ -981,7 +1064,8 @@ main .form-check-input:focus {
 .js-editable-tarif-vy::before,
 .js-editable-tarif-hvy::before,
 .js-editable-tarif-option::before,
-.js-editable-tarif-commentaire::before {
+.js-editable-tarif-commentaire::before,
+.js-editable-statut-inscription::before {
     content: "\f303"; /* fa-pencil (Font Awesome, deja charge par le gabarit Cassiopeia) */
     font-family: "Font Awesome 6 Free";
     font-weight: 900;
@@ -1004,7 +1088,8 @@ main .form-check-input:focus {
 .js-editable-tarif-vy:hover,
 .js-editable-tarif-hvy:hover,
 .js-editable-tarif-option:hover,
-.js-editable-tarif-commentaire:hover {
+.js-editable-tarif-commentaire:hover,
+.js-editable-statut-inscription:hover {
     background-color: #fef8e7 !important;
 }
 
@@ -1017,7 +1102,8 @@ main .form-check-input:focus {
 .js-editable-tarif-vy:hover::before,
 .js-editable-tarif-hvy:hover::before,
 .js-editable-tarif-option:hover::before,
-.js-editable-tarif-commentaire:hover::before {
+.js-editable-tarif-commentaire:hover::before,
+.js-editable-statut-inscription:hover::before {
     opacity: .45;
 }
 
@@ -1030,6 +1116,18 @@ main .form-check-input:focus {
 
 
 /* Style pour modifier la direction de la flèche lors de l'expansion */
+/* Le template Cassiopeia (template.css, chargé APRÈS cette feuille) pilote la couleur de .btn via
+   la variable --btn-color (et --btn-hover-color/--btn-active-color au survol/clic) : un simple
+   ".toggle-card { color: ... }" (même spécificité que ".btn") perdait donc contre lui et la flèche
+   restait sombre sur le fond foncé du header (constaté en test navigateur). On surcharge les
+   variables elles-mêmes, ce qui ne dépend ni de l'ordre de chargement ni de l'état du bouton. */
+.btn.toggle-card {
+    --btn-color: var(--blanc);
+    --btn-hover-color: var(--blanc);
+    --btn-active-color: var(--blanc);
+    color: var(--blanc);
+}
+
 .toggle-card i {
     transition: transform .25s ease;
 }
@@ -1202,14 +1300,14 @@ main .form-check-input:focus {
     white-space: nowrap;
 }
 /*
- * Ligne de saisie d'un brevet dont le libellé est reconnu par le référentiel FFESSM
- * (#__gda_mapping_brevets) : le libellé officiel fait foi, le champ est verrouillé par
- * Brevets.addBrevet(). Le fond neutre signale « donnée validée » plutôt que « champ désactivé ».
+ * Champs (nom, obtention, lieu) d'une ligne de brevet reconnue par le référentiel FFESSM
+ * (#__gda_mapping_brevets) : ces trois valeurs font foi et sont verrouillées ensemble par
+ * Brevets.addBrevet() (readOnly + cette classe). L'apparence "verrouillé" elle-même (fond/bordure
+ * assombris, cadenas) vient de la règle générique input[readonly] plus haut dans ce fichier ; ne
+ * reste ici que ce qui lui est propre.
  */
 .brevet-item input.is-brevet-officiel {
-    background-color: var(--bs-tertiary-bg, #f8f9fa);
     font-weight: 500;
-    cursor: default;
 }
 
 
@@ -1217,7 +1315,7 @@ main .form-check-input:focus {
 
 
 /*
- * Tableaux simple-datatables du Secretariat (#step-0, #step-1, #step-3, #step-4,
+ * Tableaux simple-datatables du Secretariat (#step-0, #step-1, #step-2, #step-3,
  * #step-orphelins-content, tous a l'interieur de #wizardSecretariat).
  *
  * Le <colgroup> HTML d'origine ne fonctionne pas avec cette lib : au rendu, simple-datatables
@@ -1237,36 +1335,140 @@ main .form-check-input:focus {
  * en table-layout: auto (largeurs au contenu) et on laisse l'ascenseur horizontal du conteneur
  * simple-datatables (.gda-dt-container, cf. classes.container dans secretariat.js) faire le
  * reste, plutot que d'ecraser le contenu illisible dans des colonnes trop etroites.
+ *
+ * Meme echelle reutilisee (sans simple-datatables) par le tableau "Suivi des inscriptions" de la
+ * vue Campagnes (#campagnes-pane-suivi, cf. layouts/groupes/detail.php) et par le tableau
+ * "Gestion" de la meme vue (#table-campagne, cf. layouts/campagnes/table.php et row.php) : la
+ * classe est posee directement en PHP sur les <th>/<td>, pas via une config `columns` JS, puisque
+ * ces tableaux ne sont pas transformes en DataTable. L'ascenseur horizontal en dessous de 1200px y
+ * est fourni par .table-responsive (Bootstrap) plutot que .gda-dt-container, absent de ce contexte.
  */
 #wizardSecretariat .gda-dt-container {
   overflow-x: auto;
 }
 
 @media (min-width: 1200px) {
-  #wizardSecretariat table.secretariat-table {
+  #wizardSecretariat table.secretariat-table,
+  #campagnes-pane-suivi table.secretariat-table,
+  #table-campagne {
     table-layout: fixed;
   }
 
   #wizardSecretariat table.secretariat-table th.col-secretariat-narrow,
-  #wizardSecretariat table.secretariat-table td.col-secretariat-narrow {
+  #wizardSecretariat table.secretariat-table td.col-secretariat-narrow,
+  #campagnes-pane-suivi table.secretariat-table th.col-secretariat-narrow,
+  #campagnes-pane-suivi table.secretariat-table td.col-secretariat-narrow,
+  #table-campagne th.col-secretariat-narrow,
+  #table-campagne td.col-secretariat-narrow {
     width: 110px;
   }
 
   #wizardSecretariat table.secretariat-table th.col-secretariat-xxs,
-  #wizardSecretariat table.secretariat-table td.col-secretariat-xxs { width: 3%; }
+  #wizardSecretariat table.secretariat-table td.col-secretariat-xxs,
+  #campagnes-pane-suivi table.secretariat-table th.col-secretariat-xxs,
+  #campagnes-pane-suivi table.secretariat-table td.col-secretariat-xxs,
+  #table-campagne th.col-secretariat-xxs,
+  #table-campagne td.col-secretariat-xxs { width: 3%; }
   #wizardSecretariat table.secretariat-table th.col-secretariat-xs,
-  #wizardSecretariat table.secretariat-table td.col-secretariat-xs { width: 6%; }
+  #wizardSecretariat table.secretariat-table td.col-secretariat-xs,
+  #campagnes-pane-suivi table.secretariat-table th.col-secretariat-xs,
+  #campagnes-pane-suivi table.secretariat-table td.col-secretariat-xs,
+  #table-campagne th.col-secretariat-xs,
+  #table-campagne td.col-secretariat-xs { width: 6%; }
   #wizardSecretariat table.secretariat-table th.col-secretariat-sm,
-  #wizardSecretariat table.secretariat-table td.col-secretariat-sm { width: 9%; }
+  #wizardSecretariat table.secretariat-table td.col-secretariat-sm,
+  #campagnes-pane-suivi table.secretariat-table th.col-secretariat-sm,
+  #campagnes-pane-suivi table.secretariat-table td.col-secretariat-sm,
+  #table-campagne th.col-secretariat-sm,
+  #table-campagne td.col-secretariat-sm { width: 9%; }
   #wizardSecretariat table.secretariat-table th.col-secretariat-md,
-  #wizardSecretariat table.secretariat-table td.col-secretariat-md { width: 12%; }
+  #wizardSecretariat table.secretariat-table td.col-secretariat-md,
+  #campagnes-pane-suivi table.secretariat-table th.col-secretariat-md,
+  #campagnes-pane-suivi table.secretariat-table td.col-secretariat-md,
+  #table-campagne th.col-secretariat-md,
+  #table-campagne td.col-secretariat-md { width: 12%; }
   #wizardSecretariat table.secretariat-table th.col-secretariat-lg,
-  #wizardSecretariat table.secretariat-table td.col-secretariat-lg { width: 16%; }
+  #wizardSecretariat table.secretariat-table td.col-secretariat-lg,
+  #campagnes-pane-suivi table.secretariat-table th.col-secretariat-lg,
+  #campagnes-pane-suivi table.secretariat-table td.col-secretariat-lg,
+  #table-campagne th.col-secretariat-lg,
+  #table-campagne td.col-secretariat-lg { width: 16%; }
   #wizardSecretariat table.secretariat-table th.col-secretariat-xl,
-  #wizardSecretariat table.secretariat-table td.col-secretariat-xl { width: 20%; }
+  #wizardSecretariat table.secretariat-table td.col-secretariat-xl,
+  #campagnes-pane-suivi table.secretariat-table th.col-secretariat-xl,
+  #campagnes-pane-suivi table.secretariat-table td.col-secretariat-xl,
+  #table-campagne th.col-secretariat-xl,
+  #table-campagne td.col-secretariat-xl { width: 20%; }
 
   #step-1 table.secretariat-table td.js-editable-cotisation,
   #step-1 table.secretariat-table td.js-editable-categorie {
     word-break: break-word;
   }
+
+  #campagnes-pane-suivi table.secretariat-table td.js-editable-statut-inscription {
+    word-break: break-word;
+  }
+}
+/* Onglet Suivi des inscriptions : police réduite pour gagner de la place. */
+table.gda-suivi-compact {
+  font-size: 0.85rem;
+}
+table.gda-suivi-compact .badge {
+  font-size: 0.75rem;
+}
+table.gda-suivi-compact th {
+  font-size: 0.85rem;
+}
+
+/* Formulaire de campagne : libellés courts précédés d'une icône (Font Awesome, déjà chargé par le gabarit). */
+.gda-label-icon::before {
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  display: inline-block;
+  width: 1.4em;
+  margin-right: .25rem;
+  text-align: center;
+  color: var(--bs-secondary-color, #6c757d);
+}
+.gda-icon-titre::before { content: "\f1dc"; }
+.gda-icon-description::before { content: "\f036"; }
+.gda-icon-type::before { content: "\f02b"; }
+.gda-icon-soustype::before { content: "\f02c"; }
+.gda-icon-evenement::before { content: "\f783"; }
+.gda-icon-ouverture::before { content: "\f52b"; }
+.gda-icon-fermeture::before { content: "\f52a"; }
+.gda-icon-roles::before { content: "\f0c0"; }
+.gda-icon-multiple::before { content: "\f24d"; }
+.gda-icon-groupes::before { content: "\e533"; }
+.gda-icon-article::before { content: "\f1ea"; }
+.gda-icon-responsable::before { content: "\f508"; }
+
+/* Popups GdaDialog (dialog.js) : même style que les popups de la vue Adhésion (en-tête colorée, petit format). */
+.gda-dialog dialog {
+  height: fit-content;
+  padding: 0;
+  border: 0;
+  border-radius: .375rem;
+  overflow: hidden;
+}
+.gda-dialog .joomla-dialog-container {
+  display: block;
+  height: auto;
+}
+.gda-dialog .joomla-dialog-header {
+  padding: 1rem;
+  background-color: var(--cassiopeia-color-primary);
+  color: var(--body-bg);
+}
+.gda-dialog .joomla-dialog-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: inherit;
+}
+.gda-dialog .joomla-dialog-body {
+  padding: 0;
+}
+.gda-dialog .joomla-dialog-footer {
+  padding: .5rem 1rem 1rem;
+  border-top: 0;
 }

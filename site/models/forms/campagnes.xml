@@ -12,18 +12,20 @@
     <field
         name="titre"
         type="text"
-        label="Titre de la campagne"
+        label="COM_GDA_CAMPAGNE_F_TITRE"
         size="40"
         class="inputbox "
+        labelclass="gda-label-icon gda-icon-titre"
         required="true" />
 
     <field
                 name="description"
                 type="textarea" 
-                label="Courte description de la campagne"
+                label="COM_GDA_CAMPAGNE_F_DESCRIPTION"
                 rows="3" 
                 cols="255"
                 class=""
+                labelclass="gda-label-icon gda-icon-description"
          />
         <field
                 name="nbr_place"
@@ -39,6 +41,7 @@
                 name="reservation_multiple"
                 type="radio"
                 label="COM_GDA_CAMPAGNE_RESERVATION_MULTIPLE"
+                labelclass="gda-label-icon gda-icon-multiple"
                 description="COM_GDA_CAMPAGNE_RESERVATION_MULTIPLE_DESC"
                 default="0"
                 layout="joomla.form.field.radio.switcher"
@@ -52,6 +55,7 @@
                 type="calendar"
                 default="5"
                 label="COM_GDA_CAMPAGNE_DATE_OPENING_RESERVATION"
+                labelclass="gda-label-icon gda-icon-ouverture"
                 description=""
                 class="input-small"
                 required="true"
@@ -69,6 +73,7 @@
                 name="date_evenement"
                 type="calendar"
                 label="COM_GDA_CAMPAGNE_DATE_EVENEMENT"
+                labelclass="gda-label-icon gda-icon-evenement"
                 description="COM_GDA_CAMPAGNE_DATE_EVENEMENT_DESC"
                 class="input-small"
                 showtime="true"
@@ -86,6 +91,7 @@
                 type="calendar"
                 default="5"
                 label="COM_GDA_CAMPAGNE_DATE_CLOSING_RESERVATION"
+                labelclass="gda-label-icon gda-icon-fermeture"
                 description=""
                 class="input-small"
                 required="true"
@@ -104,13 +110,15 @@
 	<field 
                 name="id_article"
                 type="ArticlesByTag"
-                label="Article"
+                label="COM_GDA_CAMPAGNE_F_ARTICLE"
+                labelclass="gda-label-icon gda-icon-article"
                 description="Choisissez un article pour le lier à cette campagne"
         />
 
-        <field 
+        <field
                 name="event_helloasso"
                 type="EventsHelloAsso"
+                formtype="Event,Shop"
                 label="Event HelloAsso"
                 description="Choisissez un event HelloAsso pour le lier à cette campagne"
         />
@@ -118,8 +126,30 @@
 	<field 
                 name="id_type"
                 type="TypeDeCampagne"
-                label="Type de campagne"
+                label="COM_GDA_CAMPAGNE_F_TYPE"
                 required="true"
+                labelclass="gda-label-icon gda-icon-type"
+        />
+
+        <field
+                name="sous_type"
+                type="list"
+                label="COM_GDA_CAMPAGNE_F_SOUS_TYPE"
+                labelclass="gda-label-icon gda-icon-soustype"
+        >
+                <option value="">COM_GDA_CAMPAGNE_F_SOUS_TYPE_AUCUN</option>
+                <option value="fosse_apnee">COM_GDA_CAMPAGNE_SOUS_TYPE_FOSSE_APNEE</option>
+                <option value="fosse_technique_20">COM_GDA_CAMPAGNE_SOUS_TYPE_FOSSE_TECHNIQUE_20</option>
+                <option value="fosse_technique_12">COM_GDA_CAMPAGNE_SOUS_TYPE_FOSSE_TECHNIQUE_12</option>
+                <option value="rifax">COM_GDA_CAMPAGNE_SOUS_TYPE_RIFAX</option>
+        </field>
+
+        <field
+                name="id_responsable"
+                type="ResponsableCampagne"
+                label="COM_GDA_CAMPAGNE_RESPONSABLE"
+                labelclass="gda-label-icon gda-icon-responsable"
+                description="COM_GDA_CAMPAGNE_RESPONSABLE_DESC"
         />
 
         <field
@@ -130,7 +160,8 @@
                 key_field="id_groupe"
                 value_field="groupe_name"
                 ordering="groupe_tri ASC"
-                label="Choisissez des groupes"
+                label="COM_GDA_CAMPAGNE_F_GROUPES"
+                labelclass="gda-label-icon gda-icon-groupes"
         />
 
        

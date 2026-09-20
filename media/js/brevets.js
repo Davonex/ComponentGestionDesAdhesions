@@ -76,20 +76,28 @@ const Brevets = (function () {
     newItem.querySelector('input[name="brevets[][lieu]"]').name = `brevets[${index}][lieu]`;
 
     const nomInput = newItem.querySelector(`input[name="brevets[${index}][nom]"]`);
+    const obtentionInput = newItem.querySelector(`input[name="brevets[${index}][obtention]"]`);
+    const lieuInput = newItem.querySelector(`input[name="brevets[${index}][lieu]"]`);
+
     nomInput.value = brevet.nom || '';
-    newItem.querySelector(`input[name="brevets[${index}][obtention]"]`).value = brevet.obtention || '';
-    newItem.querySelector(`input[name="brevets[${index}][lieu]"]`).value = brevet.lieu || '';
+    obtentionInput.value = brevet.obtention || '';
+    lieuInput.value = brevet.lieu || '';
 
-    // Libellé reconnu par le référentiel FFESSM (id_mapping renseigné) : il fait foi, on le
-    // verrouille. Les lignes non reconnues restent en saisie libre, tout comme celles issues
-    // d'un scan QR (qui n'ont pas encore d'id_mapping) : elles seront résolues à la sauvegarde.
+    // Brevet reconnu par le référentiel FFESSM (id_mapping renseigné) : ses trois champs font foi
+    // (nom, date et lieu d'obtention viennent de la fédération) et sont verrouillés ensemble - pour
+    // corriger une valeur erronée, l'adhérent doit supprimer la ligne puis en ajouter une nouvelle
+    // (bouton "+" ou nouveau scan), jamais éditer une donnée fédérale en place. Les lignes non
+    // reconnues restent en saisie libre, tout comme celles issues d'un scan QR (qui n'ont pas
+    // encore d'id_mapping) : elles seront résolues à la sauvegarde.
     if (brevet.id_mapping) {
-      nomInput.readOnly = true;
-      nomInput.classList.add('is-brevet-officiel');
+      [nomInput, obtentionInput, lieuInput].forEach((input) => {
+        input.readOnly = true;
+        input.classList.add('is-brevet-officiel');
 
-      if (nomInput.dataset.officielTitle) {
-        nomInput.title = nomInput.dataset.officielTitle;
-      }
+        if (input.dataset.officielTitle) {
+          input.title = input.dataset.officielTitle;
+        }
+      });
     }
 
     container.appendChild(clone);

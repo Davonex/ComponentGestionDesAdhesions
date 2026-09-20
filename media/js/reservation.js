@@ -72,10 +72,24 @@ const reservationOuvrirPopup = function (idCampagne) {
     const csrfTokenName = Joomla.getOptions('csrf.token');
     if (csrfTokenName) { data[csrfTokenName] = 1; }
 
+    // Sur échec (ex: adhérent sans profil, voir ReservationController::getAdherentAvecProfil()), le
+    // popup ouvert sur son spinner resterait bloqué : on le referme, le message d'erreur du serveur
+    // (Joomla.renderMessages, via simpleCallAjax) reste affiché sur la page.
     simpleCallAjax(data, function (response) {
         content.innerHTML = decodeURIComponent(escape(atob(response.data)));
         reservationInitRoleRows();
-    }, false);
+    }, false, function () {
+        // Bootstrap ignore hide() tant que l'animation d'ouverture n'est pas terminée (réponse serveur
+        // plus rapide qu'elle) : on rejoue la fermeture à "shown" si la première tentative est perdue.
+        const fermer = function () { bootstrap.Modal.getOrCreateInstance(modalEl).hide(); };
+        const surShown = function () { fermer(); };
+
+        modalEl.addEventListener('shown.bs.modal', surShown, { once: true });
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            modalEl.removeEventListener('shown.bs.modal', surShown);
+        }, { once: true });
+        fermer();
+    });
 };
 
 /**
@@ -124,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Bouton "Réserver" / "Modifier ma réservation" d'une ligne du dashboard.
     // Réservation directe en un clic dans le cas simple ; popup dès qu'une information
-    // supplémentaire est nécessaire, ou pour prévenir d'une mise en liste d'attente.
+    // supplémentaire est nécessaire (choix du rôle notamment).
     document.addEventListener('click', function (event) {
         const bouton = event.target.closest('.js-reserver');
 
@@ -200,8 +214,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Désistement depuis le popup : confirmation avant envoi, la place étant aussitôt reprise
-    // par le premier de la liste d'attente s'il y en a une.
+    // Désistement depuis le popup : confirmation avant envoi.
     document.addEventListener('click', function (event) {
         const bouton = event.target.closest('.js-annuler-reservation');
 

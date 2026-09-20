@@ -99,11 +99,26 @@ class AdhesionHelper
     private const HOTES_AUTORISES = ['l.ffessm.fr'];
 
     /**
+     * Nombre maximal de tentatives auprès du site FFESSM. Le site répond par moments avec une page
+     * vide de carte (surcharge, page d'erreur servie en HTTP 200) qui disparaît au second essai.
+     */
+    private const NB_TENTATIVES_SCRAP = 3;
+
+    /** Pause entre deux tentatives, en microsecondes (500 ms). */
+    private const PAUSE_ENTRE_TENTATIVES = 500000;
+
+    /**
      * Scrapes data from the given URL.
+     *
+     * La requête est rejouée (NB_TENTATIVES_SCRAP au plus) tant que la réponse est en échec HTTP ou
+     * ne contient pas de licence. Si la dernière réponse n'a pas la structure d'une carte FFESSM,
+     * le site est jugé indisponible (exception) ; si elle a cette structure sans licence, les
+     * données vides sont retournées et l'appelant conclut « aucune licence trouvée ».
      *
      * @param   string  $url  The URL to scrape.
      * @return  array  The scraped data.
-     * @throws  \Exception  Si l'hôte de l'URL n'est pas dans HOTES_AUTORISES, ou si la requête HTTP échoue.
+     * @throws  \Exception  Si l'hôte de l'URL n'est pas dans HOTES_AUTORISES, si la requête HTTP échoue
+     *                      ou si le site FFESSM ne renvoie pas une page de carte exploitable.
      */
     public static function scrap($url)
     {
@@ -113,7 +128,6 @@ class AdhesionHelper
             throw new \Exception(Text::_('COM_GDA_ADHESION_SCAN_INVALID_HOST'));
         }
 
-        $data = array();
         $context = stream_context_create([
             'http' => [
                 'follow_location' => 1,
@@ -121,20 +135,54 @@ class AdhesionHelper
                 'header' => "User-Agent: Mozilla/5.0 Joomla5/Scanner\r\n"
             ]
         ]);
-        $response = file_get_contents($url, false, $context);
+
+        $data = [];
+        $httpCode = 0;
+        $response = false;
+
+        for ($tentative = 1; $tentative <= self::NB_TENTATIVES_SCRAP; $tentative++) {
+            $response = @file_get_contents($url, false, $context);
+
+            if ($response === false) {
+                $httpCode = 0;
+                if (!empty($http_response_header)) {
+                    // Ex: "HTTP/1.1 404 Not Found" → extrait 404
+                    preg_match('/\d{3}/', $http_response_header[0], $matches);
+                    $httpCode = (int) ($matches[0] ?? 0);
+                }
+                GdaLogger::warning(sprintf('scrap() tentative %d/%d : échec HTTP (code %d) pour %s', $tentative, self::NB_TENTATIVES_SCRAP, $httpCode, $url));
+            } else {
+                $data["brevets"] = self::ParseBrevets($response);
+                $data["informations"] = self::ParseInformation($response);
+
+                if (!empty($data["informations"]["licence"])) {
+                    return $data;
+                }
+
+                GdaLogger::warning(sprintf(
+                    'scrap() tentative %d/%d : aucune licence dans la réponse (%d octets) pour %s. Début de page : %s',
+                    $tentative,
+                    self::NB_TENTATIVES_SCRAP,
+                    strlen($response),
+                    $url,
+                    preg_replace('/\s+/', ' ', mb_substr(strip_tags($response), 0, 300))
+                ));
+            }
+
+            if ($tentative < self::NB_TENTATIVES_SCRAP) {
+                usleep(self::PAUSE_ENTRE_TENTATIVES);
+            }
+        }
 
         if ($response === false) {
-            $httpCode = 0;
-            if (!empty($http_response_header)) {
-                // Ex: "HTTP/1.1 404 Not Found" → extrait 404
-                preg_match('/\d{3}/', $http_response_header[0], $matches);
-                $httpCode = (int) ($matches[0] ?? 0);
-            }
             throw new \Exception(Text::sprintf('COM_GDADHESIONS_ERROR_BAD_RESPONSE', $httpCode));
         }
 
-        $data["brevets"] = self::ParseBrevets($response);
-        $data["informations"] = self::ParseInformation($response);
+        // Réponse reçue mais sans licence : si elle n'a pas l'allure d'une carte FFESSM, c'est le site
+        // qui dysfonctionne, pas l'adresse scannée qui est invalide.
+        if (stripos($response, 'Information sur la licence') === false && stripos($response, 'Information sur les brevets') === false) {
+            throw new \Exception(Text::_('COM_GDA_ADHESION_SCAN_FFESSM_UNAVAILABLE'));
+        }
 
         return $data;
     }

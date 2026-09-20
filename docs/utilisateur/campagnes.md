@@ -2,7 +2,6 @@
 
 Ce document explique comment fonctionnent les **campagnes** (formations, loisirs, boutique), du point de vue de l'**adhérent** qui s'inscrit et de l'**organisateur** qui les gère.
 
-
 ---
 
 ## 1. Vue d'ensemble
@@ -10,7 +9,7 @@ Ce document explique comment fonctionnent les **campagnes** (formations, loisirs
 Il existe trois sortes de campagnes proposées en dehors de l'adhésion annuelle :
 
 | Type | À quoi ça sert | Comment on y participe |
-|---|---|---|
+| --- | --- | --- |
 | **Formation** | Une formation ou un stage | On s'inscrit, l'organisateur valide |
 | **Loisir** | Une sortie, une soirée, une activité | On s'inscrit, l'organisateur valide |
 | **Boutique** | Des articles en vente (vêtements, accessoires…) | On consulte et on achète sur HelloAsso |
@@ -46,12 +45,12 @@ sequenceDiagram
 Une inscription passe par quatre statuts. L'adhérent et l'organisateur voient le même état, avec des mots légèrement différents.
 
 | Ce que voit l'organisateur | Ce que voit l'adhérent | Signification |
-|---|---|---|
-| ![Non inscrit](../images/non-inscrit.png)| Pas d'inscription | Vous n'apparaissez pas dans la liste de l'organisateur |
+| --- | --- | --- |
+| ![Non inscrit](../images/non-inscrit.png) | Pas d'inscription | Vous n'apparaissez pas dans la liste de l'organisateur |
 | ![En cours](../images/en-cours.png) | Inscription en cours de validation | La demande est faite, l'organisateur ne l'a pas encore traitée |
-| ![Validée](../images/validee.png)| Inscription validée | L'organisateur a accepté |
-| ![Non retenue](../images/non-retenue.png)| Inscription non retenue par le responsable de la campagne | L'organisateur n'a pas retenu la demande. **Statut définitif pour l'adhérent**, qui ne peut plus rien changer ; seul l'organisateur peut revenir dessus |
-| ![Annulee](../images/annulee.png) | Annulée | L'adhérent s'est désinscrit alors que son inscription était déjà **validée**. Seule l'oragnisateur peut mettre à jour le status.|
+| ![Validée](../images/validee.png) | Inscription validée | L'organisateur a accepté |
+| ![Non retenue](../images/non-retenue.png) | Inscription non retenue par le responsable de la campagne | L'organisateur n'a pas retenu la demande. **Statut définitif pour l'adhérent**, qui ne peut plus rien changer ; seul l'organisateur peut revenir dessus |
+| ![Annulee](../images/annulee.png) | Annulée | L'adhérent s'est désinscrit alors que son inscription était déjà **validée**. Seule l'oragnisateur peut mettre à jour le status. |
 
 **Non retenue** et **Annulée** sont volontairement distinctes : *Non retenue* est une décision de l'organisateur, *Annulée* est le choix de l'adhérent. Une inscription non retenue **clôt la demande** : l'adhérent n'a plus aucune action possible sur cette campagne, seul l'organisateur peut encore faire évoluer le statut.
 
@@ -109,7 +108,7 @@ Sur votre page **Accueil** (espace Adhérents), vous trouvez des encarts repliab
 
 Un encart n'apparaît que s'il y a au moins une campagne ouverte. Une campagne est visible uniquement entre sa date d'ouverture et sa date de fermeture.
 
-![la page Accueil avec les encarts Formation, Loisir et Boutique.](../images/Accueil.jpg)
+![la page Accueil avec les encarts Formation, Loisir et Boutique.](../images/accueil.jpg)
 
 ### 3.2 S'inscrire
 
@@ -160,6 +159,8 @@ Dès que l'organisateur valide votre inscription, vous recevez un e-mail avec :
 - le **titre** de la campagne, votre **rôle** et la **date** de l'événement ;
 - la **description** et le **lien vers l'article** s'il y en a un ;
 - si la campagne est payante sur HelloAsso et que votre paiement n'a pas encore été retrouvé : le **lien pour payer**.
+
+![email de validation](../images/mail-validation.png)
 
 ### 3.7 La boutique
 
@@ -213,19 +214,19 @@ Cliquer sur le **nom** d'un adhérent ouvre sa fiche ; « Voir tout » affiche t
 ### 4.2 Onglet « Gestion des campagnes »
 
 Permet de:
- - Lister les camapgnes
- - Creer une nouvelle.
- - Modifier une existante.
- - Effacer un campagne close.
- - Ouvrie une campagne à l'inscription.
- - Clore un campagne
- - Avoir un rapport succin des inscriptions.
+
+- Lister les camapgnes
+- Creer une nouvelle.
+- Modifier une existante.
+- Effacer un campagne close.
+- Ouvrie une campagne à l'inscription.
+- Clore un campagne
+- Avoir un rapport succin des inscriptions.
 
 Dans le tableau pour avec la liste des campagnes :
 
 - le titre, le type (suivi du sous-type pour une formation), les dates (événement, ouverture, fermeture) ;
 - la colonne **Places**, détaillée par rôle : ✔ vertes = validées, ⏳ orange = en cours, 👥 = capacité prévue (absente si illimitée). Pour la Boutique : « N/A » ;
-
 
 - le lien vers l'article
 - Un bouton **ouvrir / fermer** et les boutons de **rapport**. ![Ouvrire / Fermer](../images/open-close.png)
@@ -233,7 +234,7 @@ Dans le tableau pour avec la liste des campagnes :
 **Créer ou modifier une campagne** (bouton crayon, ou bouton d'ajout). Le formulaire présente d'abord le **Titre** et le **Type**, puis le **Responsable** et le **Sous-type**, puis la description, les dates, les rôles, etc. :
 
 | Information | Utilité |
-|---|---|
+| --- | --- |
 | Titre, description | Ce que voient les adhérents |
 | Type | Formation, Loisir ou Boutique (non modifiable ensuite) |
 | **Sous-type** (Formation uniquement) | Précise la nature de la formation : *Fosse Apnée*, *Fosse Technique 20M*, *Fosse Technique 12M* ou *RIFAx*. Champ facultatif, masqué pour les autres types. Il s'affiche sous le titre dans la liste et sert de filtre dans le récapitulatif |

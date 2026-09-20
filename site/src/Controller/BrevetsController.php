@@ -10,25 +10,13 @@ use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Response\JsonResponse;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
-use NCB\Component\Gda\Site\Helper\UsersHelper;
 
 /**
  * Contrôleur de la vue « Brevets » (Bureau). Toutes les tâches sont ajax : le référentiel et les
  * rattachements se modifient sans quitter la page.
  */
-class BrevetsController extends BaseController
+class BrevetsController extends AjaxController
 {
-    /**
-     * Les tâches ajax ne sont pas couvertes par le niveau d'accès du menu, contrairement à
-     * l'affichage de la vue : chacune doit revérifier l'appartenance au Bureau.
-     */
-    private function guardBureauMember(): void
-    {
-        if (!UsersHelper::isBureauMember()) {
-            throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
-        }
-    }
-
     /**
      * Enveloppe commune des tâches ajax : jeton CSRF, garde Bureau, réponse JSON normalisée et
      * journalisation des erreurs. Évite de répéter six fois le même bloc try/catch.

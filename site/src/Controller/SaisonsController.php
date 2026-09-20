@@ -11,24 +11,11 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Response\JsonResponse;
 use Joomla\Database\DatabaseInterface;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
-use NCB\Component\Gda\Site\Helper\UsersHelper;
 use NCB\Component\Gda\Site\Service\CotisationService;
 use NCB\Component\Gda\Site\Service\GroupesService;
 
-class SaisonsController extends BaseController
+class SaisonsController extends AjaxController
 {
-    /**
-     * Vérifie que l'utilisateur connecté est membre du Bureau, sinon lève une exception.
-     * Nécessaire car les tâches ajax ne sont pas protégées par le niveau d'accès du menu,
-     * contrairement à l'affichage de la vue.
-     */
-    private function guardBureauMember(): void
-    {
-        if (!UsersHelper::isBureauMember()) {
-            throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
-        }
-    }
-
     /**
      * Ajax : sauvegarde groupée des champs de la saison courante ET des groupes du club
      * (colonne gauche + colonne droite du 1er onglet), en une seule transaction — les deux

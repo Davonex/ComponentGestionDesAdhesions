@@ -16,7 +16,7 @@ use NCB\Component\Gda\Site\Helper\GdaLogger;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 use NCB\Component\Gda\Site\Service\SouscriptionService;
 
-class SecretariatController extends BaseController
+class SecretariatController extends AjaxController
 {
   /**
    * Rend un layout Joomla et transforme une erreur de chargement en exception lisible.
@@ -61,21 +61,6 @@ class SecretariatController extends BaseController
     $actingUser = Factory::getApplication()->getIdentity();
 
     return $actingUser && $actingUser->id ? $actingUser->name : 'unknown';
-  }
-
-  /**
-   * Vérifie que l'utilisateur connecté est membre du Bureau, sinon lève une exception. La vue
-   * Secrétariat n'est accessible qu'au Bureau, mais ce contrôle ne protège pas les tâches ajax
-   * (appelables directement) : chacune doit revérifier l'appartenance au Bureau elle-même.
-   *
-   * @return void
-   * @throws \RuntimeException Si l'utilisateur connecté n'est pas membre du Bureau.
-   */
-  private function guardBureauMember(): void
-  {
-    if (!UsersHelper::isBureauMember()) {
-      throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
-    }
   }
 
   /**

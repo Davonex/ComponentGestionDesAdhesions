@@ -514,8 +514,70 @@ class AdhesionStatusHelper
         }
     }
 
+    /**
+     * Construit la liste des messages de suivi applicables à une souscription, un par étape non
+     * encore validée (CACI, Paiement, Licence), au lieu du seul message de l'étape actuellement
+     * bloquante retourné par getStatusDescription()/getStatusEnum(). Les étapes CACI et Paiement
+     * sont évaluées indépendamment l'une de l'autre : contrairement à getStatusEnum() (qui ne
+     * calcule le statut de paiement qu'une fois le CACI validé par le secrétariat), l'adhérent doit
+     * pouvoir anticiper un paiement manquant avant même que sa CACI soit traitée par le secrétariat.
+     *
+     * Chaque entrée porte en plus sa propre clé 'action' (même forme que buildActionLink(), ou
+     * null) : contrairement à l'unique bouton d'action lié à l'étape globalement bloquante, chaque
+     * message doit pouvoir proposer son propre bouton (ex: "Consulter votre paiement" à côté du
+     * message de paiement, même quand le CACI est encore l'étape bloquante affichée dans l'en-tête).
+     *
+     * @param object|null $souscription Objet souscription (voir AccueilModel::getAdhesionStatus())
+     * @return array<int, array{type: string, icon: string, message: string, action: array|null}>
+     *         Une entrée par étape encore en attente ; une seule entrée STATUS_COMPLETED si tout est
+     *         déjà validé.
+     */
+    public static function getPhaseDescriptions(?object $souscription): array
+    {
+        if ($souscription === null) {
+            $description = self::getStatusDescription(self::STATUS_NOT_SUBSCRIBED);
+            $description['action'] = self::buildActionLink(self::STATUS_NOT_SUBSCRIBED, null);
 
+            return [$description];
+        }
 
+        $descriptions = [];
+
+        if (!$souscription->caci_check) {
+            $caciStatus = self::getCaciFileStatus($souscription->caci, $souscription->date_caci);
+            $description = self::getStatusDescription($caciStatus, $souscription);
+            $description['action'] = self::buildActionLink($caciStatus, $souscription);
+            $descriptions[] = $description;
+        }
+
+        if (!$souscription->cotisation_check) {
+            if ($souscription->id_order === '0' || empty($souscription->id_order)) {
+                $souscription->id_order = self::resolveIdOrder($souscription);
+            }
+
+            $paymentStatus = ($souscription->id_order === '0' || empty($souscription->id_order))
+                ? self::STATUS_PAYMENT_REQUIRED
+                : self::STATUS_PAYMENT_VALIDATING;
+
+            $description = self::getStatusDescription($paymentStatus, $souscription);
+            $description['action'] = self::buildActionLink($paymentStatus, $souscription);
+            $descriptions[] = $description;
+        }
+
+        if (!$souscription->licence_check && $souscription->caci_check && $souscription->cotisation_check) {
+            $description = self::getStatusDescription(self::STATUS_LICENCE_REQUIRED, $souscription);
+            $description['action'] = null;
+            $descriptions[] = $description;
+        }
+
+        if (empty($descriptions)) {
+            $description = self::getStatusDescription(self::STATUS_COMPLETED, $souscription);
+            $description['action'] = null;
+            $descriptions[] = $description;
+        }
+
+        return $descriptions;
+    }
 
     /**
      * Retourne la couleur de badge Bootstrap selon le statut.

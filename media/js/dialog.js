@@ -31,7 +31,8 @@ const GdaDialog = (function () {
         popupType: 'inline',
         textHeader: options.title || '',
         popupContent: buildContent(options.message, options.details),
-        width: '32rem',
+        width: '28rem',
+        className: 'gda-dialog',
       });
 
       dialog.popupButtons = options.buttons(dialog);

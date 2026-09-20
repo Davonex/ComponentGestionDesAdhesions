@@ -12,6 +12,8 @@ use NCB\Component\Gda\Site\Helper\FileHelper;
  * - $displayData['form']  : Formulaire de la campagne
  * - $displayData['types'] : natures distinctes présentes dans $displayData['campagnes']
  * - $displayData['roles'] : id_type => liste de rôles PAR DÉFAUT (préremplissage à la création)
+ * - $displayData['helloAssoFormTypeParNature'] : type_name => formType HelloAsso attendu (voir
+ *   CampagnesModel::getHelloAssoFormTypeParNature())
  */
 
 $items = $displayData['campagnes'];
@@ -19,14 +21,20 @@ $task  = $displayData['task'];
 $form  = $displayData['form'];
 $types = $displayData['types'] ?? [];
 $roles = $displayData['roles'] ?? [];
+$helloAssoFormTypeParNature = $displayData['helloAssoFormTypeParNature'] ?? [];
 
-// Métadonnées par nature (nom + rôles par défaut), lues en JS pour préremplir les lignes
-// rôle+capacité et adapter le switch reservation_multiple selon la nature sélectionnée.
+// Métadonnées par nature (nom, rôles par défaut, type de formulaire HelloAsso attendu), lues en
+// JS pour préremplir les lignes rôle+capacité, adapter le switch reservation_multiple et filtrer
+// la liste déroulante "Event HelloAsso" selon la nature sélectionnée. "reservable" distingue les
+// natures avec réservation (Formation, Loisir : rôles/places, bouton Réserver sur l'Accueil) d'une
+// nature vitrine comme Boutique (pas de rôles, lien direct vers un formulaire Shop HelloAsso).
 $typesMeta = [];
 foreach ($types as $type) {
     $typesMeta[(int) $type->id_type] = [
-        'name'  => $type->type_name,
-        'roles' => $roles[(int) $type->id_type] ?? [],
+        'name'              => $type->type_name,
+        'roles'             => $roles[(int) $type->id_type] ?? [],
+        'reservable'        => isset($roles[(int) $type->id_type]),
+        'helloAssoFormType' => $helloAssoFormTypeParNature[$type->type_name] ?? null,
     ];
 }
 
@@ -95,17 +103,20 @@ $renderFieldHint = function (string $fieldName, bool $inline = false) use ($form
   <table class="table table-striped table-hover align-middle" id="table-campagne">
     <!-- <caption><?= Text::_('COM_GDA_CAMPAGNE_LIST');?></caption> -->
     <thead>
+      <?php // Largeurs (>=1200px) : meme echelle col-secretariat-* que les tableaux Secretariat et
+      // Suivi des inscriptions, cf. le commentaire au-dessus de "@media (min-width: 1200px)" dans
+      // gda.css - Titre reste sans classe pour absorber l'espace restant. ?>
       <tr>
-        <td></td>
+        <td class="col-secretariat-xs text-center"></td>
 
-        <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_TITRE');?></td>
-        <td><?= Text::_('COM_GDA_CAMPAGNE_DATE_EVENEMENT');?></td>
-        <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_OPENING');?></td>
-        <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_CLOSING');?></td>
-        <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_PLACES');?></td>
-        <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_ARTICLE');?></td>
-        <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_ACTIVE');?></td>
-        <td><?= Text::_('COM_GDA_CAMPAGNE_LIST_RAPPORT');?></td>
+        <td class="col-secretariat-md text-center"><?= Text::_('COM_GDA_CAMPAGNE_LIST_TITRE');?></td>
+        <td class="col-secretariat-sm text-center"><?= Text::_('COM_GDA_CAMPAGNE_DATE_EVENEMENT');?></td>
+        <td class="col-secretariat-sm text-center"><?= Text::_('COM_GDA_CAMPAGNE_LIST_OPENING');?></td>
+        <td class="col-secretariat-sm text-center"><?= Text::_('COM_GDA_CAMPAGNE_LIST_CLOSING');?></td>
+        <td class="text-center col-secretariat-lg"><?= Text::_('COM_GDA_CAMPAGNE_LIST_PLACES');?></td>
+        <td class="col-secretariat-xxs text-center"><?= Text::_('COM_GDA_CAMPAGNE_LIST_ARTICLE');?></td>
+        <td class="col-secretariat-xs text-center"><?= Text::_('COM_GDA_CAMPAGNE_LIST_ACTIVE');?></td>
+        <td class="col-secretariat-md text-center"><?= Text::_('COM_GDA_CAMPAGNE_LIST_RAPPORT');?></td>
       </tr>
     </thead>
     <tbody>
@@ -151,6 +162,17 @@ $renderFieldHint = function (string $fieldName, bool $inline = false) use ($form
               </div>
             </div>
 
+            <?php // Responsable (mails de demande d'inscription) et sous-type : masqués et vidés par campagne.js
+            // selon la nature (responsable : natures avec réservation ; sous-type : Formation uniquement). ?>
+            <div class="row g-3 align-items-start">
+              <div class="col-12 col-lg-6" id="fieldIdResponsable">
+                <?= $renderFieldHint('id_responsable');  ?>
+              </div>
+              <div class="col-12 col-lg-6" id="fieldSousType">
+                <?= $form->renderField('sous_type');  ?>
+              </div>
+            </div>
+
             <!-- Date de l'événement à la place de l'ancien encart de description de nature
                  (retiré pour réduire la hauteur globale du formulaire) : distincte de la période
                  de souscription ci-dessous. -->
@@ -182,7 +204,7 @@ $renderFieldHint = function (string $fieldName, bool $inline = false) use ($form
             <div class="row g-3 align-items-start" id="fieldRolePlaces"
                 data-type-meta='<?= htmlspecialchars(json_encode($typesMeta), ENT_QUOTES, 'UTF-8'); ?>'>
               <div class="col-12">
-                <label class="control-label gda-field-hint-label mb-2"><?= Text::_('COM_GDA_CAMPAGNE_ROLE_PLACES'); ?></label>
+                <label class="control-label gda-field-hint-label gda-label-icon gda-icon-roles mb-2"><?= Text::_('COM_GDA_CAMPAGNE_ROLE_PLACES'); ?></label>
                 <div id="jform_campagne_role_places_rows"></div>
                 <button type="button" class="btn btn-sm btn-outline-success mt-1" id="jform_campagne_role_places_add">
                   <span class="fa-solid fa-plus"></span> <?= Text::_('COM_GDA_CAMPAGNE_ROLE_ADD'); ?>
@@ -208,7 +230,7 @@ $renderFieldHint = function (string $fieldName, bool $inline = false) use ($form
             <!-- <h6 class="text-uppercase text-muted small fw-bold mb-3"><?= Text::_('COM_GDA_CAMPAGNE_SECTION_PUBLIC'); ?></h6> -->
 
             <div class="row g-3 align-items-start mb-2">
-              <div class="col-12 col-md-6">
+              <div class="col-12 col-md-6" id="fieldIdGroupes">
                 <?= $form->renderField('id_groupes');  ?>
               </div>
               <div class="col-12 col-md-6">

@@ -19,6 +19,7 @@ class HtmlView extends BaseHtmlView
     public $pagination;
     public array $types = [];
     public array $roles = [];
+    public array $helloAssoFormTypeParNature = [];
     public array $lstSuiviCampagnes = [];
 
     public function display($tpl=null): void
@@ -47,6 +48,7 @@ class HtmlView extends BaseHtmlView
         $this->lstCampagnes = $model->getCampagnes();
         $this->types = $model->getTypes();
         $this->roles = $model->getRolesDeCampagne();
+        $this->helloAssoFormTypeParNature = $model->getHelloAssoFormTypeParNature();
 
         // Onglet "Suivi des inscriptions" : Formation et Loisir ont un rendu de suivi réel
         // (une future nature sans suivi encore construit tomberait sur le placeholder "à venir"

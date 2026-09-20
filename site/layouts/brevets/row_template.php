@@ -22,10 +22,12 @@ use Joomla\CMS\Language\Text;
     <div class="col-md-5">
       <?php
       /*
-       * data-officiel-title : message affiché en infobulle quand la ligne est verrouillée parce
-       * que son libellé est reconnu par le référentiel FFESSM (voir Brevets.addBrevet). Porté par
-       * le markup plutôt que par Text::script() pour que les deux vues qui partagent ce template
-       * n'aient pas à déclarer la clé chacune de leur côté.
+       * data-officiel-title : message affiché en infobulle sur les 3 champs (nom, obtention,
+       * lieu) quand la ligne est verrouillée parce que ce brevet est reconnu par le référentiel
+       * FFESSM (voir Brevets.addBrevet) - ces trois valeurs viennent alors de la fédération et ne
+       * se corrigent qu'en supprimant la ligne puis en en ajoutant une nouvelle, jamais en les
+       * éditant en place. Porté par le markup plutôt que par Text::script() pour que les deux vues
+       * qui partagent ce template n'aient pas à déclarer la clé chacune de leur côté.
        */
       ?>
       <input type="text" name="brevets[][nom]" class="form-control" required
@@ -34,11 +36,13 @@ use Joomla\CMS\Language\Text;
     </div>
     <div class="col-md-3">
       <input type="date" name="brevets[][obtention]" class="form-control"
-        placeholder="<?php echo $this->escape(Text::_('COM_GDA_BREVET_OBTENTION')); ?>">
+        placeholder="<?php echo $this->escape(Text::_('COM_GDA_BREVET_OBTENTION')); ?>"
+        data-officiel-title="<?php echo $this->escape(Text::_('COM_GDA_BREVET_NOM_OFFICIEL_LOCK')); ?>">
     </div>
     <div class="col-md-3">
       <input type="text" name="brevets[][lieu]" class="form-control"
-        placeholder="<?php echo $this->escape(Text::_('COM_GDA_BREVET_LIEU')); ?>">
+        placeholder="<?php echo $this->escape(Text::_('COM_GDA_BREVET_LIEU')); ?>"
+        data-officiel-title="<?php echo $this->escape(Text::_('COM_GDA_BREVET_NOM_OFFICIEL_LOCK')); ?>">
     </div>
     <div class="col-md-1 text-end">
       <button type="button" class="btn btn-outline-danger remove-brevet-btn"

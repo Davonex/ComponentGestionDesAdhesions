@@ -1,4 +1,4 @@
-# Gestion des adhésions (com_gdadhesions)
+# Gestion des adhésions DU NCB  (com_gdadhesions)
 
 Composant Joomla de gestion des adhésions d'un club de plongée, développé pour le Neptune Club de Brunoy.
 
@@ -19,13 +19,14 @@ Il accompagne l'adhérent de sa demande d'adhésion jusqu'à l'accès à son esp
 ### Pour les utilisateurs
 
 | Page | Pour qui |
-|---|---|
+| --- | --- |
+| [Adhérer au club : le formulaire d'adhésion](docs/utilisateur/adhesion.md) | Adhérents |
 | [Les campagnes : mode d'emploi](docs/utilisateur/campagnes.md) | Adhérents et organisateurs |
 
 ### Pour les développeurs
 
 | Page | Sujet |
-|---|---|
+| --- | --- |
 | [Domaine Campagnes](docs/technique/campagnes.md) | Campagnes, réservations et capacité par rôle |
 | [Fiche Profil](docs/technique/fiche_profil.md) | Personnalisation de la carte Profil |
 

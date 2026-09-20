@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS `#__gda_type_de_campagne` (
 INSERT INTO `#__gda_type_de_campagne` (`id_type`, `type_name`, `type_image`, `type_class`) VALUES
 (1, 'Saison', 'saison.jpg', 'campagne-saison'),
 (2, 'Formation', 'fosse.jpg', 'campagne-formation'),
-(3, 'Loisir', 'sortie.jpg', 'campagne-loisir');
+(3, 'Loisir', 'sortie.jpg', 'campagne-loisir'),
+(4, 'Boutique', NULL, 'campagne-boutique');
 
 --
 -- Structure de la table `#__gda_campagnes`
@@ -58,11 +59,14 @@ CREATE TABLE `#__gda_campagnes` (
   `nbr_place` int unsigned DEFAULT NULL COMMENT 'Nombre place totale pour cette campagnes',
   `reservation_multiple` tinyint(1) unsigned NOT NULL DEFAULT 0 COMMENT 'Active la demande du nombre de places à la souscription (0 = 1 place fixe, 1 = le nombre est demandé)',
   `id_type` int unsigned DEFAULT NULL,
+  `sous_type` varchar(30) DEFAULT NULL COMMENT 'Sous-type d''une campagne Formation (fosse_apnee, fosse_technique_20, fosse_technique_12, rifax)',
   `id_groupes` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `id_responsable` int DEFAULT NULL COMMENT 'Compte Joomla prévenu des nouvelles demandes d''inscription (Formation / Loisir)',
   `effacer` int unsigned NOT NULL DEFAULT '0' COMMENT 'Campagne Effacer',
   PRIMARY KEY (`id_campagne`),
   UNIQUE KEY `id` (`id_campagne`) USING BTREE,
-  CONSTRAINT `gda_campagnes_gda_type_de_campagne_FK` FOREIGN KEY (`id_type`) REFERENCES `#__gda_type_de_campagne` (`id_type`)
+  CONSTRAINT `gda_campagnes_gda_type_de_campagne_FK` FOREIGN KEY (`id_type`) REFERENCES `#__gda_type_de_campagne` (`id_type`),
+  CONSTRAINT `gda_campagnes_users_FK` FOREIGN KEY (`id_responsable`) REFERENCES `#__users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Liste des campagnes';
 
 --
@@ -103,7 +107,7 @@ CREATE TABLE IF NOT EXISTS `#__gda_conf` (
   `key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `value` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Déchargement des données de la table `#__gda_conf`
@@ -126,7 +130,8 @@ INSERT INTO `#__gda_conf` (`id`, `key`, `value`) VALUES
 -- 0.9.17 dans #__gda_cotisation (lignes nature = 'LICENCE'), administrables par le Bureau.
 (23,'DevMailOverride',''),
 (25,'IdTypeLoisir','3'),
-(26,'MoisDebutSaisonFederale','9');
+(26,'MoisDebutSaisonFederale','9'),
+(27,'IdTypeBoutique','4');
 
 --
 -- Structure de la table `#__gda_groupes`
@@ -270,7 +275,7 @@ CREATE TABLE IF NOT EXISTS `#__gda_reservation_places` (
   `id_reservation` int unsigned NOT NULL,
   `id_campagne` int NOT NULL COMMENT 'Dénormalisé depuis gda_reservation.id_campagne : évite une jointure sur les requêtes d''occupation/rang, très fréquentes',
   `role` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Rôle choisi pour cette place, parmi #__gda_role_de_campagne',
-  `statut` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'attente' COMMENT 'confirmee | attente | annulee',
+  `statut` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'attente' COMMENT 'attente | confirmee | refusee | annulee',
   `date_rang` datetime NOT NULL COMMENT 'Horodatage de création de cette place : rang FIFO dans la file d''attente de (id_campagne, role)',
   `tri` int unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`id_place`),

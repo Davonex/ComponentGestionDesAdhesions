@@ -298,14 +298,14 @@
   };
 
   /**
-   * Initialise DataTable pour le tableau de l'etape 3 (contenu charge en AJAX dans #step-3).
+   * Initialise DataTable pour le tableau de l'etape 3 (contenu charge en AJAX dans #step-2).
    * @returns {void}
    */
   const initStepThreeView = function () {
-    const step3Container = document.getElementById('step-3');
-    const table3 = document.querySelector('#step-3 table');
+    const step2Container = document.getElementById('step-2');
+    const table3 = document.querySelector('#step-2 table');
 
-    initDataTableWithTooltips(table3, step3Container, {
+    initDataTableWithTooltips(table3, step2Container, {
       columns: buildWidthColumns([
         'col-secretariat-xs', // Action (devalider paiement)
         'col-secretariat-xs',  // Photo
@@ -320,8 +320,8 @@
       ])
     });
 
-    if (step3Container) {
-      initTooltips(step3Container);
+    if (step2Container) {
+      initTooltips(step2Container);
     }
   };
 
@@ -330,9 +330,9 @@
    * @returns {void}
    */
   const loadStepThree = function () {
-    const step3Container = document.getElementById('step-3');
+    const step2Container = document.getElementById('step-2');
 
-    if (!step3Container) {
+    if (!step2Container) {
       return;
     }
 
@@ -340,7 +340,7 @@
     const csrfTokenName = Joomla.getOptions('csrf.token');
     const hideStep3Loader = function () {
       if (window.GdaSpinner) {
-        window.GdaSpinner.hide(step3Container);
+        window.GdaSpinner.hide(step2Container);
       }
     };
 
@@ -350,7 +350,7 @@
 
     if (typeof simpleCallAjax === 'function') {
       if (window.GdaSpinner) {
-        window.GdaSpinner.show(step3Container, { text: 'Chargement des licences a enregistrer...' });
+        window.GdaSpinner.show(step2Container, { text: 'Chargement des licences a enregistrer...' });
       }
 
       const step3FallbackTimer = window.setTimeout(hideStep3Loader, 15000);
@@ -360,7 +360,7 @@
         hideStep3Loader();
 
         if (response.success) {
-          step3Container.innerHTML = decodeURIComponent(escape(atob(response.data)));
+          step2Container.innerHTML = decodeURIComponent(escape(atob(response.data)));
           initStepThreeView();
         }
       }, false);
@@ -368,14 +368,14 @@
   };
 
   /**
-   * Initialise DataTable pour le tableau de l'etape 4 (contenu charge en AJAX dans #step-4).
+   * Initialise DataTable pour le tableau de l'etape 4 (contenu charge en AJAX dans #step-3).
    * @returns {void}
    */
   const initStepFourView = function () {
-    const step4Container = document.getElementById('step-4');
-    const table4 = document.querySelector('#step-4 table');
+    const step3Container = document.getElementById('step-3');
+    const table4 = document.querySelector('#step-3 table');
 
-    initDataTableWithTooltips(table4, step4Container, {
+    initDataTableWithTooltips(table4, step3Container, {
       columns: buildWidthColumns([
         'col-secretariat-xs', // Action (definaliser)
         'col-secretariat-xs',  // Photo
@@ -391,8 +391,8 @@
       ])
     });
 
-    if (step4Container) {
-      initTooltips(step4Container);
+    if (step3Container) {
+      initTooltips(step3Container);
       // Bouton HelloAsso (.js-show-payement) : géré par le handler délégué global de
       // media/com_gdadhesions/js/form_modal.js, commun à toutes les vues - pas de binding ici.
     }
@@ -403,9 +403,9 @@
    * @returns {void}
    */
   const loadStepFour = function () {
-    const step4Container = document.getElementById('step-4');
+    const step3Container = document.getElementById('step-3');
 
-    if (!step4Container) {
+    if (!step3Container) {
       return;
     }
 
@@ -413,7 +413,7 @@
     const csrfTokenName = Joomla.getOptions('csrf.token');
     const hideStep4Loader = function () {
       if (window.GdaSpinner) {
-        window.GdaSpinner.hide(step4Container);
+        window.GdaSpinner.hide(step3Container);
       }
     };
 
@@ -423,7 +423,7 @@
 
     if (typeof simpleCallAjax === 'function') {
       if (window.GdaSpinner) {
-        window.GdaSpinner.show(step4Container, { text: 'Chargement des adhesions finalisees...' });
+        window.GdaSpinner.show(step3Container, { text: 'Chargement des adhesions finalisees...' });
       }
 
       const step4FallbackTimer = window.setTimeout(hideStep4Loader, 15000);
@@ -433,7 +433,7 @@
         hideStep4Loader();
 
         if (response.success) {
-          step4Container.innerHTML = decodeURIComponent(escape(atob(response.data)));
+          step3Container.innerHTML = decodeURIComponent(escape(atob(response.data)));
           initStepFourView();
         }
       }, false);

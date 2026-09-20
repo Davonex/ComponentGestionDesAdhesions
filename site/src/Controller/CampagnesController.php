@@ -11,11 +11,14 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Layout\LayoutHelper;
 // Gda
 use NCB\Component\Gda\Site\Helper\ConfHelper;
+use NCB\Component\Gda\Site\Helper\GdaLogger;
+use NCB\Component\Gda\Site\Model\CampagnesModel;
+use NCB\Component\Gda\Site\Service\ReservationService;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 
 
-class CampagnesController extends BaseController
+class CampagnesController extends AjaxController
 {
 
     //     public function execute($task)
@@ -255,7 +258,17 @@ class CampagnesController extends BaseController
     }
 
     /**
-     *  Ajax pour generer le rapport d'une camapgne dans la View admin
+     *  Ajax pour generer le rapport d'une camapgne dans la View admin.
+     *  Deux rapports distincts partagent cette task, distingués par 'jform_campagne[rapport_type]'
+     *  (posté par layouts/campagnes/row.php, deux boutons séparés) : "reservation" (table
+     *  #__gda_reservation*, cf. CampagnesModel::getRapport()) et "helloasso" (paiements en ligne).
+     *  Le rapport "helloasso" se scinde lui-même selon la nature de la campagne : la structure des
+     *  items renvoyés par l'API HelloAsso pour un formulaire "Shop" (Boutique, pas d'inscrit, un
+     *  produit acheté) diffère de celle d'un formulaire "Event" (Formation/Loisir, un adhérent
+     *  inscrit) - d'où getRapportHelloAssoBoutique() en plus de getRapportHelloAsso(). L'UI
+     *  désactive déjà chaque bouton quand son rapport n'a pas de sens (Boutique pour "reservation",
+     *  pas d'event HelloAsso pour "helloasso"), donc aucune garde supplémentaire ici : un appel
+     *  invalide retombe sur l'exception déjà levée par les deux méthodes ou une liste vide pour getRapport().
      */
     public function rapport()
     {
@@ -273,18 +286,32 @@ class CampagnesController extends BaseController
             $data = $app->input->getArray(array('jform_campagne' => 'ARRAY'));
             if (!empty($data['jform_campagne'])) {
                 $app->setUserState('campagne.rapport', $data['jform_campagne']);
-                $hasHelloAsso = $data['jform_campagne']['event_helloasso'] !== "null";
+                $hasHelloAsso = CampagnesModel::aUnLienHelloAsso($data['jform_campagne']['event_helloasso'] ?? null);
+                $rapportType = $data['jform_campagne']['rapport_type'] ?? 'reservation';
+                $isBoutique = ((int) ($data['jform_campagne']['id_type'] ?? 0)) === (int) ConfHelper::getValue('IdTypeBoutique');
 
-                // Le rapport HelloAsso (paiements en ligne) sera traité dans un second temps :
-                // on affiche un "à venir" pour ces campagnes plutôt que d'appeler getRapportHelloAsso().
-                $data_rapport = $hasHelloAsso ? [] : $model->getRapport();
-                $Response->message = $hasHelloAsso
-                    ? Text::_('COM_GDA_CAMPAGNE_RAPPORT_HELLOASSO_COMINGSOON')
-                    : Text::sprintf('COM_GDA_CAMPAGNE_RAPPORT_MSG', count($data_rapport));
+                if ($rapportType === 'helloasso') {
+                    $data_rapport = $isBoutique ? $model->getRapportHelloAssoBoutique() : $model->getRapportHelloAsso();
+                    $Response->message = empty($data_rapport)
+                        ? Text::_('COM_GDA_CAMPAGNE_RAPPORT_HELLOASSO_AUCUN_PAIEMENT')
+                        : Text::sprintf('COM_GDA_CAMPAGNE_RAPPORT_HELLOASSO_MSG', count($data_rapport));
+                } else {
+                    $data_rapport = $model->getRapport();
+                    // Les désistements de l'adhérent figurent dans le rapport mais ne comptent pas comme inscrits.
+                    $nbInscrits = count(array_filter(
+                        $data_rapport,
+                        static fn ($ligne) => ($ligne['statut'] ?? '') !== ReservationService::STATUT_ANNULEE
+                    ));
+                    $Response->message = $nbInscrits === 0
+                        ? Text::_('COM_GDA_CAMPAGNE_RAPPORT_AUCUN_INSCRIT')
+                        : Text::sprintf('COM_GDA_CAMPAGNE_RAPPORT_MSG', $nbInscrits);
+                }
 
                 $Layout = LayoutHelper::render('campagnes.rapport', [
                     'items'        => $data_rapport,
                     'form'         => $data['jform_campagne'],
+                    'rapportType'  => $rapportType,
+                    'isBoutique'   => $isBoutique,
                     'hasHelloAsso' => $hasHelloAsso,
                 ]);
                 $Response->data =  base64_encode($Layout);
@@ -298,7 +325,7 @@ class CampagnesController extends BaseController
         } catch (\Exception $e) {
             echo new JsonResponse($e);
         }
-        $app->close();  // stoppe l’exécution pour que seule la réponse JSON parte  
+        $app->close();  // stoppe l’exécution pour que seule la réponse JSON parte
     }
 
 
@@ -338,6 +365,89 @@ class CampagnesController extends BaseController
             } else {
                 $Response->success = false;
             }
+
+            echo $Response;
+        } catch (\Exception $e) {
+            echo new JsonResponse($e);
+        }
+        $app->close();  // stoppe l'exécution pour que seule la réponse JSON parte
+    }
+
+    /**
+     * Ajax de l'onglet "Récapitulatif" : matrice adhérents x campagnes Formation (dernier statut).
+     *
+     * @return void
+     */
+    public function recapitulatif()
+    {
+        /** @var \Joomla\CMS\Application\SiteApplication $app */
+        $app = Factory::getApplication();
+        try {
+            $this->checkToken();
+            $this->guardGestionnaireCampagnes();
+
+            /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
+            $model = $this->getModel('campagnes', 'site');
+
+            $Response = new JsonResponse();
+            $Response->success = true;
+            $Response->data = base64_encode(LayoutHelper::render('campagnes.recapitulatif', $model->getRecapitulatifFormations()));
+
+            echo $Response;
+        } catch (\Exception $e) {
+            echo new JsonResponse($e);
+        }
+        $app->close();
+    }
+
+    /**
+     * Ajax pour changer le statut d'une inscription depuis l'onglet "Suivi des inscriptions" :
+     * décision du responsable de campagne (valider / refuser une inscription en attente, ou
+     * revenir en arrière). Ne renvoie pas de HTML : le statut n'est qu'un des attributs de la
+     * ligne (badge + libellé), le client met à jour ces deux éléments directement plutôt que de
+     * recharger tout l'onglet.
+     */
+    public function changerStatutInscription()
+    {
+        $Response = new JsonResponse();
+        /** @var \Joomla\CMS\Application\SiteApplication $app */
+        $app = Factory::getApplication();
+        try {
+            $this->checkToken();
+            $this->guardGestionnaireCampagnes();
+
+            /** @var \NCB\Component\Gda\Site\Model\CampagnesModel $model */
+            $model = $this->getModel('campagnes', 'site');
+
+            $idPlace = $app->input->getInt('id_place', 0);
+            $statut  = $app->input->getString('statut', '');
+
+            if ($idPlace <= 0) {
+                throw new \Exception(Text::_('COM_GDA_CAMPAGNES_SUIVI_STATUT_INTROUVABLE'), 404);
+            }
+
+            $statutPrecedent = $model->changerStatutInscription($idPlace, $statut);
+
+            $cleMessage = 'COM_GDA_CAMPAGNES_SUIVI_STATUT_UPDATED';
+
+            // Mail « inscription validée » seulement à l'ENTRÉE en confirmée : un simple
+            // ré-enregistrement de « confirmée » ne prévient pas une seconde fois l'adhérent. Un
+            // échec d'envoi ne remet pas en cause la décision déjà enregistrée : il est journalisé
+            // et signalé au responsable.
+            if ($statut === ReservationService::STATUT_CONFIRMEE && $statutPrecedent !== ReservationService::STATUT_CONFIRMEE) {
+                try {
+                    $cleMessage = $model->notifierInscriptionAcceptee($idPlace)
+                        ? 'COM_GDA_CAMPAGNES_SUIVI_STATUT_UPDATED_MAIL_OK'
+                        : 'COM_GDA_CAMPAGNES_SUIVI_STATUT_UPDATED_MAIL_KO';
+                } catch (\Throwable $e) {
+                    GdaLogger::error('Notification inscription validée impossible (id_place=' . $idPlace . ') : ' . $e->getMessage());
+                    $cleMessage = 'COM_GDA_CAMPAGNES_SUIVI_STATUT_UPDATED_MAIL_KO';
+                }
+            }
+
+            $Response->success = true;
+            $Response->message = Text::_($cleMessage);
+            $Response->data = ['statut' => $statut];
 
             echo $Response;
         } catch (\Exception $e) {

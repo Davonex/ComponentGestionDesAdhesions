@@ -17,7 +17,7 @@ use NCB\Component\Gda\Site\Helper\UsersHelper;
 use NCB\Component\Gda\Site\Model\ProfilModel;
 
 
-class ProfilController extends BaseController
+class ProfilController extends AjaxController
 {
 
     //     public function execute($task)

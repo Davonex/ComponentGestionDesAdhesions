@@ -115,7 +115,7 @@ class com_gdadhesionsInstallerScript
             'parent_id'    => $idMenuAdherent,
             'level'        => 2,
             'component_id' => $this->componentId,
-            'access'       => $this->accessLevelIdBureau, // Accès réservé aux membres (niveau d'accès 7)
+            'access'       => $this->accessLevelIdBureau, // Accès réservé au Bureau (id du niveau « NA Bureau », résolu à l'installation)
             'params'       => [],
         ];
 
@@ -131,7 +131,7 @@ class com_gdadhesionsInstallerScript
             'parent_id'    => $idMenuAdherent,
             'level'        => 2,
             'component_id' => $this->componentId,
-            'access'       => $this->accessLevelIdBureau, // Accès réservé aux membres (niveau d'accès 7)
+            'access'       => $this->accessLevelIdBureau, // Accès réservé au Bureau (id du niveau « NA Bureau », résolu à l'installation)
             'language'     => '*',
             'client_id'    => 0,
             'menuordering' => 0,
@@ -152,7 +152,7 @@ class com_gdadhesionsInstallerScript
             'parent_id'    => $idMenuAdherent,
             'level'        => 2,
             'component_id' => $this->componentId,
-            'access'       => $this->accessLevelIdBureau, // Accès réservé aux membres (niveau d'accès 7)
+            'access'       => $this->accessLevelIdBureau, // Accès réservé au Bureau (id du niveau « NA Bureau », résolu à l'installation)
             'language'     => '*',
             'client_id'    => 0,
             'menuordering' => 0,
@@ -174,16 +174,9 @@ class com_gdadhesionsInstallerScript
         $this->createBrevetsMenuItem($idMenuAdherent);
 
 
-        $data_dma = [
-            'name' => 'MATHIEU Didier',
-            'username' => 'A-03-062553',
-            'password' => '$2y$12$8ZWR8yo32EffM4b/nHGCtObeDWgIf0UZKUN96ZdykgC2M.oogJmb2', // 🔥 hash Joomla
-            'email' => 'davinox@free.fr',
-        ];
-
-        $this->createUser($data_dma, [2, $this->groupIdBureau]); // ex: Registered + Bureau
-
-
+        // Aucun compte n'est créé ici : le Super User qui installe le composant dispose déjà de
+        // tous les accès, et un compte en dur ferait voyager un nom, un e-mail et un hash de mot
+        // de passe dans le paquet distribué. Le Bureau s'ajoute ensuite depuis la vue Utilisateurs.
 
         return true;
     }
@@ -456,13 +449,20 @@ class com_gdadhesionsInstallerScript
             $sitePath . '/layouts/mail/profile_lifecycle_html.php',
             $sitePath . '/layouts/mail/profile_lifecycle_text.php',
 
+            // Layouts sans aucun appelant (1.0.0) : l'encart CACI du dashboard a été fondu dans
+            // accueil/dash_status_adhesion.php, et le patron "coming soon" du trombinoscope n'a
+            // jamais été branché (celui des campagnes, campagnes/suivi_comingsoon.php, est utilisé
+            // et doit être conservé).
+            $sitePath . '/layouts/accueil/dash_caci.php',
+            $sitePath . '/layouts/trombinoscope/comingsoon.php',
+
             // Vue Niveau (jamais reliée à un menu, ni appelée par Adhesion/Profil/Saisons/
             // Secretariat : l'extraction des brevets FFESSM passe par AdhesionModel::saveInBrevets()
-            // / #__gda_brevets, pas par cette vue). Renommée en TODELETE_ pour vérification avant
-            // suppression définitive au prochain cycle de mise à jour.
-            // Les deux jeux de noms sont listés : le renommage TODELETE_ n'a eu lieu que dans le
-            // dépôt, les sites installés avant ce renommage portent encore les noms d'origine et
-            // ne voyaient donc jamais leurs fichiers supprimés.
+            // / #__gda_brevets, pas par cette vue). Vérification faite : les fichiers ont été
+            // retirés du dépôt en 1.0.0 et ne sont donc plus empaquetés.
+            // Les deux jeux de noms restent listés ici : le renommage TODELETE_ n'a eu lieu que dans
+            // le dépôt, les sites installés avant ce renommage portent encore les noms d'origine.
+            // À conserver au moins un cycle de plus, le temps que tous les sites soient nettoyés.
             $sitePath . '/src/Controller/TODELETE_NiveauController.php',
             $sitePath . '/src/Controller/NiveauController.php',
             $sitePath . '/src/Model/TODELETE_NiveauModel.php',

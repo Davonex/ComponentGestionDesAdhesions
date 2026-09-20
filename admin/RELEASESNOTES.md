@@ -1,6 +1,31 @@
 # Component com_gadhesions
 
-## Version 0.9.17 
+## Version 1.0.0
+
+- 📰 Nouveautés
+  - Campagnes : chaque inscription est maintenant validée une par une par le responsable ("En cours de validation" → "Validée" ou "Non retenue"). Plus de liste d'attente automatique.
+  - Nouvel onglet `Suivi des inscriptions` : voir les inscrits d'une campagne, les accepter ou les refuser, avec filtres par rôle et par statut.
+  - Nouvel onglet `Récapitulatif formations` : qui est inscrit à quelle formation, en un seul tableau.
+  - Chaque campagne peut avoir un responsable, prévenu par mail à chaque inscription, désinscription ou commentaire.
+  - L'adhérent reçoit un mail quand son inscription est validée, avec le lien de paiement s'il reste à régler.
+  - Nouvelle nature de campagne `Boutique` et nouvel encart Boutique sur l'accueil : articles, prix, disponibilité et bouton "Acheter".
+  - Nouvel encart `Sorties Loisir` sur l'accueil, à côté des formations.
+  - Les formations peuvent être classées par sous-type : Fosse Apnée, Fosse Technique 20M, Fosse Technique 12M, RIFAx.
+
+- 📈 Améliorations
+  - Campagnes : deux rapports distincts, un pour les inscriptions et un pour les paiements HelloAsso.
+  - Campagnes : la colonne "Places" détaille les places validées, celles en attente et la capacité, rôle par rôle.
+  - Campagnes : effacer une campagne demande maintenant une confirmation.
+  - Accueil : un bouton "Rafraîchir" met à jour la Boutique, et les pages liées à HelloAsso s'affichent plus vite.
+  - Désinscription : une demande encore en cours est simplement retirée ; une inscription déjà validée reste visible au responsable en "Annulée".
+
+- 🪲 Bugs
+  - Secrétariat et Groupes : ces pages ne sont plus accessibles en tapant directement leur adresse à un adhérent qui n'y a pas droit.
+  - Session expirée : un message clair s'affiche au lieu d'une erreur incompréhensible.
+  - Une inscription refusée ne peut plus être relancée en se désinscrivant puis en se réinscrivant.
+  - S'inscrire sans fiche de profil provoquait une erreur technique ; un message explicite s'affiche désormais.
+
+## Version 0.9.17
 
 - 📰 Nouveautés
   - Nouvel onglet `Tarification` dans la vue `Saisons` : modifier les libellés et les tarifs par double-clic.
@@ -27,7 +52,6 @@
   - Tarification : les lignes de licence FFESSM précisent maintenant Adulte / Jeune / Enfant.
   - Secretariat: 100% jusqu'a 1200px
 
-
 - 🪲 Bugs
   - Erreur dans le tooltips dans la vue secretariat Step One
   - Erreur de la validation multiple du formulaire d'Adhesion
@@ -36,7 +60,6 @@
   - Adjésion: supression du message reduction famille pour les jeunes.
   - Adhésion : un groupe précédemment choisi restait enregistré même après avoir été retiré du formulaire (ou remplacé par "Licence seule").
 
-
 ## Version 0.9.16  
 
 - 📈 Améliorations
@@ -44,178 +67,178 @@
   - Trier les elements dans le combo
   - Ajout dans les popup de paiment le non issue de HelloAsso "Pour Nom Prenom(lic)"
   - Nombre des HelloAsso qui ne sont pas associés
- 
+
 - 🪲 Bugs
 
-
 ## Version 0.9.15
-  - 📰 Nouveautés
-    - Nouvel onglet dans la vue `Secrétariat` pour  vérifier les associations entre Hello Asso et les adhérents.
 
-  - 📈 Améliorations
+- 📰 Nouveautés
+  - Nouvel onglet dans la vue `Secrétariat` pour  vérifier les associations entre Hello Asso et les adhérents.
 
-  - 🪲 Bugs
-    - Les filtres sur la vue `Gestion Brevets` sont maintenant efficaces 
-    - Réédition de la fiche d'adhésion : Vous n'êtes pas autorisé à effectuer cette action
+- 📈 Améliorations
+
+- 🪲 Bugs
+  - Les filtres sur la vue `Gestion Brevets` sont maintenant efficaces
+  - Réédition de la fiche d'adhésion : Vous n'êtes pas autorisé à effectuer cette action
 
 ## Version 0.9.14
-  - 📰 Nouveautés
-    - Trombinoscope Handi
 
-  - 📈 Améliorations
-    - Suppression Tarif etudiant
+- 📰 Nouveautés
+  - Trombinoscope Handi
 
-  - 🪲 Bugs
-    - Odre de tri pour les membres du bureau
+- 📈 Améliorations
+  - Suppression Tarif etudiant
+
+- 🪲 Bugs
+  - Odre de tri pour les membres du bureau
   
-
 ## Version 0.9.13
-  - 📰 Nouveautés
 
-  - 📈 Améliorations
-    - Ajoute d'un Label-affichage dans "Gestion des Brevets" pour améliorer l'affichage de certains libellés comme "TUTEUR DE STAGE INITIATEUR" => "E3 - MF1 (TSI)"
-    - Ajoute du Trombinoscope Encadrant Plongée et Encadrant Apnée.
+- 📰 Nouveautés
 
+- 📈 Améliorations
+  - Ajoute d'un Label-affichage dans "Gestion des Brevets" pour améliorer l'affichage de certains libellés comme "TUTEUR DE STAGE INITIATEUR" => "E3 - MF1 (TSI)"
+  - Ajoute du Trombinoscope Encadrant Plongée et Encadrant Apnée.
 
-  - 🪲 Bugs
-    - Trombinoscope - exigeait le niveau d'accès "Registred"
+- 🪲 Bugs
+  - Trombinoscope - exigeait le niveau d'accès "Registred"
 
 ## Version 0.9.12
-  - 📰 Nouveautés
 
-  - 📈 Améliorations
-    - Nouvelle clé de config `MoisDebutSaisonFederale` (`#__gda_conf`) : centralise le mois de début de saison fédérale FFESSM (septembre).
-    - Secrétariat : le CACI  doit désormais être valide au moins 9 mois à compter du 1er septembre de la saison en cours, ET le fichier CACI doit être chargé (sinon rouge, quelle que soit la date). L'infobulle du badge de date et celle du bouton "Valider" affichent désormais systématiquement la même raison (fichier manquant / date manquante / date insuffisante / valide).
-    - Adhesions: Ajouts des controle sur le date de fin de validité du CACI et des messages associées et du mail de validation. 
+- 📰 Nouveautés
 
-  - 🪲 Bugs
-    - Mise da jour des messages et etiquettes
-    - Protection de smethodes
-    
+- 📈 Améliorations
+  - Nouvelle clé de config `MoisDebutSaisonFederale` (`#__gda_conf`) : centralise le mois de début de saison fédérale FFESSM (septembre).
+  - Secrétariat : le CACI  doit désormais être valide au moins 9 mois à compter du 1er septembre de la saison en cours, ET le fichier CACI doit être chargé (sinon rouge, quelle que soit la date). L'infobulle du badge de date et celle du bouton "Valider" affichent désormais systématiquement la même raison (fichier manquant / date manquante / date insuffisante / valide).
+  - Adhesions: Ajouts des controle sur le date de fin de validité du CACI et des messages associées et du mail de validation.
+
+- 🪲 Bugs
+  - Mise da jour des messages et etiquettes
+  - Protection de smethodes
 
 ## Version 0.9.11
-  - 🪲 Bugs
-    - Installation/mise à jour : `sql/updates/mysql/0.9.10.sql` échouait sur un environnement neuf (`erreur SQL 42S02, 1146, La table '...#__gda_reservation_places' n'existe pas`) — le marqueur `#__` n'est jamais substitué par Joomla lorsqu'il apparaît à l'intérieur d'une chaîne entre guillemets simples, et les instructions `PREPARE`/`EXECUTE` dynamiques utilisées pour rendre la migration idempotente ne sont pas exécutables par le pilote `mysqli` de l'installeur réel. Migration idempotente réécrite avec le marqueur standard `/** CAN FAIL **/` (déjà utilisé par Joomla core dans ses propres fichiers de mise à jour), sans SQL dynamique. Renommé en `0.9.11.sql` : `0.9.10` ayant déjà été publié, la correction est livrée comme nouvelle version plutôt que de réécrire une version déjà diffusée.
+
+- 🪲 Bugs
+  - Installation/mise à jour : `sql/updates/mysql/0.9.10.sql` échouait sur un environnement neuf (`erreur SQL 42S02, 1146, La table '...#__gda_reservation_places' n'existe pas`) — le marqueur `#__` n'est jamais substitué par Joomla lorsqu'il apparaît à l'intérieur d'une chaîne entre guillemets simples, et les instructions `PREPARE`/`EXECUTE` dynamiques utilisées pour rendre la migration idempotente ne sont pas exécutables par le pilote `mysqli` de l'installeur réel. Migration idempotente réécrite avec le marqueur standard `/** CAN FAIL **/` (déjà utilisé par Joomla core dans ses propres fichiers de mise à jour), sans SQL dynamique. Renommé en `0.9.11.sql` : `0.9.10` ayant déjà été publié, la correction est livrée comme nouvelle version plutôt que de réécrire une version déjà diffusée.
 
 ## Version 0.9.10
-  - 📰 Nouveautés
-    - Status Licence et Caci sur la page d'accueil
-    - 2 types de campagne 
+
+- 📰 Nouveautés
+  - Status Licence et Caci sur la page d'accueil
+  - 2 types de campagne
       1. Formation ( Fosse, Rifapp, Sortie technique) : réservation individuelle
       2. Loisir ( Restaurant, Soirée club, sortie mer, etc...) : Possibilité de réserver plusieurs places ( Plongeur / Non Plongeur, etc...)
 
-  - 📈 Améliorations
-    - Evolution du formulaire de reservation
+- 📈 Améliorations
+  - Evolution du formulaire de reservation
 
-  - 🪲 Bugs
-    - Suppression de la table #__gda_niveaux
+- 🪲 Bugs
+  - Suppression de la table #__gda_niveaux
 
 ## Version 0.9.9
-  - 📰 Nouveautés
 
-  - 📈 Améliorations
-    - Adhesion : contraint bloquante enfant de moin de 8an au 1 sept.
-    - Adhesion: contrainte non bloquante choisir reduction famille pour un mineur.
-    - Adhesion: message popup et mail pour aider l"enregistrement dans HelloAsso 
-    - Campagnes: Ajout du rôle
-    
-    
+- 📰 Nouveautés
 
-  - 🪲 Bugs
-    - Secretariat/Utilisateurs - Erreur JS possible lors de la perte de focus de la fenêtre (édition en ligne Date CACI / Catégorie / Fonction)
-    - les Label et description dans la creation des menus.
-    - Secretariat: Correction  du retours de l'API d'HelloAsso
-      - Plusieurs commande avec 1 piement 
-      - Prendre en compte les reductions
+- 📈 Améliorations
+  - Adhesion : contraint bloquante enfant de moin de 8an au 1 sept.
+  - Adhesion: contrainte non bloquante choisir reduction famille pour un mineur.
+  - Adhesion: message popup et mail pour aider l"enregistrement dans HelloAsso
+  - Campagnes: Ajout du rôle
+
+- 🪲 Bugs
+  - Secretariat/Utilisateurs - Erreur JS possible lors de la perte de focus de la fenêtre (édition en ligne Date CACI / Catégorie / Fonction)
+  - les Label et description dans la creation des menus.
+  - Secretariat: Correction  du retours de l'API d'HelloAsso
+    - Plusieurs commande avec 1 piement
+    - Prendre en compte les reductions
 
 ## Version 0.9.8
 
-  - 📰 Nouveautés
-    - Saisons - Activité rattachée à chaque groupe du club (référentiel FFESSM ou « Toutes »)
-    - Gestiondes des Brevets - Nouvelle vue (MDB) : administration du référentiel FFESSM et rattachement des brevets adhérents
-    - Brevets - Rattacher un brevet le renomme avec le libellé officiel FFESSM, qui devient non modifiable par l'adhérent
+- 📰 Nouveautés
+  - Saisons - Activité rattachée à chaque groupe du club (référentiel FFESSM ou « Toutes »)
+  - Gestiondes des Brevets - Nouvelle vue (MDB) : administration du référentiel FFESSM et rattachement des brevets adhérents
+  - Brevets - Rattacher un brevet le renomme avec le libellé officiel FFESSM, qui devient non modifiable par l'adhérent
 
-  - 🔧 Améliorations
-    - Base - Colonne `niveau` du référentiel renommée en `poids` (le « niveau » restant celui du plongeur)
-    - Saisons - Largeur des colonnes du panneau « Groupes du club »
-    - Secretariat - Fixe la date de validité de licence pendant l'etape de Finalization 
-    - Groupes - Amélioration de la vue Détail et Vignette
-    - Utilisateurs - Amelioration des col Lic et Caci
-
+- 🔧 Améliorations
+  - Base - Colonne `niveau` du référentiel renommée en `poids` (le « niveau » restant celui du plongeur)
+  - Saisons - Largeur des colonnes du panneau « Groupes du club »
+  - Secretariat - Fixe la date de validité de licence pendant l'etape de Finalization
+  - Groupes - Amélioration de la vue Détail et Vignette
+  - Utilisateurs - Amelioration des col Lic et Caci
 
 ## Version 0.9.7
 
-  - 📰 Nouveautés
-    - Base - Table de mapping des brevets FFESSM (78 libellés officiels / code / activité)
-    - Trombinoscope - Membre du bureau 
+- 📰 Nouveautés
+  - Base - Table de mapping des brevets FFESSM (78 libellés officiels / code / activité)
+  - Trombinoscope - Membre du bureau
 
-  - 🔧 Améliorations
-    - Utilisateurs - Separer la vue en 3 onglets
-    - Utilisateurs - bouton supprimer un adhérent 
-    - Utilisateurs - Possibilité de regenerer le mot de passe et de l'envoyer.
+- 🔧 Améliorations
+  - Utilisateurs - Separer la vue en 3 onglets
+  - Utilisateurs - bouton supprimer un adhérent
+  - Utilisateurs - Possibilité de regenerer le mot de passe et de l'envoyer.
 
-  - 🪲 Bugs
-    - La photo de profil par défaut ne s'affichait pas 
-    - Sauvegarde validité de la licence.
+- 🪲 Bugs
+  - La photo de profil par défaut ne s'affichait pas
+  - Sauvegarde validité de la licence.
 
 ## Version 0.9.6
 
-  - 🔧 Améliorations
-    - Installation - Nettoyage des fichiers obsolètes hérités des versions antérieures
+- 🔧 Améliorations
+  - Installation - Nettoyage des fichiers obsolètes hérités des versions antérieures
 
-  - 🪲 Bugs
-    - Les CSS et JS versionnés ce qui force le rechargement à chaque livraison.
+- 🪲 Bugs
+  - Les CSS et JS versionnés ce qui force le rechargement à chaque livraison.
 
 ## Version 0.9.5
 
- - 📰 Nouveautés
-    - Campagnes - Gerer campagne [Formation]
-    - Accueil - Reservation une campagne  [Formation]
+- 📰 Nouveautés
+  - Campagnes - Gerer campagne [Formation]
+  - Accueil - Reservation une campagne  [Formation]
 
-  - 🔧 Améliorations
-    - Accueil - Menage ancien dashboard
-    - Profil - Liste des brevets "CARD_FIELDS_LIGHT"
-    - profil - edition brevets (Création  BrevetsService)
-    - Adhesion - Message plus specifique apres scan QR Code
-    - Adhesion/Secretariat - Btn suivant et precedent 
-    - 
+- 🔧 Améliorations
+  - Accueil - Menage ancien dashboard
+  - Profil - Liste des brevets "CARD_FIELDS_LIGHT"
+  - profil - edition brevets (Création  BrevetsService)
+  - Adhesion - Message plus specifique apres scan QR Code
+  - Adhesion/Secretariat - Btn suivant et precedent
+  -
 
-  - 🪲 Bugs
-    - Les champs editables, se sauvegarde correctement 
-    - Adhesion - Fautes d'orthographe
-    - Adhesion - Placeholder du champ date des brevets
-    - Adhesion - Le recap des plongées sous 35m
-    - Adhesion - Gestion echec HelloAsso 
-    - Icon HelloAsso disponible offline
+- 🪲 Bugs
+  - Les champs editables, se sauvegarde correctement
+  - Adhesion - Fautes d'orthographe
+  - Adhesion - Placeholder du champ date des brevets
+  - Adhesion - Le recap des plongées sous 35m
+  - Adhesion - Gestion echec HelloAsso
+  - Icon HelloAsso disponible offline
 
 ## Version 0.9.0
 
-  - 📰 Nouveautés
-    - Vue pour gerer Les saisons!
-      - Modifier les infos de la courante (Titre lienn dates, helloAsso etc..)
-      - Modifier les groupes ouverts aux adhésions
-      - Ouvrir / fermé  les saisons 
+- 📰 Nouveautés
+  - Vue pour gerer Les saisons!
+    - Modifier les infos de la courante (Titre lienn dates, helloAsso etc..)
+    - Modifier les groupes ouverts aux adhésions
+    - Ouvrir / fermé  les saisons
 
-  - 🔧 Améliorations
-    - site: Nettoyage du fichier com_gdadhesions.ini
-    - site: vue utilisateur 
-      - Ajout de la fontion pour les membre du bureau 
-      - Ajout du filtre pour afficher que les membre d'un groupe
-      - Ajout du lien pour editer le profil de chaque utilisateur 
-    - Site: possibilité de telecharger le CACI au format PDF  ( Adhesion & Profils)
+- 🔧 Améliorations
+  - site: Nettoyage du fichier com_gdadhesions.ini
+  - site: vue utilisateur
+    - Ajout de la fontion pour les membre du bureau
+    - Ajout du filtre pour afficher que les membre d'un groupe
+    - Ajout du lien pour editer le profil de chaque utilisateur
+  - Site: possibilité de telecharger le CACI au format PDF  ( Adhesion & Profils)
 
-  - 🪲 Bugs
-    - pb de case avec ToolHelper.
-    - save profil: ajout le control du  niveau d'acces
+- 🪲 Bugs
+  - pb de case avec ToolHelper.
+  - save profil: ajout le control du  niveau d'acces
 
 ## Version 0.8.2
 
- - 📰 Nouveautés
-    - Affichage du role utilisateur  dans *Accueil / Adhérents*
-    - Site: Nouvelle vue *Utilisateur* reservé au **Membre du Bureau** pour donner les roles et Activer/bloquer les utilisateurs.
+- 📰 Nouveautés
+  - Affichage du role utilisateur  dans *Accueil / Adhérents*
+  - Site: Nouvelle vue *Utilisateur* reservé au **Membre du Bureau** pour donner les roles et Activer/bloquer les utilisateurs.
 
 - 🔧 Améliorations
-    - Ajouter du loggin pour toutes les étapes de validation ou de-validation de la vue Secretariat
+  - Ajouter du loggin pour toutes les étapes de validation ou de-validation de la vue Secretariat
 
 - 🪲 Bugs
   - Mise a jour du tooltips: "Licence temporaire ..."
@@ -223,73 +246,76 @@
 
 ## Version 0.8.1
 
-  - 📰 Nouveautés
-    - Site: ajout d'une carte "Mise à jour du CACI" dans la vue Profil (`layouts/profil/mgn_caci.php`) : dépôt par drag&drop ou sélection classique, prise de photo via l'appareil photo natif sur mobile, saisie de la date de fin de validité. Permet à l'adhérent de renouveler son CACI sans repasser par le formulaire d'adhésion complet.
-    - Site: popup "fiche adhérent" en lecture seule, accessible en cliquant sur le Nom Prénom d'un adhérent dans les vues Groupes et Secrétariat (`ProfilController::showCard()`) : fiche allégée (photo/nom/licence) pour les Moniteurs et Responsables de Groupe, fiche complète (coordonnées, personne à prévenir) pour le Bureau.
+- 📰 Nouveautés
+  - Site: ajout d'une carte "Mise à jour du CACI" dans la vue Profil (`layouts/profil/mgn_caci.php`) : dépôt par drag&drop ou sélection classique, prise de photo via l'appareil photo natif sur mobile, saisie de la date de fin de validité. Permet à l'adhérent de renouveler son CACI sans repasser par le formulaire d'adhésion complet.
+  - Site: popup "fiche adhérent" en lecture seule, accessible en cliquant sur le Nom Prénom d'un adhérent dans les vues Groupes et Secrétariat (`ProfilController::showCard()`) : fiche allégée (photo/nom/licence) pour les Moniteurs et Responsables de Groupe, fiche complète (coordonnées, personne à prévenir) pour le Bureau.
 
-  - 🔧 Améliorations
-    - `media/com_gdadhesions/js/file_upload.js` : factorisation du câblage drag&drop (`FileUpload.create()`), désormais réutilisé par les vues Adhésion et Profil au lieu d'être dupliqué par vue.
-    - `media/com_gdadhesions/js/form_modal.js` : `simpleCallAjax()` accepte désormais directement un `FormData` (en plus d'un objet clé/valeur) et un callback d'échec ; ajout d'un handler générique `.js-show-profil-card` réutilisable par toute vue chargeant ce script.
-    - `src/Model/ProfilModel.php` : extraction de `showCardProfil()` vers le layout `layouts/profil/card_profil.php`, réutilisé à la fois par la vue Profil (éditable) et la popup fiche adhérent (lecture seule).
+- 🔧 Améliorations
+  - `media/com_gdadhesions/js/file_upload.js` : factorisation du câblage drag&drop (`FileUpload.create()`), désormais réutilisé par les vues Adhésion et Profil au lieu d'être dupliqué par vue.
+  - `media/com_gdadhesions/js/form_modal.js` : `simpleCallAjax()` accepte désormais directement un `FormData` (en plus d'un objet clé/valeur) et un callback d'échec ; ajout d'un handler générique `.js-show-profil-card` réutilisable par toute vue chargeant ce script.
+  - `src/Model/ProfilModel.php` : extraction de `showCardProfil()` vers le layout `layouts/profil/card_profil.php`, réutilisé à la fois par la vue Profil (éditable) et la popup fiche adhérent (lecture seule).
 
-  - 🪲 Bugs
-    - Vue Adhésion : la zone de dépôt du CACI ne se surlignait pas pendant le glisser-déposer (incohérence d'ID entre le template et le JS).
-    - Vue Profil : une erreur JavaScript pouvait survenir en déposant un fichier invalide dans la zone photo (mauvais paramètre passé au composant d'upload).
-
+- 🪲 Bugs
+  - Vue Adhésion : la zone de dépôt du CACI ne se surlignait pas pendant le glisser-déposer (incohérence d'ID entre le template et le JS).
+  - Vue Profil : une erreur JavaScript pouvait survenir en déposant un fichier invalide dans la zone photo (mauvais paramètre passé au composant d'upload).
 
 ## Version 0.8.0
-  - Nouveautés
-    - Site: ajout de la notion de saison courante (`#__gda_campagnes.courante`), distincte de la saison ouverte (`active`)
-      - `SaisonService::getSaisonCourante()` : saison de suivi (CACI, licence, groupes) de l'année en cours, indépendante de l'ouverture des inscriptions
-      - Corrige le blocage des vues Secrétariat/Groupes/Accueil une fois la saison fermée aux inscriptions
-    - Site: ajout de la vue `Groupes` (liste des groupes de formation avec leurs adhérents pour la saison ouverte)
-      - Un onglet Bootstrap par groupe, plus un onglet "Tous les groupes" (union dédupliquée des adhérents, premier onglet actif par défaut)
-      - Switch "Masquer les groupes vides" activé par défaut
-      - Tableau détaillé par groupe (simple-datatables : recherche/tri) : photo, nom/prénom, CACI, date de fin de validité, statut
-      - Prévisualisation agrandie de la photo et du CACI en modal (clic sur la miniature)
-      - Export PDF du tableau via impression navigateur
-      - Bascule d'affichage Détail / Vignette : vignette en `card` par adhérent (nom/prénom, photo, statut CACI avec lien vers l'image en grand, date de fin de validité)
-    - script.php: création automatique du menu frontend "Groupes" (sous "Adhérents"), à l'installation et lors de la mise à jour depuis une version antérieure
-      - Nouveau niveau d'accès "NA Groupes" (groupes Membre du Bureau + Moniteur)
-    - #__gda_groupes: attribution d'une icône Font Awesome (fa-solid) à chaque groupe pour l'affichage des onglets de la vue Groupes
+
+- Nouveautés
+  - Site: ajout de la notion de saison courante (`#__gda_campagnes.courante`), distincte de la saison ouverte (`active`)
+    - `SaisonService::getSaisonCourante()` : saison de suivi (CACI, licence, groupes) de l'année en cours, indépendante de l'ouverture des inscriptions
+    - Corrige le blocage des vues Secrétariat/Groupes/Accueil une fois la saison fermée aux inscriptions
+  - Site: ajout de la vue `Groupes` (liste des groupes de formation avec leurs adhérents pour la saison ouverte)
+    - Un onglet Bootstrap par groupe, plus un onglet "Tous les groupes" (union dédupliquée des adhérents, premier onglet actif par défaut)
+    - Switch "Masquer les groupes vides" activé par défaut
+    - Tableau détaillé par groupe (simple-datatables : recherche/tri) : photo, nom/prénom, CACI, date de fin de validité, statut
+    - Prévisualisation agrandie de la photo et du CACI en modal (clic sur la miniature)
+    - Export PDF du tableau via impression navigateur
+    - Bascule d'affichage Détail / Vignette : vignette en `card` par adhérent (nom/prénom, photo, statut CACI avec lien vers l'image en grand, date de fin de validité)
+  - script.php: création automatique du menu frontend "Groupes" (sous "Adhérents"), à l'installation et lors de la mise à jour depuis une version antérieure
+    - Nouveau niveau d'accès "NA Groupes" (groupes Membre du Bureau + Moniteur)
+  - #__gda_groupes: attribution d'une icône Font Awesome (fa-solid) à chaque groupe pour l'affichage des onglets de la vue Groupes
 
 ## Version 0.7.16
-  - Améliorations
-    - Admin: renommage de la vue `helloasso` en `configuration`
-    - Admin: ajout d'un onglet "Email (mode debug)" dans la vue Configuration pour piloter la cle `DevMailOverride` (`#__gda_conf`)
-    - script.php: ajout de la methode `update()` pour nettoyer les fichiers/dossiers obsoletes de l'ancienne vue `helloasso` lors d'une mise a jour
-    - Ajout du Release Notes
-    - Ajout du fichier de log.
+
+- Améliorations
+  - Admin: renommage de la vue `helloasso` en `configuration`
+  - Admin: ajout d'un onglet "Email (mode debug)" dans la vue Configuration pour piloter la cle `DevMailOverride` (`#__gda_conf`)
+  - script.php: ajout de la methode `update()` pour nettoyer les fichiers/dossiers obsoletes de l'ancienne vue `helloasso` lors d'une mise a jour
+  - Ajout du Release Notes
+  - Ajout du fichier de log.
 
 ## Version 0.7.15
-  - Améliorations
-    - Optimization des images dans la vue secretariat
-    - Refond du layout  secretariat/payment.php 
-    - Ajout du d'un dasboard Suivi Adhésion, avec les différentes etapes.
-  - Corrections
-    - Correction QR Code: Non connecter mais licence existe deja !
-    - Lien de re-edition , quand le compte est bloqué.
-    - Suppimer les message d'erreur apres 10 secondes [gda.js]
-    - Correction du bug cans le scanner QRcode empeche la fermuture la la modale. [adhesions.js]
-    - mise à jour des class pour la vue dasboard.
 
+- Améliorations
+  - Optimization des images dans la vue secretariat
+  - Refond du layout  secretariat/payment.php
+  - Ajout du d'un dasboard Suivi Adhésion, avec les différentes etapes.
+- Corrections
+  - Correction QR Code: Non connecter mais licence existe deja !
+  - Lien de re-edition , quand le compte est bloqué.
+  - Suppimer les message d'erreur apres 10 secondes [gda.js]
+  - Correction du bug cans le scanner QRcode empeche la fermuture la la modale. [adhesions.js]
+  - mise à jour des class pour la vue dasboard.
 
 ## Version 0.7.14
-  - Bug - Template mail pour les nouveaux (Demarre par N)
 
+- Bug - Template mail pour les nouveaux (Demarre par N)
 
 ## Version: 0.7.13
-  - correction Bugs mail 
 
+- correction Bugs mail
 
 ## Version: 0.7.12
-  - Secretariat: Effacer la photo et la Caci durant le delete.
-  - Mise a jour des templates de mail (finalization et adhesion)
-  - Ajout du logger dans chaque étape de validation de la secraitaire.
+
+- Secretariat: Effacer la photo et la Caci durant le delete.
+- Mise a jour des templates de mail (finalization et adhesion)
+- Ajout du logger dans chaque étape de validation de la secraitaire.
 
 ## Version: 0.7.11
- - Ajoute d'un looger Helper/GdaLogger
- - Ajoute d'une entré dans la table `#__gda_groupes`
- - Ajout du service NotificationMailService avec les layouts :
-  - finalization_[html|text].php
-  - profile_lifecycle_[html|text].php
+
+- Ajoute d'un looger Helper/GdaLogger
+- Ajoute d'une entré dans la table `#__gda_groupes`
+- Ajout du service NotificationMailService avec les layouts :
+- finalization_[html|text].php
+- profile_lifecycle_[html|text].php

@@ -56,13 +56,32 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   };
 
-  // Initialise la table du premier onglet (affiche par defaut au chargement de la page).
-  const activePane = document.querySelector('#groupesTabContent .tab-pane.active');
-  initGroupeTable(activePane);
+  /**
+   * Indique si la vue detail (tableau) est actuellement affichee (non masquee par le mode vignette).
+   *
+   * @returns {boolean}
+   */
+  const isDetailModeActive = function () {
+    const detailView = document.querySelector('.gda-groupes-view--detail');
 
-  // Initialise la table d'un onglet a sa premiere ouverture (les tableaux caches faussent les largeurs de colonnes).
+    return !!detailView && !detailView.classList.contains('d-none');
+  };
+
+  // Initialise la table du premier onglet, seulement si la vue detail est affichee par defaut
+  // (un tableau cache par le mode vignette ou par un onglet inactif fausse les largeurs de colonnes).
+  const activePane = document.querySelector('#groupesTabContent .tab-pane.active');
+
+  if (isDetailModeActive()) {
+    initGroupeTable(activePane);
+  }
+
+  // Initialise la table d'un onglet a sa premiere ouverture en mode detail (les tableaux caches faussent les largeurs de colonnes).
   document.querySelectorAll('#groupesTabNav button[data-bs-toggle="tab"]').forEach(function (tabButton) {
     tabButton.addEventListener('shown.bs.tab', function (event) {
+      if (!isDetailModeActive()) {
+        return;
+      }
+
       const targetSelector = event.target.getAttribute('data-bs-target');
       const pane = targetSelector ? document.querySelector(targetSelector) : null;
 
@@ -126,6 +145,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (btnDisplayVignette) {
       btnDisplayVignette.classList.toggle('active', mode === 'vignette');
+    }
+
+    // Bascule vers le detail : initialise la DataTable de l'onglet actif si ce n'est pas deja fait
+    // (jusque-la elle etait masquee par le mode vignette, donc jamais initialisee).
+    if (mode === 'detail') {
+      initGroupeTable(document.querySelector('#groupesTabContent .tab-pane.active'));
     }
   };
 

@@ -2,7 +2,7 @@
 
 /**
  * Layout : Affichage du statut de souscription et suivi CACI
- * 
+ *
  * @var array $displayData
  * - $displayData['souscription'] : objet souscription ou null
  * - $displayData['statusEnum']   : code statut (NOT_SUBSCRIBED, etc.)
@@ -26,25 +26,26 @@ $statusEnum = $displayData['statusEnum'] ?? AdhesionStatusHelper::STATUS_NOT_SUB
 $user = $displayData['user'] ?? null;
 $itemid = $displayData['itemid'] ?? 0;
 
-$action = AdhesionStatusHelper::buildActionLink($statusEnum, $souscription);
 $statusLabel = AdhesionStatusHelper::getStatusLabel($statusEnum);
 $badgeClass = 'bg-' . AdhesionStatusHelper::getStatusBadgeClass($statusEnum);
-
-// Déterminer si pas d'action requise
-$isCompleted = $statusEnum === AdhesionStatusHelper::STATUS_COMPLETED;
 ?>
-<div class="col-12 col-md-8 col-lg-6">
-  <div class="card bg-gda-white">
+<div class="card bg-gda-white">
 
+  <div class="card-header d-flex align-items-center">
+    <button class="btn btn-sm p-0 me-2 toggle-card"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#suiviAdhesionCard"
+      aria-expanded="true">
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+    <i class="fa-solid fa-id-card me-2" aria-hidden="true"></i>Suivi Adhésion
+    <span class="badge <?= $badgeClass; ?> ms-auto">
+      <?= $statusLabel; ?>
+    </span>
+  </div>
 
-    <div class="card-header">
-      <i class="fa-solid fa-id-card me-2" aria-hidden="true"></i>
-      <span class="me-2"></span> Suivi Adhésion
-      <span class="badge <?= $badgeClass; ?> float-end">
-        <?= $statusLabel; ?>
-      </span>
-    </div>
-
+  <div class="collapse show" id="suiviAdhesionCard">
     <div class="card-body">
 
       <!-- SECTION 1 : Timeline des étapes -->
@@ -61,21 +62,9 @@ $isCompleted = $statusEnum === AdhesionStatusHelper::STATUS_COMPLETED;
           ];
 
           // Test si l'utilisateur est bloqué ou pas!
-        $isActive = !UsersHelper::isBlocked($user->username);
-        
-          foreach ($steps as $index => $step) {
-          //   $isActive = false;
-            // Déterminer quelle étape est bloquante
-            // if ($statusEnum === AdhesionStatusHelper::STATUS_NOT_SUBSCRIBED && $index === 0) {
-            //   $isActive = true;
-            // } elseif ($statusEnum === AdhesionStatusHelper::STATUS_CACI_REQUIRED && $index === 1) {
-            //   $isActive = true;
-            // } elseif ($statusEnum === AdhesionStatusHelper::STATUS_PAYMENT_REQUIRED && $index === 2) {
-            //   $isActive = true;
-            // } elseif ($statusEnum === AdhesionStatusHelper::STATUS_LICENCE_REQUIRED && $index === 3) {
-            //   $isActive = true;
-            // }
+          $isActive = !UsersHelper::isBlocked($user->username);
 
+          foreach ($steps as $index => $step) {
             $classStep = $step['done'] ? 'text-success' : ($isActive ? 'text-danger' : 'text-muted');
             $classIcon = $step['done'] ? 'fa-check-circle' : ($isActive ? 'fa-exclamation-circle' : 'fa-circle');
           ?>
@@ -90,47 +79,55 @@ $isCompleted = $statusEnum === AdhesionStatusHelper::STATUS_COMPLETED;
         </div>
       </div>
 
-     
-      <!-- SECTION 2 : Commentaire ou des precicions -->
+      <!-- SECTION 2 : Commentaires ou précisions -->
 
-      <?php $description = AdhesionStatusHelper::getStatusDescription($statusEnum, $souscription); ?>
-      <div class="mb-4">
-        <!-- <h6 class="mb-3 text-decoration-underline">Description :</h6> -->
-        <div class="alert alert-<?= $description['type']; ?> d-flex align-items-center mb-0">
-          <i class="fa <?= $description['icon']; ?> me-2"></i>
-          <span><?= $description['message']; ?></span>
-        </div>
+      <?php
+      // Un message par étape encore en attente (CACI, Paiement, Licence), pas seulement celui de
+      // l'étape actuellement bloquante : l'adhérent doit pouvoir anticiper un paiement manquant
+      // avant même que sa CACI soit validée par le secrétariat.
+      $descriptions = AdhesionStatusHelper::getPhaseDescriptions($souscription);
+      ?>
+      <div class="mb-4 d-flex flex-column gap-2">
+        <?php foreach ($descriptions as $description) : ?>
+          <?php $descAction = $description['action'] ?? null; ?>
+          <div class="alert alert-<?= $description['type']; ?> mb-0">
+            <div class="row align-items-center g-2">
+              <div class="<?= $descAction !== null ? 'col-9 col-md-9' : 'col-12'; ?> d-flex align-items-center">
+                <i class="fa <?= $description['icon']; ?> me-2"></i>
+                <span><?= $description['message']; ?></span>
+              </div>
+
+              <?php if ($descAction !== null) : ?>
+                <div class="col-3 col-md-3 text-end">
+                  <?php
+                  $descBtnClasses = 'btn btn-sm btn-' . ($descAction['color'] ?? 'primary');
+                  $descIcon = $descAction['icon'] ?? 'fa-arrow-right';
+                  $descLabel = Text::_($descAction['label']);
+                  ?>
+                  <?php if (($descAction['type'] ?? '') === 'ajax_modal') : ?>
+                    <button type="button"
+                      class="<?= $descBtnClasses ?> js-show-payement"
+                      data-item-id="<?= (int) ($descAction['id_profil'] ?? 0) ?>"
+                      data-item-campagne="<?= (int) ($descAction['id_campagne'] ?? 0) ?>"
+                      data-item-order="<?= $this->escape((string) ($descAction['id_order'] ?? '0')) ?>">
+                      <i class="fa <?= $descIcon ?> me-1"></i> <?= $descLabel ?>
+                    </button>
+                  <?php elseif (($descAction['type'] ?? '') === 'external_link') : ?>
+                    <a href="<?= $this->escape((string) $descAction['url']) ?>" class="<?= $descBtnClasses ?>" target="_blank" rel="noopener noreferrer">
+                      <?= $descLabel ?>
+                      <img src="<?= FileHelper::getHelloAssoLogoSrc() ?>" alt="HelloAsso" width="16" height="16" class="ms-1">
+                    </a>
+                  <?php else : ?>
+                    <a href="<?= Route::_($descAction['url'], false) ?>" class="<?= $descBtnClasses ?>">
+                      <i class="fa <?= $descIcon ?> me-1"></i> <?= $descLabel ?>
+                    </a>
+                  <?php endif; ?>
+                </div>
+              <?php endif; ?>
+            </div>
+          </div>
+        <?php endforeach; ?>
       </div>
-
-
-      <!-- SECTION 3 : Action pour l'inscription -->
-      <?php if ($action !== null) { ?>
-        <div class="d-grid gap-2">
-          <?php
-          $btnClasses = 'btn btn-' . ($action['color'] ?? 'primary');
-          $icon = $action['icon'] ?? 'fa-arrow-right';
-          $label = Text::_($action['label']);
-          ?>
-          <?php if (($action['type'] ?? '') === 'ajax_modal') : ?>
-            <button type="button"
-              class="<?= $btnClasses ?> btn-lg js-show-payement"
-              data-item-id="<?= (int) ($action['id_profil'] ?? 0) ?>"
-              data-item-campagne="<?= (int) ($action['id_campagne'] ?? 0) ?>"
-              data-item-order="<?= htmlspecialchars((string) ($action['id_order'] ?? '0'), ENT_QUOTES, 'UTF-8') ?>">
-              <i class="fa <?= $icon ?> me-2"></i> <?= $label ?>
-            </button>
-          <?php elseif (($action['type'] ?? '') === 'external_link') : ?>
-            <a href="<?= $this->escape((string) $action['url']) ?>" class="<?= $btnClasses ?> btn-lg" target="_blank" rel="noopener noreferrer">
-              <?= $label ?>
-              <img src="<?= FileHelper::getHelloAssoLogoSrc() ?>" alt="HelloAsso" width="20" height="20" class="me-2"> 
-            </a>
-          <?php else : ?>
-            <a href="<?= Route::_($action['url'], false) ?>" class="<?= $btnClasses ?> btn-lg">
-              <i class="fa <?= $icon ?> me-2"></i> <?= $label ?>
-            </a>
-          <?php endif; ?>
-        </div>
-      <?php }  ?>
 
       <!-- Modal paiement HelloAsso (contenu injecté via AJAX) -->
       <div class="modal fade" id="payementModal" tabindex="-1" aria-hidden="true">

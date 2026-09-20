@@ -203,6 +203,20 @@ class FileHelper
 		return Uri::root() . 'media/com_gdadhesions/images/logo-helloasso.svg';
 	}
 
+	/**
+	 * Image par défaut d'un article (encart Boutique du dashboard Accueil), utilisée quand
+	 * HelloAsso ne fournit pas de photo pour un tarif/produit, ou que l'URL fournie ne charge pas
+	 * (observé sur le sandbox HelloAsso). Contrairement à getHelloAssoLogoSrc(), le chemin passe
+	 * par la clé de configuration ImagesPath plutôt qu'un chemin en dur, pour rester administrable
+	 * comme les autres images par défaut du composant (DefaultProfilPhoto, CampagneImageDefault).
+	 *
+	 * @return string URL absolue de media/com_gdadhesions/images/default_item.png.
+	 */
+	public static function getDefaultItemImageSrc(): string
+	{
+		return Uri::root() . ltrim((string) ConfHelper::getValue('ImagesPath'), '/') . 'default_item.png';
+	}
+
 
 
 /**

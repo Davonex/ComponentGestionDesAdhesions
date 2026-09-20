@@ -12,6 +12,19 @@ use NCB\Component\Gda\Site\Helper\ToolsHelper;
 class UsersHelper
 {
     /**
+     * Caches de requête (durée de vie : une requête HTTP), sur le modèle du référentiel statique de
+     * CotisationService. Les résolutions par titre sont appelées en boucle d'affichage
+     * (tmpl/utilisateurs/default.php, tmpl/accueil/default.php) et faisaient jusqu'ici une requête
+     * par appel. Ne jamais transformer en cache Joomla persistant : un changement de niveau d'accès
+     * ou de groupe doit être visible immédiatement.
+     *
+     * @var array<string, int>      $viewLevelIds    Titre de niveau d'accès => id (0 si inconnu).
+     * @var array<string, int|null> $groupIdsByTitle Titre de groupe => id (null si inconnu).
+     */
+    private static array $viewLevelIds = [];
+    private static array $groupIdsByTitle = [];
+
+    /**
      * Vérifie si un utilisateur Joomla existe pour un nom d'utilisateur donné.
      *
      * @param string $username Le nom d'utilisateur à rechercher.
@@ -126,15 +139,19 @@ class UsersHelper
      */
     private static function userHasViewLevel(string $viewLevelTitle): bool
     {
-        $db = Factory::getContainer()->get('DatabaseDriver');
-        $query = $db->createQuery()
-            ->select($db->quoteName('id'))
-            ->from($db->quoteName('#__viewlevels'))
-            ->where($db->quoteName('title') . ' = :title')
-            ->bind(':title', $viewLevelTitle);
+        if (!isset(self::$viewLevelIds[$viewLevelTitle])) {
+            $db = Factory::getContainer()->get('DatabaseDriver');
+            $query = $db->createQuery()
+                ->select($db->quoteName('id'))
+                ->from($db->quoteName('#__viewlevels'))
+                ->where($db->quoteName('title') . ' = :title')
+                ->bind(':title', $viewLevelTitle);
 
-        $db->setQuery($query);
-        $levelId = (int) $db->loadResult();
+            $db->setQuery($query);
+            self::$viewLevelIds[$viewLevelTitle] = (int) $db->loadResult();
+        }
+
+        $levelId = self::$viewLevelIds[$viewLevelTitle];
 
         if ($levelId <= 0) {
             return false;
@@ -210,6 +227,10 @@ class UsersHelper
      */
     private static function getGroupIdByTitle(string $groupTitle): ?int
     {
+        if (array_key_exists($groupTitle, self::$groupIdsByTitle)) {
+            return self::$groupIdsByTitle[$groupTitle];
+        }
+
         $db = Factory::getContainer()->get('DatabaseDriver');
         $query = $db->createQuery()
             ->select($db->quoteName('id'))
@@ -220,7 +241,7 @@ class UsersHelper
         $db->setQuery($query);
         $id = (int) $db->loadResult();
 
-        return $id > 0 ? $id : null;
+        return self::$groupIdsByTitle[$groupTitle] = $id > 0 ? $id : null;
     }
 
     /**
@@ -246,5 +267,41 @@ class UsersHelper
     public static function getSuperUsersGroupId(): ?int
     {
         return self::getGroupIdByTitle('Super Users');
+    }
+
+    /**
+     * Comptes pouvant être désignés responsable d'une campagne Formation / Loisir : comptes actifs
+     * des groupes « Membre du Bureau » et « Responsable de Groupe ». Source unique de la liste
+     * déroulante du formulaire (models/fields/responsablecampagne.php) et de la validation serveur
+     * de CampagnesModel::Sauver() : un id posté hors de cette liste est refusé.
+     *
+     * @return object[] Un objet par compte : id, name (Joomla), email, nom et prenom (profil, peuvent être null).
+     */
+    public static function getResponsablesCampagne(): array
+    {
+        $groupes = array_values(array_filter([
+            self::getGroupIdByTitle('Membre du Bureau'),
+            self::getGroupIdByTitle('Responsable de Groupe'),
+        ]));
+
+        if (empty($groupes)) {
+            return [];
+        }
+
+        $db = Factory::getContainer()->get('DatabaseDriver');
+
+        $query = $db->createQuery()
+            ->select('DISTINCT ' . $db->quoteName('u.id'))
+            ->select($db->quoteName(['u.name', 'u.email', 'p.nom', 'p.prenom']))
+            ->from($db->quoteName('#__users', 'u'))
+            ->join('INNER', $db->quoteName('#__user_usergroup_map', 'm') . ' ON ' . $db->quoteName('m.user_id') . ' = ' . $db->quoteName('u.id'))
+            ->join('LEFT', $db->quoteName('#__gda_profils', 'p') . ' ON ' . $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('u.id'))
+            ->whereIn($db->quoteName('m.group_id'), $groupes)
+            ->where($db->quoteName('u.block') . ' = 0')
+            ->order($db->quoteName('p.nom') . ' ASC, ' . $db->quoteName('p.prenom') . ' ASC, ' . $db->quoteName('u.name') . ' ASC');
+
+        $db->setQuery($query);
+
+        return $db->loadObjectList() ?: [];
     }
 }

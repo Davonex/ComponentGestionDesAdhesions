@@ -65,6 +65,7 @@
     <field
         name="event_helloasso"
         type="EventsHelloAsso"
+        formtype="Membership"
         label="Event HelloAsso"
         description="Choisissez un event HelloAsso pour le lier à cette saison"
     />

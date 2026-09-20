@@ -13,6 +13,7 @@ use Joomla\CMS\Response\JsonResponse;
 use Joomla\Database\DatabaseInterface;
 use Joomla\Registry\Registry;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
+use NCB\Component\Gda\Site\Helper\GdaLogger;
 use NCB\Component\Gda\Site\Service\ReservationService;
 
 /**
@@ -24,7 +25,7 @@ use NCB\Component\Gda\Site\Service\ReservationService;
  * Sécurité : l'identifiant de l'adhérent n'est JAMAIS lu depuis la requête, toujours pris sur
  * l'utilisateur connecté — sans quoi n'importe qui pourrait réserver ou annuler au nom d'un autre.
  */
-class ReservationController extends BaseController
+class ReservationController extends AjaxController
 {
     /**
      * Utilisateur connecté, ou exception si la session n'en a pas : les tâches ajax ne sont pas
@@ -39,6 +40,105 @@ class ReservationController extends BaseController
         }
 
         return $user;
+    }
+
+    /**
+     * Comme getAdherent(), en exigeant en plus un profil adhérent : sans lui, l'insertion de la
+     * réservation échoue sur une clé étrangère et l'erreur SQL brute remonterait à l'utilisateur.
+     *
+     * @return \Joomla\CMS\User\User L'utilisateur connecté, avec un profil.
+     * @throws \Exception (403) Si aucun utilisateur n'est connecté ; (404) s'il n'a pas de profil.
+     */
+    private function getAdherentAvecProfil(): \Joomla\CMS\User\User
+    {
+        $user = $this->getAdherent();
+
+        if (!$this->getReservationService()->profilExiste((int) $user->id)) {
+            throw new \Exception(Text::_('COM_GDA_RESERVATION_PROFIL_INTROUVABLE'), 404);
+        }
+
+        return $user;
+    }
+
+    /**
+     * Instantané d'une réservation pour détecter ce qui a changé : places actives (hors annulées)
+     * comptées par rôle et par statut, et commentaire.
+     *
+     * @param  object|null $reservation Résultat de ReservationService::getReservation()/reserver(), ou null.
+     * @return array{places: array<string, array<string, int>>, commentaire: string}
+     */
+    private function resumerReservation(?object $reservation): array
+    {
+        $places = [];
+
+        foreach ($reservation->places ?? [] as $place) {
+            if ($place->statut !== ReservationService::STATUT_ANNULEE) {
+                $places[$place->role][$place->statut] = ($places[$place->role][$place->statut] ?? 0) + 1;
+            }
+        }
+
+        return ['places' => $places, 'commentaire' => trim((string) ($reservation->commentaire ?? ''))];
+    }
+
+    /**
+     * Prévient le responsable de la campagne si l'adhérent vient de s'inscrire, de se désinscrire, de
+     * modifier ses places ou d'écrire/changer son commentaire (mail avec l'ancien et le nouveau statut
+     * par rôle, voir NotificationMailService::sendReservationActivityEmail()). Rien n'est envoyé si
+     * rien n'a changé (simple ré-enregistrement). Un échec du mail ne remet pas en cause la
+     * réservation déjà enregistrée : il est journalisé.
+     *
+     * @param object $campagnesModel Modèle des campagnes.
+     * @param int    $idCampagne     Campagne concernée.
+     * @param int    $idProfil       Adhérent concerné.
+     * @param array  $avant          resumerReservation() avant l'action.
+     * @param array  $apres          resumerReservation() après l'action.
+     */
+    private function notifierResponsable($campagnesModel, int $idCampagne, int $idProfil, array $avant, array $apres): void
+    {
+        $lignes = [];
+        $nbInscriptions = 0;
+        $nbDesinscriptions = 0;
+
+        foreach (array_unique(array_merge(array_keys($avant['places']), array_keys($apres['places']))) as $role) {
+            $avantRole = $avant['places'][$role] ?? [];
+            $apresRole = $apres['places'][$role] ?? [];
+            ksort($avantRole);
+            ksort($apresRole);
+
+            if ($avantRole === $apresRole) {
+                continue;
+            }
+
+            $lignes[] = ['role' => (string) $role, 'avant' => $avantRole, 'apres' => $apresRole];
+
+            if ($avantRole === []) {
+                $nbInscriptions++;
+            } elseif ($apresRole === []) {
+                $nbDesinscriptions++;
+            }
+        }
+
+        $commentaireModifie = $apres['commentaire'] !== '' && $apres['commentaire'] !== $avant['commentaire'];
+
+        if ($lignes === [] && !$commentaireModifie) {
+            return;
+        }
+
+        if ($lignes === []) {
+            $evenement = 'commentaire';
+        } elseif ($nbInscriptions === count($lignes)) {
+            $evenement = 'inscription';
+        } elseif ($nbDesinscriptions === count($lignes)) {
+            $evenement = 'desinscription';
+        } else {
+            $evenement = 'modification';
+        }
+
+        try {
+            $campagnesModel->notifierActiviteInscription($idCampagne, $idProfil, $evenement, $lignes, $apres['commentaire'], $commentaireModifie);
+        } catch (\Throwable $e) {
+            GdaLogger::error('Notification du responsable impossible (id_campagne=' . $idCampagne . ') : ' . $e->getMessage());
+        }
     }
 
     private function getReservationService(): ReservationService
@@ -69,13 +169,13 @@ class ReservationController extends BaseController
 
     /**
      * Réserve une ou plusieurs places (potentiellement réparties sur plusieurs rôles à la fois
-     * pour une campagne Loisir), ou met à jour une réservation existante. Le service décide seul
-     * du statut de chaque place (confirmée / liste d'attente) selon les places restantes de
-     * chaque rôle demandé. Si au moins une place est confirmée, que le paiement n'a pas encore
-     * été rapproché (#__gda_reservation.id_order vide) et que la campagne est liée à un
-     * événement HelloAsso, la réponse porte en plus un popup de paiement (voir
-     * reservation.helloasso_popup) : ce popup réapparaît à chaque réservation/modification tant
-     * que le paiement n'a pas été rapproché.
+     * pour une campagne Loisir), ou met à jour une réservation existante. Toute nouvelle place est
+     * créée en attente de validation par le responsable de campagne (voir le docblock de classe de
+     * ReservationService) ; la capacité restante n'est plus qu'une information affichée, jamais un
+     * verrou. Si au moins une place est confirmée, que le paiement n'a pas encore été rapproché
+     * (#__gda_reservation.id_order vide) et que la campagne est liée à un événement HelloAsso, la
+     * réponse porte en plus un popup de paiement (voir reservation.helloasso_popup) : ce popup
+     * réapparaît à chaque réservation/modification tant que le paiement n'a pas été rapproché.
      *
      * @return void Réponse ajax échoée directement (JsonResponse).
      */
@@ -88,7 +188,7 @@ class ReservationController extends BaseController
         try {
             $this->checkToken();
 
-            $user       = $this->getAdherent();
+            $user       = $this->getAdherentAvecProfil();
             $input      = $app->getInput();
             $idCampagne = $input->getInt('id_campagne', 0);
 
@@ -123,22 +223,23 @@ class ReservationController extends BaseController
                 throw new \Exception(Text::_('COM_GDA_RESERVATION_MULTIPLE_INTERDITE'), 400);
             }
 
-            $capacitesParRole = $campagnesModel->getRolesCapacite([$idCampagne])[$idCampagne] ?? [];
+            $avant = $this->resumerReservation($this->getReservationService()->getReservation($idCampagne, (int) $user->id));
 
             $reservation = $this->getReservationService()->reserver(
                 $idCampagne,
                 (int) $user->id,
                 $demandes,
-                $capacitesParRole,
                 $input->getString('commentaire', null)
             );
 
-            $enAttente          = false;
-            $aUnePlaceConfirmee = false;
+            $this->notifierResponsable($campagnesModel, $idCampagne, (int) $user->id, $avant, $this->resumerReservation($reservation));
+
+            $enAttenteValidation = false;
+            $aUnePlaceConfirmee  = false;
 
             foreach ($reservation->places as $place) {
                 if ($place->statut === ReservationService::STATUT_ATTENTE) {
-                    $enAttente = true;
+                    $enAttenteValidation = true;
                 } elseif ($place->statut === ReservationService::STATUT_CONFIRMEE) {
                     $aUnePlaceConfirmee = true;
                 }
@@ -159,9 +260,17 @@ class ReservationController extends BaseController
             }
 
             $Response->success = true;
-            $Response->message = $enAttente
-                ? Text::sprintf('COM_GDA_RESERVATION_EN_ATTENTE', $campagne->titre)
-                : Text::sprintf('COM_GDA_RESERVATION_CONFIRMEE', $campagne->titre);
+            // Une réservation ne portant que des places refusées (STATUT_REFUSEE, décision du
+            // responsable) ne doit être annoncée ni "validée" ni "en attente" : message neutre.
+            if ($enAttenteValidation) {
+                $cleMessage = 'COM_GDA_RESERVATION_EN_ATTENTE';
+            } elseif ($aUnePlaceConfirmee) {
+                $cleMessage = 'COM_GDA_RESERVATION_CONFIRMEE';
+            } else {
+                $cleMessage = 'COM_GDA_RESERVATION_MISE_A_JOUR';
+            }
+
+            $Response->message = Text::sprintf($cleMessage, $campagne->titre);
             // JsonResponse (Joomla\CMS\Response\JsonResponse) ne déclare que success/message/
             // messages/data : y ajouter une propriété dynamique (ex: $Response->helloasso_popup)
             // est deprecated depuis PHP 8.2 et casse la réponse (le warning HTML s'intercale
@@ -204,7 +313,11 @@ class ReservationController extends BaseController
             $campagnesModel = $this->getModel('Campagnes', 'Site');
             $campagne       = $campagnesModel->getCampagne($idCampagne);
 
+            $avant = $this->resumerReservation($this->getReservationService()->getReservation($idCampagne, (int) $user->id));
+
             $this->getReservationService()->annuler($idCampagne, (int) $user->id);
+
+            $this->notifierResponsable($campagnesModel, $idCampagne, (int) $user->id, $avant, $this->resumerReservation($this->getReservationService()->getReservation($idCampagne, (int) $user->id)));
 
             $Response->success = true;
             $Response->message = Text::sprintf('COM_GDA_RESERVATION_ANNULEE', $campagne->titre);
@@ -231,7 +344,7 @@ class ReservationController extends BaseController
         try {
             $this->checkToken();
 
-            $user       = $this->getAdherent();
+            $user       = $this->getAdherentAvecProfil();
             $idCampagne = $app->getInput()->getInt('id_campagne', 0);
 
             if ($idCampagne <= 0) {
@@ -243,6 +356,7 @@ class ReservationController extends BaseController
             $campagne       = $campagnesModel->getCampagne($idCampagne);
 
             $service     = $this->getReservationService();
+            $service->assertModifiable($idCampagne, (int) $user->id);
             $reservation = $service->getReservation($idCampagne, (int) $user->id);
 
             // Rôles proposés : ceux réellement configurés pour CETTE campagne (#__gda_campagne_roles),
