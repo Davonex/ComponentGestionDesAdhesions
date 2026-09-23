@@ -2,6 +2,7 @@
 
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Layout\LayoutHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Service\CotisationService;
 
@@ -25,9 +26,9 @@ $items = $displayData['items'] ?? [];
               <!-- <?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ACTION') ?> -->
             </th>
             <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PHOTO') ?></th>
+            <th class="align-middle"><i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_LICENCE') ?></th>
             <th class="align-middle"><i class="fa-solid fa-file-medical me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CACI') ?></th>
             <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PAIEMENT') ?></th>
-            <th class="align-middle"><i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_LICENCE') ?></th>
             <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_NAME') ?></th>
             <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_EMAIL') ?></th>
             <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE_DE_NAISSANCE') ?></th>
@@ -91,31 +92,17 @@ $items = $displayData['items'] ?? [];
                   <span class="text-muted">—</span>
                 <?php endif; ?>
               </td>
-              <?php $pathCaci = FileHelper::getImageSrc($item->caci, 'CaciPath'); ?>
+              <!-- LICENCE -->
               <td class="text-center">
-                <?php if (!empty($pathCaci)) : ?>
-                  <a
-                    href="#"
-                    class="js-image-preview-thumb"
-                    data-image-src="<?= $this->escape($pathCaci) ?>"
-                    data-image-alt="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CACI') ?? 'CACI') ?>"
-                    data-bs-toggle="modal"
-                    data-bs-target="#imagePreviewModal"
-                    aria-label="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CACI') ?? 'CACI') ?>"
-                  >
-                    <img
-                      src="<?= $this->escape($pathCaci) ?>"
-                      alt="<?= $this->escape(Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CACI') ?? 'CACI') ?>"
-                      width="32"
-                      height="32"
-                      loading="lazy"
-                      class="gda-preview-thumb gda-preview-thumb--32"
-                    >
-                  </a>
+                <?php if ($licenceValue !== '') : ?>
+                  <span class="<?= $this->escape($licenceClass) ?>" >
+                    <?= $this->escape($licenceValue) ?></span>
                 <?php else : ?>
                   <span class="text-muted">—</span>
                 <?php endif; ?>
               </td>
+              <!-- CACI : badge date de fin de validite, lien vers le fichier dans la popup d'apercu -->
+              <td class="text-center"><?= LayoutHelper::render('secretariat.caci_badge', ['item' => $item]) ?></td>
               <!-- PAIEMENT -->
               <td class="text-center">
                 <?php if (!empty($item->id_order)) : ?>
@@ -131,15 +118,6 @@ $items = $displayData['items'] ?? [];
                     <img width="20" height="20" src="<?= FileHelper::getHelloAssoLogoSrc() ?>" alt="COM_GDA_CAMPAGNE_HELLOASSO">
                     <?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PAIEMENT') ?>
                   </button>
-                <?php else : ?>
-                  <span class="text-muted">—</span>
-                <?php endif; ?>
-              </td>
-              <!-- LICENCE -->
-              <td class="text-center">
-                <?php if ($licenceValue !== '') : ?>
-                  <span class="<?= $this->escape($licenceClass) ?>" >
-                    <?= $this->escape($licenceValue) ?></span>
                 <?php else : ?>
                   <span class="text-muted">—</span>
                 <?php endif; ?>

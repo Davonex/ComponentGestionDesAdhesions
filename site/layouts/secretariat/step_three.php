@@ -2,6 +2,7 @@
 
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Layout\LayoutHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Service\CotisationService;
 
@@ -24,6 +25,7 @@ $items = $displayData['items'] ?? [];
             <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_ACTION') ?></th>
             <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PHOTO') ?></th>
             <th><i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_LICENCE') ?></th>
+            <th><i class="fa-solid fa-file-medical me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CACI') ?></th>
             <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_NAME') ?></th>
             <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_EMAIL') ?></th>
             <th><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_DATE_DE_NAISSANCE') ?></th>
@@ -101,6 +103,7 @@ $items = $displayData['items'] ?? [];
                   <span class="text-muted">—</span>
                 <?php endif; ?>
               </td>
+              <td class="text-center"><?= LayoutHelper::render('secretariat.caci_badge', ['item' => $item]) ?></td>
               <td>
                 <a href="#" class="js-show-profil-card" data-id-profil="<?= (int) ($item->id_profil ?? 0) ?>"><?= $this->escape(($item->civilite ?? '') . ' ' . ($item->nom ?? '') . ' ' . ($item->prenom ?? '')) ?></a>
               </td>

@@ -1,5 +1,11 @@
 # Component com_gadhesions
 
+## Version 1.0.1
+
+- 📈 Améliorations
+  - Ajout de la date de fin validité ds CACI l'etape 1, 2 et 4  avec un lien pour afficher le CACI 
+
+
 ## Version 1.0.0
 
 - 📰 Nouveautés

@@ -235,6 +235,7 @@
         'col-secretariat-xs', // Action (devalider CACI)
         'col-secretariat-xs',  // Photo
         'col-secretariat-sm',  // Licence
+        'col-secretariat-sm',  // Caci (badge date de fin de validite)
         'col-secretariat-sm',  // Nom
         'col-secretariat-lg',  // Ville
         'col-secretariat-md',  // Cotisation (Tarification)
@@ -310,6 +311,7 @@
         'col-secretariat-xs', // Action (devalider paiement)
         'col-secretariat-xs',  // Photo
         'col-secretariat-sm',  // Licence
+        'col-secretariat-sm',  // Caci
         'col-secretariat-lg',  // Nom
         'col-secretariat-lg',  // Email
         'col-secretariat-sm',  // Date de naissance
@@ -379,9 +381,9 @@
       columns: buildWidthColumns([
         'col-secretariat-xs', // Action (definaliser)
         'col-secretariat-xs',  // Photo
-        'col-secretariat-xs',  // Caci
-        'col-secretariat-sm',  // Paiement
         'col-secretariat-sm',  // Licence
+        'col-secretariat-sm',  // Caci (badge date de fin de validite)
+        'col-secretariat-sm',  // Paiement
         'col-secretariat-md',  // Nom
         'col-secretariat-md',  // Email
         'col-secretariat-sm',  // Date de naissance

@@ -2,6 +2,7 @@
 
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Layout\LayoutHelper;
 use NCB\Component\Gda\Site\Service\CotisationService;
 use NCB\Component\Gda\Site\Helper\FileHelper;
 
@@ -40,6 +41,7 @@ $reductionChoices = CotisationService::getOptionsReduction();
             </th>
             <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_PHOTO') ?></th>
             <th class="align-middle"><i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_LICENCE') ?></th>
+            <th class="align-middle"><i class="fa-solid fa-file-medical me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_CACI') ?></th>
             <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_NAME') ?></th>
 
             <th class="align-middle"><?= Text::_('COM_GDA_SECRETARIAT_TABLE_HEADER_VILLE')  ?></th>
@@ -130,6 +132,8 @@ $reductionChoices = CotisationService::getOptionsReduction();
                   <span class="text-muted">—</span>
                 <?php endif; ?>
               </td>
+              <!-- CACI : badge date de fin de validite, lien vers le fichier dans la popup d'apercu -->
+              <td class="text-center"><?= LayoutHelper::render('secretariat.caci_badge', ['item' => $item]) ?></td>
               <td>
                 <a href="#" class="js-show-profil-card" data-id-profil="<?= (int) ($item->id_profil ?? 0) ?>"><?= $this->escape(($item->civilite ?? '') . ' ' . ($item->nom ?? '') . ' ' . ($item->prenom ?? '')) ?></a>
               </td>

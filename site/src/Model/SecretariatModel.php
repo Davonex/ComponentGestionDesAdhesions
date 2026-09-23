@@ -222,6 +222,9 @@ class SecretariatModel extends ListModel
       $souscriptionService = new SouscriptionService($db);
 
       foreach ($results as &$item) {
+        // Statut du CACI (badge Fin de validité) calcule avant reformatage de la date : getCaciFileStatus()
+        // attend le format SQL (Y-m-d), comme dans CampagnesModel/GroupesModel.
+        $item->caci_status = AdhesionStatusHelper::getCaciFileStatus($item->caci, $item->date_caci);
         $item->date_caci = ToolsHelper::from_sqldate($item->date_caci);
         $item->last_update = ToolsHelper::from_sqldate($item->last_update);
         $item->groupes = [];
