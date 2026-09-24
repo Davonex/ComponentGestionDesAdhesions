@@ -22,7 +22,7 @@ $itemid = $displayData['itemid'] ?? 0;
 
 $licenceStatusEnum = AdhesionStatusHelper::getLicenceValidityStatus($profil->date_licence ?? null);
 $licenceStatusLabel = AdhesionStatusHelper::getStatusLabel($licenceStatusEnum);
-$licenceStatusClass = AdhesionStatusHelper::getStatusBadgeClass($licenceStatusEnum);
+$licenceStatusClass = AdhesionStatusHelper::getLicenceBadgeClass($licenceStatusEnum);
 $dateLicenceAffiche = ToolsHelper::from_sqldate($profil->date_licence ?? null);
 
 $caciStatusEnum = AdhesionStatusHelper::getCaciFileStatus($profil->caci ?? null, $profil->date_caci ?? null);
@@ -38,7 +38,7 @@ $needsUpdate = !in_array($licenceStatusEnum, [AdhesionStatusHelper::STATUS_LICEN
     <span class="text-muted">
       <i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_LICENCE') ?>
     </span>
-    <span class="badge bg-<?= $this->escape($licenceStatusClass) ?>" title="<?= $this->escape($licenceStatusLabel) ?>">
+    <span class="badge <?= $this->escape($licenceStatusClass) ?>" title="<?= $this->escape($licenceStatusLabel) ?>">
       <?= $dateLicenceAffiche !== '' ? $this->escape($dateLicenceAffiche) : '&mdash;' ?>
     </span>
   </div>

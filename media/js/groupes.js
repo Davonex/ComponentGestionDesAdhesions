@@ -107,6 +107,12 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
 
+    // Meme filtre sur la liste deroulante mobile ; disabled en plus de hidden car Safari iOS ignore hidden sur <option>.
+    document.querySelectorAll('#groupesSelect option[data-count="0"]').forEach(function (option) {
+      option.hidden = hiding;
+      option.disabled = hiding;
+    });
+
     // Si l'onglet actif vient d'etre masque, on bascule sur le premier onglet visible.
     if (activeTabHidden) {
       const firstVisibleTabButton = document.querySelector('#groupesTabNav .gda-groupes-tab-item:not(.d-none) .nav-link');
@@ -116,6 +122,28 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
   };
+
+  /**
+   * Liste deroulante des groupes (telephone, < md) : pilote les memes onglets Bootstrap que la barre
+   * d'onglets masquee, et reste synchronisee quand l'onglet actif change par ailleurs.
+   */
+  const groupesSelect = document.getElementById('groupesSelect');
+
+  if (groupesSelect) {
+    groupesSelect.addEventListener('change', function () {
+      const tabButton = document.getElementById(groupesSelect.value);
+
+      if (tabButton && window.bootstrap && bootstrap.Tab) {
+        bootstrap.Tab.getOrCreateInstance(tabButton).show();
+      }
+    });
+
+    document.querySelectorAll('#groupesTabNav button[data-bs-toggle="tab"]').forEach(function (tabButton) {
+      tabButton.addEventListener('shown.bs.tab', function (event) {
+        groupesSelect.value = event.target.id;
+      });
+    });
+  }
 
   const switchHideEmpty = document.getElementById('switchGroupesHideEmpty');
 
@@ -165,6 +193,16 @@ document.addEventListener('DOMContentLoaded', function () {
       setDisplayMode('vignette');
     });
   }
+
+  // Sur telephone (< md) la bascule Detail/Vignette est masquee : on force les vignettes si l'ecran
+  // passe sous ce seuil alors que le tableau est affiche (rotation, fenetre redimensionnee).
+  const mobileQuery = window.matchMedia('(max-width: 767.98px)');
+
+  mobileQuery.addEventListener('change', function (event) {
+    if (event.matches && isDetailModeActive()) {
+      setDisplayMode('vignette');
+    }
+  });
 
   /**
    * Export PDF : declenche l'impression (navigateur) de la DataTable de l'onglet actif,

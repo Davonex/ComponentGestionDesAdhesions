@@ -5,12 +5,12 @@
         <description>Gestion des adhesions - Neptune Club de Brunoy</description>
         <element>com_gdadhesions</element>
         <type>component</type>
-        <version>1.0.2</version>
-        <infourl title="Notes de version">https://github.com/Davonex/ComponentGestionDesAdhesions/releases/tag/1.0.2</infourl>
+        <version>1.0.3</version>
+        <infourl title="Notes de version">https://github.com/Davonex/ComponentGestionDesAdhesions/releases/tag/1.0.3</infourl>
         <downloads>
-            <downloadurl type="full" format="zip">https://github.com/Davonex/ComponentGestionDesAdhesions/releases/download/1.0.2/com_gdadhesions.zip</downloadurl>
+            <downloadurl type="full" format="zip">https://github.com/Davonex/ComponentGestionDesAdhesions/releases/download/1.0.3/com_gdadhesions.zip</downloadurl>
         </downloads>
-        <sha256>e7e6a76e30c7cb15f5706faeac4d330f831c87eee80571353f88b2eb6cdf75cd</sha256>
+        <sha256>30765e0027527371366f233045bfcc81f2f6d69be7fc38cab8eee07bc7ed6ece</sha256>
         <tags>
             <tag>stable</tag>
         </tags>

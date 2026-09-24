@@ -72,7 +72,7 @@ $fusionLicenceCaci = $showReservationStatut;
                 $statusClass = AdhesionStatusHelper::getStatusBadgeClass($adherent->caci_status);
                 $dateLicence = ToolsHelper::from_sqldate($adherent->date_licence);
                 $licenceStatusLabel = AdhesionStatusHelper::getStatusLabel($adherent->licence_status);
-                $licenceStatusClass = AdhesionStatusHelper::getStatusBadgeClass($adherent->licence_status);
+                $licenceStatusClass = AdhesionStatusHelper::getLicenceBadgeClass($adherent->licence_status);
                 ?>
                 <tr<?= $showReservationStatut ? ' data-role="' . $this->escape((string) $adherent->role) . '" data-statut="' . $this->escape((string) $adherent->statut) . '"' : '' ?>>
                     <td class="text-center col-secretariat-xs">
@@ -115,7 +115,7 @@ $fusionLicenceCaci = $showReservationStatut;
                         </a>
                     </td>
                     <?php ob_start(); ?>
-                    <span class="badge bg-<?= $this->escape($licenceStatusClass) ?>" title="<?= $this->escape($licenceStatusLabel) ?>"> <i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= $dateLicence !== '' ? $this->escape($dateLicence) : '&mdash;' ?></span>
+                    <span class="badge <?= $this->escape($licenceStatusClass) ?>" title="<?= $this->escape($licenceStatusLabel) ?>"> <i class="fa-solid fa-id-card me-1" aria-hidden="true"></i><?= $dateLicence !== '' ? $this->escape($dateLicence) : '&mdash;' ?></span>
                     <?php $licenceHtml = ob_get_clean(); ob_start(); ?>
                     <?php if (!empty($pathCaci)) : ?>
                             <a

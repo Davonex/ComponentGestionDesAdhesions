@@ -189,15 +189,7 @@ $clubGroups = [
     <?php endif; ?>
 
     <!-- Modal de prévisualisation de la photo / du CACI -->
-    <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-body text-center p-2">
-                    <img id="imagePreviewImage" src="" alt="" class="img-fluid">
-                </div>
-            </div>
-        </div>
-    </div>
+    <?= LayoutHelper::render('commun.image_preview_modal') ?>
 
     <!-- Modal d'édition du profil (formulaire complet, chargé en ajax au clic sur le Nom Prénom) /
          fiche brevets (chargée en ajax au clic sur "Liste des brevets") -->

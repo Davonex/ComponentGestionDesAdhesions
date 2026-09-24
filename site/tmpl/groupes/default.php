@@ -30,7 +30,7 @@ $wa->useScript('com_gdadhesions.form_modal');
 $groupes = $this->groupes;
 ?>
 
-<div class="gda-groupes card shadow-lg p-4">
+<div class="gda-groupes card shadow-lg p-2 p-md-4">
 
     <?php if (!$this->saison) : ?>
         <p class="text-muted"><?= Text::_('COM_GDA_GROUPES_NO_SAISON') ?></p>
@@ -39,7 +39,8 @@ $groupes = $this->groupes;
     <?php else : ?>
 
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <div class="btn-group" role="group" aria-label="<?= $this->escape(Text::_('COM_GDA_GROUPES_DISPLAY_MODE')) ?>">
+            <?php // Le mode Détail (tableau) n'est pas lisible sur téléphone : bascule masquée sous md, vignettes forcées par groupes.js. ?>
+            <div class="btn-group d-none d-md-inline-flex" role="group" aria-label="<?= $this->escape(Text::_('COM_GDA_GROUPES_DISPLAY_MODE')) ?>">
                 <button type="button" class="btn btn-sm btn-outline-primary" id="btnGroupesDisplayDetail" data-display-mode="detail">
                     <i class="fa-solid fa-table-list me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_GROUPES_DISPLAY_DETAIL') ?>
                 </button>
@@ -54,7 +55,17 @@ $groupes = $this->groupes;
             </div>
         </div>
 
-        <ul class="nav nav-tabs" id="groupesTabNav" role="tablist">
+        <?php // Sur téléphone, les onglets empilés occupent tout l'écran : une liste déroulante les remplace et pilote les mêmes onglets (groupes.js). ?>
+        <select class="form-select d-md-none mb-2" id="groupesSelect" aria-label="<?= $this->escape(Text::_('COM_GDA_GROUPES_SELECT_LABEL')) ?>">
+            <?php foreach ($groupes as $index => $groupe) : ?>
+                <?php $count = count($groupe->adherents); ?>
+                <option value="groupe-tab-<?= $groupe->id_groupe ?>" data-count="<?= $count ?>"<?= $index === 0 ? ' selected' : '' ?>>
+                    <?= $this->escape($groupe->id_groupe === 0 ? Text::_('COM_GDA_GROUPES_ALL_TAB') : $groupe->groupe_name) ?> (<?= $count ?>)
+                </option>
+            <?php endforeach; ?>
+        </select>
+
+        <ul class="nav nav-tabs d-none d-md-flex" id="groupesTabNav" role="tablist">
             <?php foreach ($groupes as $index => $groupe) : ?>
                 <?php
                 $tabId = 'groupe-tab-' . $groupe->id_groupe;
@@ -81,7 +92,7 @@ $groupes = $this->groupes;
             <?php endforeach; ?>
         </ul>
 
-        <div class="tab-content border border-top-0 p-3" id="groupesTabContent">
+        <div class="tab-content gda-groupes-tab-content border border-top-0 p-0 p-md-3" id="groupesTabContent">
             <?php foreach ($groupes as $index => $groupe) : ?>
                 <?php $paneId = 'groupe-pane-' . $groupe->id_groupe; ?>
                 <div
@@ -90,7 +101,7 @@ $groupes = $this->groupes;
                     role="tabpanel"
                     aria-labelledby="groupe-tab-<?= $groupe->id_groupe ?>">
 
-                    <div class="d-flex justify-content-end mb-2">
+                    <div class="d-none d-md-flex justify-content-end mb-2">
                         <button type="button" class="btn btn-sm btn-outline-secondary js-groupe-export-pdf" data-target="#<?= $paneId ?> table">
                             <i class="fa-solid fa-file-pdf me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_GROUPES_EXPORT_PDF') ?>
                         </button>
@@ -109,15 +120,7 @@ $groupes = $this->groupes;
     <?php endif; ?>
 
     <!-- Modals -->        
-    <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-body text-center p-2">
-                    <img id="imagePreviewImage" src="" alt="" class="img-fluid">
-                </div>
-            </div>
-        </div>
-    </div>
+    <?= LayoutHelper::render('commun.image_preview_modal') ?>
 
     <div class="modal fade" id="profilCardModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">

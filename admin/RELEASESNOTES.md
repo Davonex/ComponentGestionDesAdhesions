@@ -1,5 +1,13 @@
 # Component com_gadhesions
 
+## Version 1.0.3
+
+- 📈 Améliorations
+  - Groupes : la page est adaptée au téléphone (choix du groupe dans une liste, deux fiches par ligne).
+  - Le badge Licence a sa propre couleur, bleu si elle est valide, rouge sinon, pour ne plus le confondre avec le CACI.
+  - L'aperçu d'un CACI ou d'une photo se ferme avec une croix en haut à droite.
+  - Sur téléphone, le fil d'Ariane n'est plus affiché pour laisser plus de place au contenu.
+
 ## Version 1.0.2
 
 - 🪲 Bugs

@@ -150,15 +150,7 @@ $layoutData = [
     </div>
 
     <!-- Modals réutilisés par l'onglet Suivi (prévisualisation photo/CACI, fiche adhérent) -->
-    <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-body text-center p-2">
-                    <img id="imagePreviewImage" src="" alt="" class="img-fluid">
-                </div>
-            </div>
-        </div>
-    </div>
+    <?= LayoutHelper::render('commun.image_preview_modal') ?>
 
     <div class="modal fade" id="profilCardModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">

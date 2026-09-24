@@ -523,6 +523,96 @@ select.tomselected {
     background: linear-gradient(to top, rgba(0, 0, 0, .55), rgba(0, 0, 0, 0));
 }
 
+/*
+ * Croix de fermeture en surimpression de la previsualisation d'image (#imagePreviewModal : photo,
+ * CACI) : pastille blanche pour rester visible sur n'importe quelle image.
+ * Prefixe .btn-close obligatoire : sa regle Cassiopeia (background raccourci transparent, opacite .5)
+ * a la meme specificite qu'une classe seule et template.css est charge apres gda.css.
+ */
+.btn-close.gda-modal-close-overlay {
+    --btn-close-opacity: 1;
+    --btn-close-hover-opacity: 1;
+    position: absolute;
+    top: .5rem;
+    right: .5rem;
+    z-index: 2;
+    padding: .5rem;
+    background-color: rgba(255, 255, 255, .9);
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+    opacity: 1;
+}
+
+.btn-close.gda-modal-close-overlay:hover,
+.btn-close.gda-modal-close-overlay:focus {
+    background-color: #fff;
+}
+
+/*
+ * Badge de licence FFESSM (AdhesionStatusHelper::getLicenceBadgeClass()) : couleurs pales distinctes
+ * des badges CACI (bg-success/warning/danger) pour que les deux ne se confondent pas.
+ * Prefixe .badge obligatoire : la regle .badge de Cassiopeia (color: var(--badge-color), blanc) a la
+ * meme specificite qu'une classe seule et son template.css est charge apres gda.css.
+ */
+.badge.gda-badge-licence-valide {
+    color: #1e3a8a;
+    background-color: #dbeafe;
+    border: 1px solid #93c5fd;
+}
+
+.badge.gda-badge-licence-invalide {
+    color: #991b1b;
+    background-color: #fde2e2;
+    border: 1px solid #fca5a5;
+}
+
+/* Nom de la vignette : une ligne tronquee, deux lignes sur telephone (voir ci-dessous). */
+.gda-vignette-nom {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/*
+ * Vue Groupes sur telephone (< 768 px, breakpoint md de Bootstrap) : consultee surtout en 360 px de
+ * large. Deux vignettes par ligne (layouts/groupes/vignette.php), photo plus basse, nom sur deux
+ * lignes, badges CACI/Licence empiles, et plus de bordure autour du contenu des onglets (la liste
+ * deroulante #groupesSelect remplace les onglets, cf. tmpl/groupes/default.php).
+ * Selecteurs a deux classes : ils doivent l'emporter sur les utilitaires/composants Bootstrap du
+ * template (.border, .align-items-center en !important, .card-header), charges apres gda.css.
+ */
+@media (max-width: 767.98px) {
+    .tab-content.gda-groupes-tab-content {
+        border: 0 !important;
+    }
+
+    .card-header.gda-vignette-nom {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+        font-size: .875rem;
+        line-height: 1.2;
+        padding-right: .5rem;
+        padding-left: .5rem;
+    }
+
+    .gda-vignette-photo {
+        height: 130px;
+    }
+
+    .gda-vignette-photo-wrap .gda-vignette-badges {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: .25rem;
+        padding: .25rem .375rem;
+    }
+
+    .gda-vignette-badges .badge {
+        font-size: .7rem;
+    }
+}
+
 /* Trombinoscope : styles deplaces dans media/com_gdadhesions/css/trombinoscope.css
    (asset com_gdadhesions.trombinoscope), charge uniquement par la vue Trombinoscope. */
 

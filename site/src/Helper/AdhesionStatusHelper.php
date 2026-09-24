@@ -173,8 +173,8 @@ class AdhesionStatusHelper
     /**
      * Détermine le statut de validité de la licence FFESSM d'un profil, à partir de sa seule date
      * de fin de validité (colonne #__gda_profils.date_licence) : pas de fichier associé à la
-     * licence, contrairement au CACI. Mêmes seuils et mêmes codes couleur (getStatusBadgeClass())
-     * que getCaciFileStatus(), pour un rendu visuel cohérent entre les deux colonnes.
+     * licence, contrairement au CACI. Mêmes seuils que getCaciFileStatus(), mais couleurs propres
+     * (getLicenceBadgeClass()) pour distinguer les deux badges.
      *
      * @param string|null $dateLicence Date de fin de validité au format SQL (colonne #__gda_profils.date_licence)
      * @return string Un des STATUS_LICENCE_*
@@ -577,6 +577,21 @@ class AdhesionStatusHelper
         }
 
         return $descriptions;
+    }
+
+    /**
+     * Retourne les classes CSS du badge de licence FFESSM. Palette propre (bleu pâle / rouge pâle,
+     * cf. gda.css) pour ne pas confondre ce badge avec celui du CACI, qui suit getStatusBadgeClass().
+     * Deux états seulement : une licence qui expire bientôt est encore valide.
+     *
+     * @param string $licenceStatus Un des STATUS_LICENCE_* (voir getLicenceValidityStatus())
+     * @return string Classes CSS à placer sur l'élément .badge (sans préfixe bg-)
+     */
+    public static function getLicenceBadgeClass(string $licenceStatus): string
+    {
+        $isValide = in_array($licenceStatus, [self::STATUS_LICENCE_VALID, self::STATUS_LICENCE_EXPIRING_SOON], true);
+
+        return $isValide ? 'gda-badge-licence-valide' : 'gda-badge-licence-invalide';
     }
 
     /**

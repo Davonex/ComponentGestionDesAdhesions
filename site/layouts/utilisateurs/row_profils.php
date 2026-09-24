@@ -38,7 +38,7 @@ $simplifiedStatusLabel = AdhesionStatusHelper::getSimplifiedStatusLabel($simplif
 
 $licenceStatusEnum = AdhesionStatusHelper::getLicenceValidityStatus($utilisateur->date_licence ?? null);
 $licenceStatusLabel = AdhesionStatusHelper::getStatusLabel($licenceStatusEnum);
-$licenceStatusClass = AdhesionStatusHelper::getStatusBadgeClass($licenceStatusEnum);
+$licenceStatusClass = AdhesionStatusHelper::getLicenceBadgeClass($licenceStatusEnum);
 $dateLicenceAffiche = ToolsHelper::from_sqldate($utilisateur->date_licence ?? null);
 
 $caciStatusEnum = AdhesionStatusHelper::getCaciFileStatus($utilisateur->caci ?? null, $utilisateur->date_caci ?? null);
@@ -87,7 +87,7 @@ $brevetsShortlist = $utilisateur->brevets_shortlist ?? [];
         ]) ?>
     </td>
     <td class="text-center align-middle">
-        <span class="badge bg-<?= $this->escape($licenceStatusClass) ?>" title="<?= $this->escape($licenceStatusLabel) ?>"><?= $dateLicenceAffiche !== '' ? $this->escape($dateLicenceAffiche) : '&mdash;' ?></span>
+        <span class="badge <?= $this->escape($licenceStatusClass) ?>" title="<?= $this->escape($licenceStatusLabel) ?>"><?= $dateLicenceAffiche !== '' ? $this->escape($dateLicenceAffiche) : '&mdash;' ?></span>
     </td>
     <td class="text-center align-middle">
         <?php if (!empty($pathCaci)) : ?>
