@@ -41,6 +41,7 @@
 			required="true"
 			class="form-control" 
 			size="25"
+			maxlength="50"
 		/>
 		<field
 			name="prenom"
@@ -50,6 +51,7 @@
 			required="true"
 			class="form-control" 
 			size="25"
+			maxlength="50"
 		/>
 		<field
 			name="date_de_naissance" 
@@ -138,6 +140,7 @@
 			description="COM_GDA_A_PREVENIR_DESC"
 			required="false"
 			size="25"
+			maxlength="50"
             class="form-control"
 		/>
 		<field

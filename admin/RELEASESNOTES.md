@@ -1,10 +1,16 @@
 # Component com_gadhesions
 
+## Version 1.0.2
+
+- 🪲 Bugs
+  - Adhésion : un téléphone saisi avec des points, des tirets ou l'indicatif +33 bloquait l'enregistrement. Il est maintenant accepté et remis au format 06 12 34 56 78.
+  - Adhésion : si l'enregistrement échoue, le futur adhérent peut réessayer avec la même adresse e-mail, sans message "Cette adresse e-mail existe déjà".
+  - Adhésion et profil : le nom, le prénom et la personne à prévenir sont limités à 50 caractères dès la saisie.
+
 ## Version 1.0.1
 
 - 📈 Améliorations
-  - Ajout de la date de fin validité ds CACI l'etape 1, 2 et 4  avec un lien pour afficher le CACI 
-
+  - Ajout de la date de fin validité ds CACI l'etape 1, 2 et 4  avec un lien pour afficher le CACI
 
 ## Version 1.0.0
 

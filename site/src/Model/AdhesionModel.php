@@ -776,6 +776,40 @@ class AdhesionModel extends FormModel
     }
 
     /**
+     * Supprimer le compte Joomla que createUser() vient de créer, quand la création du profil a
+     * échoué. Sans cette compensation, le compte orphelin (sans ligne dans #__gda_profils) bloque
+     * toute nouvelle tentative : l'adresse e-mail est déjà prise et aucun mail de reprise n'a été
+     * envoyé. Remet aussi l'id de la session d'adhésion à 0.
+     *
+     * Un échec de suppression est journalisé sans exception, pour ne pas masquer l'erreur
+     * d'origine de createProfil() que l'appelant relance.
+     *
+     * @return void
+     */
+    public function annulerCreationUser(): void
+    {
+        $app = $this->getApp();
+        $data = $app->getUserState('adhesion.save');
+        $idUser = (int) ($data['id'] ?? 0);
+
+        if ($idUser <= 0) {
+            return;
+        }
+
+        $user = Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($idUser);
+
+        if ((int) $user->id === $idUser && !$user->delete()) {
+            GdaLogger::error('Suppression du compte orphelin ' . $idUser . ' impossible : ' . $user->getError());
+            return;
+        }
+
+        GdaLogger::warning('Compte ' . $idUser . ' (' . ($data['email'] ?? '') . ') supprimé : la création du profil a échoué.');
+
+        $data['id'] = '0';
+        $app->setUserState('adhesion.save', $data);
+    }
+
+    /**
      * Créer le profil d’un nouvel utilisateur. Valide aussi la clé de réédition du profil créé
      * pour le reste de la session (voir la fin de la méthode) : un second envoi du formulaire
      * dans la même session (double-clic sur "Valider", ou retour sur le formulaire avant de

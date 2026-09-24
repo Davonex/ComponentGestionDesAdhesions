@@ -15,9 +15,9 @@
 
 	<field name="username" type="text" label="COM_GDA_LICENCE_LABEL" description="COM_GDA_LICENCE_DESC" class="inputbox" default="" pattern="A-[0-9]{2}-[0-9]{6,7}" hint="A-00-000000" size="25" />
 
-	<field name="nom" type="text" label="COM_GDA_NOM_LABEL" description="COM_GDA_NOM_DESC" required="true" class="" size="25" />
+	<field name="nom" type="text" label="COM_GDA_NOM_LABEL" description="COM_GDA_NOM_DESC" required="true" class="" size="25" maxlength="50" />
 
-	<field name="prenom" type="text" label="COM_GDA_PRENOM_LABEL" description="COM_GDA_PRENOM_DESC" required="true" class="fs-6 fs-md-4 fs-lg-2" size="25" />
+	<field name="prenom" type="text" label="COM_GDA_PRENOM_LABEL" description="COM_GDA_PRENOM_DESC" required="true" class="fs-6 fs-md-4 fs-lg-2" size="25" maxlength="50" />
 
 	<field name="date_de_naissance" type="Calendar" label="COM_GDA_DATE_NAISSANCE_LABEL" description="COM_GDA_DATE_NAISSANCE_DESC" size="20" maxlength="20" class=""  required="true" hint="dd/mm/yyyy" format="%d/%m/%Y" filterformat="d/m/Y" pattern="(0[1-9]|[12][0-9]|3[01])[/](0[1-9]|1[012])[/](19|20)\d\d" translateformat="false" />
 
@@ -37,7 +37,7 @@
 	<field name="upload.photo" type="file" label="COM_GDA_PHOTO_LABEL" description="" accept=".jpg" class="" />
 
 
-	<field name="a_prevenir" type="text" label="COM_GDA_A_PREVENIR_LABEL" description="COM_GDA_A_PREVENIR_DESC" required="true" size="25" class="" />
+	<field name="a_prevenir" type="text" label="COM_GDA_A_PREVENIR_LABEL" description="COM_GDA_A_PREVENIR_DESC" required="true" size="25" maxlength="50" class="" />
 
 	<field name="a_prevenir_tel" type="telephone" label="COM_GDA_A_PREVENIR_TEL_LABEL" description="COM_GDA_A_PREVENIR_TEL_DESC" required="true" pattern="^(?:0|\(?\+33\)?\s?|0033\s?)[1-79](?:[\.\-\s]?\d\d){4}$" size="25" class="" />
 

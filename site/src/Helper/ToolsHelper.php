@@ -85,14 +85,24 @@ class ToolsHelper
   }
 
   /**
-   * Convertit un numéro de téléphone en supprimant les espaces (ex: "06 12 34 56 78" devient "0612345678").
-   * Retourne une chaîne vide si le numéro est nul ou vide.
-   * @param string|null $tel Numéro de téléphone à convertir
-   * @return string Numéro de téléphone sans espaces
+   * Normalise un numéro de téléphone au format stocké en base (10 chiffres, colonnes varchar(10)).
+   * Le motif du formulaire accepte les séparateurs espace, point et tiret ainsi que les préfixes
+   * +33, (+33) et 0033 : ils sont tous ramenés au format national (ex: "+33 6.12.34.56.78" devient
+   * "0612345678"). Sans cela, l'INSERT échoue en mode SQL strict (« Data too long »).
+   *
+   * @param string $tel Numéro de téléphone saisi
+   * @return string Numéro de téléphone normalisé (chiffres uniquement)
    */
   public static function to_sqltel(string $tel): string
   {
-    return (str_replace(" ", "", $tel));
+    $chiffres = preg_replace('/\D/', '', $tel);
+
+    // Préfixe international français (+33, 0033) -> 0
+    if (preg_match('/^(?:0033|33)(\d{9})$/', $chiffres, $correspondance)) {
+      return '0' . $correspondance[1];
+    }
+
+    return $chiffres;
   }
 
 

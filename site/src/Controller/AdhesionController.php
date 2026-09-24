@@ -184,8 +184,14 @@ class AdhesionController extends AjaxController
                             throw new \DomainException(Text::_($cleMessage) . ' ' . Text::_('COM_GDA_ADHESION_SAVE_COMPTE_EXISTANT_AIDE'));
                         }
 
-                        // creer le nouveau profil
-                        $model->createProfil();
+                        // creer le nouveau profil ; en cas d'échec, supprimer le compte tout juste
+                        // créé pour que l'adhérent puisse réessayer (sinon e-mail « déjà utilisé »).
+                        try {
+                            $model->createProfil();
+                        } catch (\Exception $e) {
+                            $model->annulerCreationUser();
+                            throw $e;
+                        }
                         $model->sendWelcomeMail();
                     } else { // un profile existe re-edition grace au token
                         $branche = 'reedition_token';
