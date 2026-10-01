@@ -1283,7 +1283,8 @@ main .form-check-input:focus {
     table-layout: fixed;
 }
 
-/* Onglet Profils : Adhésion / Photo / Nom / Licence / CACI / Brevets / Email / Actions */
+/* Onglet Profils : Adhésion / Photo / Nom / Licence / CACI / Brevets / Email / Création /
+   Dernière connexion / Suppression */
 #tableUtilisateursProfils th:nth-child(1),
 #tableUtilisateursProfils td:nth-child(1) {
     width: 6%;
@@ -1296,32 +1297,47 @@ main .form-check-input:focus {
 
 #tableUtilisateursProfils th:nth-child(3),
 #tableUtilisateursProfils td:nth-child(3) {
-    width: 16%;
+    width: 15%;
 }
 
 #tableUtilisateursProfils th:nth-child(4),
 #tableUtilisateursProfils td:nth-child(4) {
-    width: 10%;
+    width: 9%;
 }
 
 #tableUtilisateursProfils th:nth-child(5),
 #tableUtilisateursProfils td:nth-child(5) {
-    width: 12%;
+    width: 10%;
 }
 
 #tableUtilisateursProfils th:nth-child(6),
 #tableUtilisateursProfils td:nth-child(6) {
-    width: 18%;
+    width: 16%;
 }
 
 #tableUtilisateursProfils th:nth-child(7),
 #tableUtilisateursProfils td:nth-child(7) {
-    width: 18%;
+    width: 15%;
 }
 
 #tableUtilisateursProfils th:nth-child(8),
 #tableUtilisateursProfils td:nth-child(8) {
     width: 8%;
+}
+
+#tableUtilisateursProfils th:nth-child(9),
+#tableUtilisateursProfils td:nth-child(9) {
+    width: 8%;
+}
+
+#tableUtilisateursProfils th:nth-child(10),
+#tableUtilisateursProfils td:nth-child(10) {
+    width: 6%;
+}
+
+/* Colonnes Création / Dernière connexion : police réduite pour tenir dans 8 % */
+.gda-table-compact .gda-cell-date {
+    font-size: .75rem;
 }
 
 #tableUtilisateursProfils td:nth-child(3),

@@ -64,6 +64,7 @@ class UtilisateursModel extends ListModel
                 $db->quoteName('u.name'),
                 $db->quoteName('u.email'),
                 $db->quoteName('u.block'),
+                $db->quoteName('u.registerDate'),
                 $db->quoteName('u.lastvisitDate'),
                 $db->quoteName('p.civilite'),
                 $db->quoteName('p.nom'),

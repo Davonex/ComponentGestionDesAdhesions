@@ -2,7 +2,8 @@
 
 /**
  * Layout : ligne de l'onglet "Profils" de la vue Utilisateurs. Colonnes : Adhésion, Photo, Nom
- * Prénom, Licence (badge validité), CACI (badge validité), Brevets, Email, Suppression - même
+ * Prénom, Licence (badge validité), CACI (badge validité), Brevets, Email, Création du compte,
+ * Dernière connexion, Suppression - même
  * présentation (badge = date coloré selon validité, tooltip = statut) que layouts/groupes/detail.php.
  *
  * @var array $displayData
@@ -12,6 +13,7 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Layout\LayoutHelper;
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
@@ -48,6 +50,11 @@ $pathCaci = !empty($utilisateur->caci) ? FileHelper::getImageSrc($utilisateur->c
 $dateCaciAffiche = ToolsHelper::from_sqldate($utilisateur->date_caci ?? null);
 
 $brevetsShortlist = $utilisateur->brevets_shortlist ?? [];
+
+// Dates du compte Joomla (stockées en UTC) : affichées dans le fuseau de l'utilisateur par
+// HTMLHelper, triées par simple-datatables via data-order (timestamp, 0 = jamais connecté).
+$dateCreation = $utilisateur->registerDate ?? null;
+$dateDerniereConnexion = $utilisateur->lastvisitDate ?? null;
 ?>
 <tr data-id-user="<?= (int) $utilisateur->id ?>">
     <td class="text-center align-middle">
@@ -119,6 +126,17 @@ $brevetsShortlist = $utilisateur->brevets_shortlist ?? [];
         </a>
     </td>
     <td class="text-center align-middle"><?= $this->escape($utilisateur->email) ?></td>
+    <td class="text-center align-middle gda-cell-date" data-order="<?= $dateCreation ? (int) strtotime($dateCreation . ' UTC') : 0 ?>">
+        <?= $dateCreation ? HTMLHelper::_('date', $dateCreation, 'd/m/Y') : '&mdash;' ?>
+    </td>
+    <td class="text-center align-middle gda-cell-date" data-order="<?= $dateDerniereConnexion ? (int) strtotime($dateDerniereConnexion . ' UTC') : 0 ?>">
+        <?php if ($dateDerniereConnexion) : ?>
+            <?= HTMLHelper::_('date', $dateDerniereConnexion, 'd/m/Y') ?><br>
+            <span class="text-muted"><?= HTMLHelper::_('date', $dateDerniereConnexion, 'H:i') ?></span>
+        <?php else : ?>
+            <span class="text-muted"><?= Text::_('COM_GDA_UTILISATEURS_JAMAIS_CONNECTE') ?></span>
+        <?php endif; ?>
+    </td>
     <td class="text-center align-middle">
         <button
             type="button"

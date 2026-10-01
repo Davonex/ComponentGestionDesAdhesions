@@ -120,6 +120,8 @@ $clubGroups = [
                                 <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI') ?></th>
                                 <th class="text-center"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_BREVETS') ?></th>
                                 <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_EMAIL') ?></th>
+                                <th class="text-center gda-cell-date"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_CREATION') ?></th>
+                                <th class="text-center gda-cell-date"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_DERNIERE_CONNEXION') ?></th>
                                 <th class="text-center"><?= Text::_('COM_GDA_UTILISATEURS_TABLE_HEADER_SUPP') ?></th>
                             </tr>
                         </thead>

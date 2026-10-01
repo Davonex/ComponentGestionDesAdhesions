@@ -511,7 +511,7 @@ $pathCaci = FileHelper::getImageSrc($this->form->getField('caci')->value, "CaciP
       <?= $this->form->renderField('cotisation_code'); ?>
       <?= $this->form->renderField('cotisation_montant'); ?>
       <?= $this->form->renderField('helloasso'); ?>
-      <!-- <?= HTMLHelper::_('form.token'); ?> -->
+      <?= HTMLHelper::_('form.token'); ?>
       <input type="hidden" name="task" value="adhesion.save" />
 
 

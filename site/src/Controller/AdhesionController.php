@@ -188,7 +188,7 @@ class AdhesionController extends AjaxController
                         // créé pour que l'adhérent puisse réessayer (sinon e-mail « déjà utilisé »).
                         try {
                             $model->createProfil();
-                        } catch (\Exception $e) {
+                        } catch (\Throwable $e) {
                             $model->annulerCreationUser();
                             throw $e;
                         }
@@ -230,7 +230,9 @@ class AdhesionController extends AjaxController
                 // Refus métier : message destiné à l'adhérent, conservé tel quel.
                 GdaLogger::warning('AdhesionController::save() refusée : ' . $e->getMessage() . ' | ' . $this->getContexteDiagnostic($branche));
                 throw $e;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
+                // \Throwable et non \Exception : une \Error PHP (TypeError...) échappait sinon au JSON,
+                // Joomla renvoyait sa page d'erreur HTML et le client affichait « session expirée ».
                 if ($e->getCode() === 403) {
                     // Refus d'autorisation : le message est déjà destiné à l'adhérent.
                     GdaLogger::warning('AdhesionController::save() non autorisée : ' . $e->getMessage() . ' | ' . $this->getContexteDiagnostic($branche));
@@ -277,6 +279,17 @@ class AdhesionController extends AjaxController
             echo $Response;
         } catch (\Exception $e) {
             echo new JsonResponse($e);
+        } catch (\Throwable $e) {
+            // Erreur PHP hors du bloc d'enregistrement (upload, fixdata...) : journalisée, message
+            // générique, et toujours une réponse JSON (sinon le client affiche « session expirée »).
+            GdaLogger::error(sprintf(
+                'AdhesionController::save() erreur PHP : %s (%s:%d) | trace : %s',
+                $e->getMessage(),
+                basename($e->getFile()),
+                $e->getLine(),
+                str_replace("\n", ' <- ', $e->getTraceAsString())
+            ));
+            echo new JsonResponse(null, Text::_('COM_GDA_ADHESION_SAVE_ERREUR_TECHNIQUE'), true);
         }
     }
 

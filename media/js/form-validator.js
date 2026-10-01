@@ -65,7 +65,9 @@ const ajaxRequest = function (elementInput, task) {
 
         if (!elementValue) return;
 
-            const basePath = Joomla.getOptions('system.paths')?.baseFull || '';
+            // Chemin relatif à la racine (et non baseFull absolu) : core.js n'ajoute l'en-tête X-CSRF-Token
+            // que si l'URL est relative ou commence par window.location.origin.
+            const basePath = (Joomla.getOptions('system.paths')?.base || '') + '/';
             Joomla.request({
                 url: `${basePath}index.php?option=com_gdadhesions&task=form.` + task + "&format=json",
                 method: "POST",

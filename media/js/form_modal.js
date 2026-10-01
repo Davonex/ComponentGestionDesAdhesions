@@ -257,7 +257,9 @@ const refreshPreview = function (img) {
                 triggerButton.disabled = true;
             }
 
-            const basePath = Joomla.getOptions('system.paths')?.baseFull || '';
+            // Chemin relatif à la racine (et non baseFull absolu) : core.js n'ajoute l'en-tête X-CSRF-Token
+            // que si l'URL est relative ou commence par window.location.origin.
+            const basePath = (Joomla.getOptions('system.paths')?.base || '') + '/';
             Joomla.request({
                 method: 'POST',
                 url: `${basePath}index.php?option=com_gdadhesions&format=json`,
@@ -512,7 +514,20 @@ const parseAjaxResponse = (raw) => {
             return parsed;
         }
     } catch (e) {
-        // réponse non JSON : traitée ci-dessous
+        // réponse non JSON : traitée ci-dessous ; début du corps en console pour le diagnostic
+        // (page d'erreur PHP/Joomla, avertissement avant le JSON...), le message affiché étant générique.
+        console.error('Réponse ajax non JSON :', String(raw ?? '').substring(0, 500));
+
+        // JSON précédé d'un avertissement PHP affiché (display_errors actif, ex. dépassement de
+        // post_max_size) : on récupère la JsonResponse Joomla qui suit pour garder son vrai message.
+        const debutJson = String(raw ?? '').indexOf('{"success"');
+        if (debutJson > 0) {
+            try {
+                return JSON.parse(String(raw).substring(debutJson));
+            } catch (e2) {
+                // toujours illisible : message générique ci-dessous
+            }
+        }
     }
     return {
         success: false,
@@ -540,7 +555,9 @@ const simpleCallAjax = (data, cbPostRequest = null, renderMessage = true, cbOnFa
                     formData.append(key, value);
             });
         }
-        const basePath = Joomla.getOptions('system.paths')?.baseFull || '';
+        // Chemin relatif à la racine (et non baseFull absolu) : core.js n'ajoute l'en-tête X-CSRF-Token
+        // que si l'URL est relative ou commence par window.location.origin.
+        const basePath = (Joomla.getOptions('system.paths')?.base || '') + '/';
         Joomla.request({
                 method: 'POST',
                 url: `${basePath}index.php?option=com_gdadhesions&format=json`,

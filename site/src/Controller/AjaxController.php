@@ -8,6 +8,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Response\JsonResponse;
 use Joomla\CMS\Session\Session;
+use NCB\Component\Gda\Site\Helper\GdaLogger;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 
 /**
@@ -57,13 +58,44 @@ abstract class AjaxController extends BaseController
         if (!Session::checkToken($method)) {
             /** @var SiteApplication $app */
             $app = $this->app;
+
+            // Requête dépassant post_max_size : PHP vide tout le POST, jeton compris. Ce n'est pas
+            // une session expirée (cas typique : photo/CACI trop lourds), le message doit le dire.
+            $tropVolumineuse = $this->isRequeteTropVolumineuse();
+            $message = Text::_($tropVolumineuse ? 'COM_GDA_REQUETE_TROP_VOLUMINEUSE' : 'COM_GDA_SESSION_EXPIREE');
+
+            $serveur = $this->input->server;
+            GdaLogger::warning(sprintf(
+                'Jeton CSRF refusé (%s) : task=%s ; user_joomla=%d ; content_length=%d ; post_max_size=%s ; ip=%s ; user_agent=%s',
+                $tropVolumineuse ? 'requête trop volumineuse' : 'session expirée ou jeton absent',
+                $this->input->getCmd('task', ''),
+                (int) $app->getIdentity()->id,
+                $serveur->getInt('CONTENT_LENGTH', 0),
+                (string) ini_get('post_max_size'),
+                $serveur->getString('REMOTE_ADDR', ''),
+                $serveur->getString('HTTP_USER_AGENT', '')
+            ));
+
             $app->setHeader('status', 403, true);
             $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
             $app->sendHeaders();
-            echo new JsonResponse(null, Text::_('COM_GDA_SESSION_EXPIREE'), true);
+            echo new JsonResponse(null, $message, true);
             $app->close();
         }
 
         return true;
+    }
+
+    /**
+     * Indique si la requête a été vidée par PHP pour dépassement de post_max_size.
+     *
+     * @return bool True si le corps annoncé dépasse post_max_size et que le POST est vide.
+     */
+    private function isRequeteTropVolumineuse(): bool
+    {
+        $contentLength = $this->input->server->getInt('CONTENT_LENGTH', 0);
+        $postMaxSize = ini_parse_quantity((string) ini_get('post_max_size'));
+
+        return $postMaxSize > 0 && $contentLength > $postMaxSize && empty($_POST);
     }
 }

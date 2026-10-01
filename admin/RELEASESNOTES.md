@@ -1,5 +1,13 @@
 # Component com_gadhesions
 
+## Version 1.0.4
+
+- 📈 Améliorations
+  - Ajout 2 colonnes avec les date de creation du user et la date de dernier connexion.
+
+- 🪲 Bugs
+  - fix bug du message "Votre session a expiré. Rechargez la page (F5) et reconnectez-vous si besoin, puis recommencez."
+
 ## Version 1.0.3
 
 - 📈 Améliorations
