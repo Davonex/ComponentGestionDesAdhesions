@@ -36,6 +36,7 @@ class com_gdadhesionsInstallerScript
     private $data_utilisateurs = [];
     private $data_saisons = [];
     private $data_brevets = [];
+    private $data_suivi = [];
 
     private $templateStyleId = NULL;
 
@@ -173,6 +174,9 @@ class com_gdadhesionsInstallerScript
         //== creation menu pour la gestion des brevets (visible uniquement par les membres du bureau) ===
         $this->createBrevetsMenuItem($idMenuAdherent);
 
+        //== creation menu pour le suivi des formations (Bureau et Moniteurs, comme Groupes) ===
+        $this->createSuiviMenuItem($idMenuAdherent);
+
 
         // Aucun compte n'est créé ici : le Super User qui installe le composant dispose déjà de
         // tous les accès, et un compte en dur ferait voyager un nom, un e-mail et un hash de mot
@@ -194,6 +198,9 @@ class com_gdadhesionsInstallerScript
 
         // creation du menu "Brevets" pour les sites déjà installés (< 0.9.8)
         $this->addBrevetsMenuItemOnUpdate();
+
+        // creation du menu "Suivi des formations" pour les sites déjà installés (< 1.0.5)
+        $this->addSuiviMenuItemOnUpdate();
 
         return true;
     }
@@ -412,6 +419,59 @@ class com_gdadhesionsInstallerScript
         ];
 
         $this->createFrontendMenuItem($this->data_brevets);
+    }
+
+    /**
+     * Ajoute le menu "Suivi des formations" pour les sites déjà installés (< 1.0.5). Même
+     * reconstruction du contexte que addGroupesMenuItemOnUpdate().
+     */
+    private function addSuiviMenuItemOnUpdate(): void
+    {
+        $this->componentId = $this->componentId ?: $this->getComponentId();
+        $this->templateStyleId = $this->templateStyleId ?: $this->getDefaultSiteTemplateStyleId();
+
+        $this->groupIdBureau = $this->groupIdBureau ?: $this->createUserGroup('Membre du Bureau', 2);
+        $this->groupIdMoniteur = $this->groupIdMoniteur ?: $this->createUserGroup('Moniteur', 2);
+        $this->accessLevelIdGroupes = $this->accessLevelIdGroupes
+            ?: $this->createAccessLevel('NA Groupes', [$this->groupIdBureau, $this->groupIdMoniteur]);
+
+        $idMenuAdherent = $this->getMenuIdByAlias('adherents');
+
+        if ($idMenuAdherent === null) {
+            Factory::getApplication()->enqueueMessage(
+                'Menu parent "adherents" introuvable, impossible de créer le menu "Suivi des formations"',
+                'warning'
+            );
+            return;
+        }
+
+        $this->createSuiviMenuItem($idMenuAdherent);
+    }
+
+    /**
+     * Créé le menu frontend "Suivi des formations" (évaluation des compétences des élèves, accès
+     * Bureau et Moniteurs comme la vue Groupes) sous le menu parent donné.
+     *
+     * @param int $parentMenuId Identifiant du menu parent (ex: "Adhérents").
+     * @return void
+     */
+    private function createSuiviMenuItem(int $parentMenuId): void
+    {
+        $this->data_suivi = [
+            'title'        => 'Suivi des formations',
+            'alias'        => 'suivi_mgt',
+            'menutype'     => 'mainmenu',
+            'link'         => 'index.php?option=com_gdadhesions&view=suivi',
+            'path'         => 'adherents/suivi',
+            'type'         => 'component',
+            'parent_id'    => $parentMenuId,
+            'level'        => 2,
+            'component_id' => $this->componentId,
+            'access'       => $this->accessLevelIdGroupes, // Accès réservé au Bureau et aux Moniteurs
+            'params'       => [],
+        ];
+
+        $this->createFrontendMenuItem($this->data_suivi);
     }
 
     /**

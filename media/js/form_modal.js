@@ -265,6 +265,7 @@ const refreshPreview = function (img) {
                 url: `${basePath}index.php?option=com_gdadhesions&format=json`,
                 promise: false,
                 data: formData,
+                headers: getAjaxHeaders(),
             onSuccess: (data) => {
                     if (triggerButton) {
                         triggerButton.dataset.isSaving = '0';
@@ -501,6 +502,31 @@ document.addEventListener('click', function (event) {
 });
 
 /**
+ * En-têtes ajoutés à chaque appel ajax du composant : X-Gda-Connecte signale au serveur que la page a
+ * été affichée à un utilisateur connecté (voir AjaxController::checkToken()), pour qu'une session
+ * expirée renvoie vers l'accueil plutôt que d'afficher une erreur dans la page.
+ *
+ * @returns {Object}
+ */
+const getAjaxHeaders = () => {
+    const session = Joomla.getOptions('com_gdadhesions.session') || {};
+    return session.connecte ? { 'X-Gda-Connecte': '1' } : {};
+};
+
+/**
+ * Session expirée d'un utilisateur connecté : le serveur fournit l'URL de l'accueil (data.redirect), où
+ * le message « reconnectez-vous » a été mis en file. La page est quittée immédiatement.
+ *
+ * @param {Object} response Réponse JSON décodée.
+ * @returns {void}
+ */
+const redirigerSiSessionExpiree = (response) => {
+    if (response.success === false && response.data && typeof response.data.redirect === 'string') {
+        window.location.href = response.data.redirect;
+    }
+};
+
+/**
  * Décode une réponse ajax JSON. Une réponse illisible (page HTML de connexion ou d'erreur reçue à la place
  * du JSON) est presque toujours due à une session expirée : elle devient un échec avec un message clair.
  *
@@ -511,6 +537,7 @@ const parseAjaxResponse = (raw) => {
     try {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
+            redirigerSiSessionExpiree(parsed);
             return parsed;
         }
     } catch (e) {
@@ -563,6 +590,7 @@ const simpleCallAjax = (data, cbPostRequest = null, renderMessage = true, cbOnFa
                 url: `${basePath}index.php?option=com_gdadhesions&format=json`,
                 promise: false,
                 data: formData,
+                headers: getAjaxHeaders(),
             onSuccess: (data) => {
                     const response = parseAjaxResponse(data);
                     if (response.success) {

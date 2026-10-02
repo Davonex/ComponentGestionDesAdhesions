@@ -66,9 +66,15 @@ class DisplayController extends BaseController
         /**
          *  Gda.js est un fichier javascript pour toutes les vues
          */
-        $wa = $document->getWebAssetManager();
-        $wa->useScript('com_gdadhesions.gda');
-        \Joomla\CMS\Language\Text::script('COM_GDA_SESSION_EXPIREE');
+        // Le registre d'assets du composant n'est chargé que pour un document HTML : sur un autre
+        // format (requête json sans task), useScript() lèverait une exception incompréhensible.
+        if ($viewType === 'html') {
+            $wa = $document->getWebAssetManager();
+            $wa->useScript('com_gdadhesions.gda');
+            Text::script('COM_GDA_SESSION_EXPIREE');
+            // Lu par form_modal.js : sur session expirée, un utilisateur connecté est renvoyé vers l'accueil.
+            $document->addScriptOptions('com_gdadhesions.session', ['connecte' => !$user->guest]);
+        }
 
         // $viewLayout = $this->input->get('layout', 'default', 'string');
         /** @var HtmlView $view */

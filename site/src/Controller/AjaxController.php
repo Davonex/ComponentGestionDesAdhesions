@@ -8,6 +8,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Response\JsonResponse;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 
@@ -43,19 +44,21 @@ abstract class AjaxController extends BaseController
      * Vérifie le jeton CSRF ; sur une requête JSON invalide (session expirée), répond directement
      * en JSON avec un HTTP 403 et un message explicite, au lieu de rediriger.
      *
+     * Si la page appelante avait été affichée à un utilisateur connecté (en-tête X-Gda-Connecte,
+     * posé par form_modal.js), la réponse porte en plus l'URL de l'accueil dans data.redirect et le
+     * message « reconnectez-vous » est mis en file pour s'afficher sur cette page d'accueil.
+     *
      * @param string $method   Méthode de la requête portant le jeton ('post' par défaut).
      * @param bool   $redirect Comportement natif (redirection) pour les requêtes non JSON.
      * @return bool Toujours true pour une requête JSON (sinon la réponse est envoyée et l'application arrêtée).
      */
     public function checkToken($method = 'post', $redirect = true)
     {
-
-
         if ($this->input->get('format', '', 'cmd') !== 'json') {
             return parent::checkToken($method, $redirect);
         }
 
-        if (!Session::checkToken($method)) {
+        if (!$this->isJetonValide($method)) {
             /** @var SiteApplication $app */
             $app = $this->app;
 
@@ -63,6 +66,20 @@ abstract class AjaxController extends BaseController
             // une session expirée (cas typique : photo/CACI trop lourds), le message doit le dire.
             $tropVolumineuse = $this->isRequeteTropVolumineuse();
             $message = Text::_($tropVolumineuse ? 'COM_GDA_REQUETE_TROP_VOLUMINEUSE' : 'COM_GDA_SESSION_EXPIREE');
+            $redirigerAccueil = !$tropVolumineuse
+                && $this->input->server->getString('HTTP_X_GDA_CONNECTE', '') === '1';
+
+            // Messages en file ignorés : JsonResponse viderait sinon celui destiné à l'accueil.
+            $reponse = new JsonResponse($redirigerAccueil ? ['redirect' => Uri::root()] : null, $message, true, true);
+
+            if ($redirigerAccueil) {
+                // Persisté dans la (nouvelle) session, comme le fait CMSApplication::redirect(), pour
+                // être affiché par la page d'accueil vers laquelle le navigateur est renvoyé.
+                $app->getSession()->set('application.queue', [[
+                    'message' => Text::_('COM_GDA_SESSION_EXPIREE_RECONNEXION'),
+                    'type'    => 'warning',
+                ]]);
+            }
 
             $serveur = $this->input->server;
             GdaLogger::warning(sprintf(
@@ -79,11 +96,33 @@ abstract class AjaxController extends BaseController
             $app->setHeader('status', 403, true);
             $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
             $app->sendHeaders();
-            echo new JsonResponse(null, $message, true);
+            echo $reponse;
             $app->close();
         }
 
         return true;
+    }
+
+    /**
+     * Contrôle le jeton CSRF sans passer par Session::checkToken(), qui redirige vers index.php
+     * quand la session est neuve (session expirée) : le navigateur suivait alors cette redirection
+     * en GET vers index.php?option=com_gdadhesions&format=json, sans task, et le client recevait
+     * une erreur d'asset du DisplayController au lieu du message de session expirée.
+     *
+     * Même règle que Session::checkToken() : en-tête X-CSRF-Token, sinon champ portant le jeton.
+     *
+     * @param string $method Méthode de la requête portant le jeton.
+     * @return bool True si le jeton est valide.
+     */
+    private function isJetonValide(string $method): bool
+    {
+        $jeton = Session::getFormToken();
+
+        if ($jeton === $this->input->server->get('HTTP_X_CSRF_TOKEN', '', 'alnum')) {
+            return true;
+        }
+
+        return (bool) $this->input->$method->get($jeton, '', 'alnum');
     }
 
     /**

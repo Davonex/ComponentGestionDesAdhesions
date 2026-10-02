@@ -2,6 +2,8 @@
 -- Removes all component tables (order matters for foreign keys)
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `#__gda_suivi_competences`;
+DROP TABLE IF EXISTS `#__gda_competences`;
 DROP TABLE IF EXISTS `#__gda_composition_groupes`;
 DROP TABLE IF EXISTS `#__gda_mapping_brevets`;
 DROP TABLE IF EXISTS `#__gda_reservation_places`;

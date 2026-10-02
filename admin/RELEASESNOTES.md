@@ -1,5 +1,19 @@
 # Component com_gadhesions
 
+## Version 1.0.5
+
+- 📰 Nouveautés
+  - Nouvelle page `Suivi des formations` : les moniteurs évaluent, séance par séance, les compétences de chaque élève du Niveau 1 (En cours d'acquisition, Acquis, Maîtrisé, avec une observation).
+  - La page s'utilise sur téléphone, au bord du bassin.
+  - Une évaluation ne peut être modifiée que par son auteur ou par un responsable de groupe.
+  - Un clic sur le nom d'un élève affiche le bilan de son évaluation, séance par séance ; le survol d'une appréciation montre le moniteur et son observation, celui d'une compétence ses techniques.
+  - Les techniques de chaque compétence peuvent être dépliées dans la fenêtre d'évaluation.
+  - Nouvel onglet `Compétences`, réservé aux responsables de groupe : ajouter, modifier, ordonner et activer les compétences et leurs techniques, niveau par niveau.
+
+- 🪲 Bugs
+  - Redirection en cas de sessions expiré.
+  - Ouvrir l'adresse d'une page réservée (Groupes, Secrétariat, Campagnes…) sans en avoir le droit ramène maintenant à l'accueil avec un message, au lieu d'une erreur « trop de redirections ».
+
 ## Version 1.0.4
 
 - 📈 Améliorations

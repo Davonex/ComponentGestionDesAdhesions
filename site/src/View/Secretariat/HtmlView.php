@@ -7,7 +7,7 @@ namespace NCB\Component\Gda\Site\View\Secretariat;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
-use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 use NCB\Component\Gda\Site\Model\SecretariatModel;
@@ -25,7 +25,7 @@ class HtmlView extends BaseHtmlView
         // via ce menu, pas un accès direct à l'URL du composant.
         if (!UsersHelper::isBureauMember()) {
             $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'warning');
-            $app->redirect(Route::_('index.php', false));
+            $app->redirect(Uri::root());
             return;
         }
 

@@ -12,6 +12,7 @@ Il accompagne l'adhérent de sa demande d'adhésion jusqu'à l'accès à son esp
 - **Campagnes** : formations, sorties loisir et boutique du club, avec inscription des adhérents et validation par l'organisateur.
 - **Paiements HelloAsso** : cotisations, inscriptions et achats en boutique.
 - **Saisons et tarifs** : ouverture des saisons et tarification administrables par le bureau.
+- **Suivi des formations** : évaluation des compétences des élèves, séance par séance (Niveau 1).
 - **Trombinoscope** : membres du bureau et encadrants du club.
 
 ## Documentation
@@ -23,6 +24,7 @@ Il accompagne l'adhérent de sa demande d'adhésion jusqu'à l'accès à son esp
 | [Adhérer au club : le formulaire d'adhésion](docs/utilisateur/adhesion.md) | Adhérents |
 | [Les campagnes : mode d'emploi](docs/utilisateur/campagnes.md) | Adhérents et organisateurs |
 | [Les groupes : mode d'emploi](docs/utilisateur/groupes.md) | Moniteurs, responsables de groupe et bureau |
+| [Le suivi des formations : mode d'emploi](docs/utilisateur/suivi.md) | Moniteurs, responsables de groupe et bureau |
 
 ### Pour les développeurs
 

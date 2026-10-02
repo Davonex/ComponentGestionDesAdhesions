@@ -1139,7 +1139,8 @@ main .form-check-input:focus {
 .js-editable-tarif-hvy,
 .js-editable-tarif-option,
 .js-editable-tarif-commentaire,
-.js-editable-statut-inscription {
+.js-editable-statut-inscription,
+.js-editable-competence {
     position: relative;
     transition: background-color 0.15s ease-in-out;
 }
@@ -1155,7 +1156,8 @@ main .form-check-input:focus {
 .js-editable-tarif-hvy::before,
 .js-editable-tarif-option::before,
 .js-editable-tarif-commentaire::before,
-.js-editable-statut-inscription::before {
+.js-editable-statut-inscription::before,
+.js-editable-competence::before {
     content: "\f303"; /* fa-pencil (Font Awesome, deja charge par le gabarit Cassiopeia) */
     font-family: "Font Awesome 6 Free";
     font-weight: 900;
@@ -1179,7 +1181,8 @@ main .form-check-input:focus {
 .js-editable-tarif-hvy:hover,
 .js-editable-tarif-option:hover,
 .js-editable-tarif-commentaire:hover,
-.js-editable-statut-inscription:hover {
+.js-editable-statut-inscription:hover,
+.js-editable-competence:hover {
     background-color: #fef8e7 !important;
 }
 
@@ -1193,7 +1196,8 @@ main .form-check-input:focus {
 .js-editable-tarif-hvy:hover::before,
 .js-editable-tarif-option:hover::before,
 .js-editable-tarif-commentaire:hover::before,
-.js-editable-statut-inscription:hover::before {
+.js-editable-statut-inscription:hover::before,
+.js-editable-competence:hover::before {
     opacity: .45;
 }
 
@@ -1577,4 +1581,77 @@ table.gda-suivi-compact th {
 .gda-dialog .joomla-dialog-footer {
   padding: .5rem 1rem 1rem;
   border-top: 0;
+}
+
+/* Vue Suivi : tableau élèves x séances, colonne Élève figée pour le défilement horizontal (téléphone). */
+.gda-suivi-table .gda-suivi-col-eleve {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 11rem;
+  background-color: var(--body-bg, #fff);
+}
+.gda-suivi-table thead .gda-suivi-col-eleve {
+  background-color: var(--bs-table-bg, #f8f9fa);
+}
+.gda-suivi-photo {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.gda-suivi-cellule {
+  min-width: 3.25rem;
+  white-space: nowrap;
+}
+/* Le <form> s'intercale entre .modal-content et header/body/footer : il doit garder la mise en page
+   flex de Bootstrap pour que seul le corps défile (.modal-dialog-scrollable). */
+.gda-suivi-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+@media (max-width: 767.98px) {
+  .gda-suivi-table .gda-suivi-col-eleve {
+    min-width: 0;
+    max-width: 9rem;
+  }
+  .gda-suivi-nom {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .gda-suivi-competence .form-select,
+  .gda-suivi-competence .form-control {
+    font-size: 1rem; /* 16 px : évite le zoom automatique de Safari iOS à la saisie */
+  }
+}
+
+/* Récapitulatif d'un élève (vue Suivi) : icône d'appréciation, pastille si une observation existe. */
+.btn.gda-suivi-appreciation {
+  position: relative;
+  font-size: 1.15rem;
+  line-height: 1;
+  text-decoration: none;
+}
+.gda-suivi-indicateur-observation {
+  position: absolute;
+  top: -.35rem;
+  right: -.6rem;
+  font-size: .6rem;
+  color: #6c757d;
+}
+
+/* Onglet Compétences (vue Suivi) : champ Ordre étroit ; chevron des techniques repliables du formulaire. */
+.gda-suivi-ordre {
+  width: 5rem;
+  margin: 0 auto;
+}
+.gda-suivi-techniques-toggle .fa-chevron-down {
+  transition: transform .15s ease-in-out;
+}
+.gda-suivi-techniques-toggle[aria-expanded="true"] .fa-chevron-down {
+  transform: rotate(180deg);
 }
