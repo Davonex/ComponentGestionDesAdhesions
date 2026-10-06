@@ -14,6 +14,11 @@ use NCB\Component\Gda\Site\Model\GroupesModel;
 
 class HtmlView extends BaseHtmlView
 {
+    /**
+     * Colonne Groupes de l'onglet « Tous les groupes » modifiable (Responsables de Groupe).
+     */
+    public bool $peutModifierGroupes = false;
+
     public function display($tpl = null): void
     {
         /** @var \Joomla\CMS\Application\CMSApplication $app */
@@ -35,6 +40,7 @@ class HtmlView extends BaseHtmlView
         $this->groupes = $this->saison
             ? $model->getGroupesAvecAdherents((int) $this->saison->id_campagne)
             : [];
+        $this->peutModifierGroupes = UsersHelper::isResponsableGroupe();
 
         parent::display($tpl);
     }

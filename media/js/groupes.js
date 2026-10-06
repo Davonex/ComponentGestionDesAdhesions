@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', function () {
    * Options de configuration pour simple-datatables avec les labels en français.
    */
   const frenchDataTableOptions = {
+    // 50 lignes par page par défaut (la liste par défaut de simple-datatables s'arrête à 25).
+    perPage: 50,
+    perPageSelect: [10, 25, 50, 100],
     labels: {
       placeholder: 'Rechercher...',
       perPage: 'lignes par page',
@@ -257,6 +260,184 @@ document.addEventListener('DOMContentLoaded', function () {
     if (previewImage) {
       previewImage.src = '';
       previewImage.alt = '';
+    }
+  });
+
+  /**
+   * Colonne Groupes de l'onglet « Tous les groupes » (Responsables de Groupe) : un clic ouvre une
+   * liste deroulante multiple (TomSelect) des groupes publies ; la perte de focus enregistre la
+   * nouvelle composition (groupes.updateGroupesAdherent), Echap annule.
+   */
+  const groupesDisponibles = (window.Joomla && Joomla.getOptions('com_gdadhesions.groupesDisponibles')) || [];
+
+  /**
+   * Indique si deux listes d'identifiants contiennent les memes valeurs, quel que soit l'ordre.
+   *
+   * @param {string[]} premiere
+   * @param {string[]} seconde
+   * @returns {boolean}
+   */
+  const memesIdentifiants = function (premiere, seconde) {
+    return premiere.length === seconde.length && premiere.every(function (id) {
+      return seconde.includes(id);
+    });
+  };
+
+  /**
+   * Remplace la cellule Groupes par celle re-rendue par le serveur. La ligne est mise a jour dans
+   * les donnees de simple-datatables (sinon la modification disparaitrait au prochain tri, a la
+   * prochaine recherche ou au changement de page) ; a defaut, la cellule est remplacee dans le DOM.
+   *
+   * @param {HTMLTableCellElement} cellule Cellule affichee.
+   * @param {string} html Cellule <td> re-rendue (layout groupes.cellule_groupes).
+   * @returns {void}
+   */
+  const remplacerCelluleGroupes = function (cellule, html) {
+    const modele = document.createElement('template');
+    modele.innerHTML = html.trim();
+
+    const nouvelleCellule = modele.content.firstElementChild;
+    const ligne = cellule.closest('tr');
+    const table = cellule.closest('table');
+    const instance = table ? dataTableInstances.get(table) : null;
+    const index = ligne ? parseInt(ligne.dataset.index || '', 10) : NaN;
+
+    if (!nouvelleCellule) {
+      return;
+    }
+
+    if (instance && !Number.isNaN(index) && instance.data.data[index]) {
+      const colonne = Array.prototype.indexOf.call(ligne.children, cellule);
+      const attributs = {};
+
+      Array.from(nouvelleCellule.attributes).forEach(function (attribut) {
+        attributs[attribut.name] = attribut.value;
+      });
+
+      const cellules = instance.data.data[index].cells.slice();
+      cellules[colonne] = { data: nouvelleCellule.innerHTML, attributes: attributs };
+      instance.rows.updateRow(index, cellules);
+    } else {
+      cellule.replaceWith(nouvelleCellule);
+    }
+  };
+
+  /**
+   * Referme la liste deroulante et enregistre la composition si elle a change.
+   *
+   * @param {HTMLTableCellElement} cellule Cellule en cours d'edition.
+   * @param {TomSelect} tomSelect Instance TomSelect de la cellule.
+   * @param {boolean} annulee Edition abandonnee (Echap) : rien n'est enregistre.
+   * @returns {void}
+   */
+  const fermerEditionGroupes = function (cellule, tomSelect, annulee) {
+    const affichage = cellule.querySelector('.js-groupes-affichage');
+    const select = tomSelect.input;
+    const initiaux = (cellule.dataset.idGroupes || '').split(',').filter(Boolean);
+    const nouveaux = tomSelect.getValue();
+
+    tomSelect.destroy();
+    select.remove();
+    affichage.classList.remove('d-none');
+    delete cellule.dataset.enEdition;
+
+    if (annulee || memesIdentifiants(initiaux, nouveaux)) {
+      return;
+    }
+
+    const ajaxData = {
+      task: 'groupes.updateGroupesAdherent',
+      id_profil: cellule.dataset.idProfil || '0'
+    };
+    const csrfTokenName = Joomla.getOptions('csrf.token');
+
+    if (csrfTokenName) {
+      ajaxData[csrfTokenName] = 1;
+    }
+
+    nouveaux.forEach(function (idGroupe, position) {
+      ajaxData['id_groupes[' + position + ']'] = idGroupe;
+    });
+
+    affichage.classList.add('opacity-50');
+
+    simpleCallAjax(ajaxData, function (response) {
+      remplacerCelluleGroupes(cellule, decodeURIComponent(escape(atob(response.data.html))));
+    }, true, function () {
+      affichage.classList.remove('opacity-50');
+    });
+  };
+
+  /**
+   * Ouvre la liste deroulante des groupes dans la cellule.
+   *
+   * @param {HTMLTableCellElement} cellule Cellule .js-editable-groupes.
+   * @returns {void}
+   */
+  const ouvrirEditionGroupes = function (cellule) {
+    const affichage = cellule.querySelector('.js-groupes-affichage');
+
+    if (!affichage || cellule.dataset.enEdition === '1' || typeof TomSelect === 'undefined') {
+      return;
+    }
+
+    cellule.dataset.enEdition = '1';
+
+    const initiaux = (cellule.dataset.idGroupes || '').split(',').filter(Boolean);
+    const select = document.createElement('select');
+    select.multiple = true;
+    select.setAttribute('aria-label', cellule.getAttribute('title') || '');
+
+    groupesDisponibles.forEach(function (groupe) {
+      const id = String(groupe.id);
+      select.add(new Option(groupe.nom, id, false, initiaux.includes(id)));
+    });
+
+    affichage.classList.add('d-none');
+    cellule.appendChild(select);
+
+    let annulee = false;
+    const tomSelect = new TomSelect(select, {
+      plugins: {
+        remove_button: {
+          title: Joomla.Text._('COM_GDA_GROUPES_COMPOSITION_RETIRER', 'Retirer ce groupe')
+        }
+      },
+      create: false,
+      persist: false,
+      dropdownParent: 'body'
+    });
+
+    // Echap ferme d'abord la liste ouverte (comportement TomSelect), puis annule l'edition.
+    tomSelect.control_input.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !tomSelect.isOpen) {
+        annulee = true;
+        tomSelect.blur();
+      }
+    });
+
+    tomSelect.on('blur', function () {
+      // Hors du gestionnaire d'evenement de TomSelect, qui ne doit pas etre detruit pendant son blur.
+      setTimeout(function () {
+        fermerEditionGroupes(cellule, tomSelect, annulee);
+      }, 0);
+    });
+
+    tomSelect.focus();
+  };
+
+  document.addEventListener('click', function (event) {
+    const cellule = event.target.closest('.js-editable-groupes');
+
+    if (cellule) {
+      ouvrirEditionGroupes(cellule);
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && event.target.classList && event.target.classList.contains('js-editable-groupes')) {
+      event.preventDefault();
+      ouvrirEditionGroupes(event.target);
     }
   });
 

@@ -1140,7 +1140,8 @@ main .form-check-input:focus {
 .js-editable-tarif-option,
 .js-editable-tarif-commentaire,
 .js-editable-statut-inscription,
-.js-editable-competence {
+.js-editable-competence,
+.js-editable-groupes {
     position: relative;
     transition: background-color 0.15s ease-in-out;
 }
@@ -1157,7 +1158,8 @@ main .form-check-input:focus {
 .js-editable-tarif-option::before,
 .js-editable-tarif-commentaire::before,
 .js-editable-statut-inscription::before,
-.js-editable-competence::before {
+.js-editable-competence::before,
+.js-editable-groupes::before {
     content: "\f303"; /* fa-pencil (Font Awesome, deja charge par le gabarit Cassiopeia) */
     font-family: "Font Awesome 6 Free";
     font-weight: 900;
@@ -1182,7 +1184,8 @@ main .form-check-input:focus {
 .js-editable-tarif-option:hover,
 .js-editable-tarif-commentaire:hover,
 .js-editable-statut-inscription:hover,
-.js-editable-competence:hover {
+.js-editable-competence:hover,
+.js-editable-groupes:hover {
     background-color: #fef8e7 !important;
 }
 
@@ -1197,8 +1200,28 @@ main .form-check-input:focus {
 .js-editable-tarif-option:hover::before,
 .js-editable-tarif-commentaire:hover::before,
 .js-editable-statut-inscription:hover::before,
-.js-editable-competence:hover::before {
+.js-editable-competence:hover::before,
+.js-editable-groupes:hover::before {
     opacity: .45;
+}
+
+/* Colonne Groupes de l'onglet « Tous les groupes » (vue Groupes) : modifiable au simple clic. */
+.js-editable-groupes {
+    cursor: pointer;
+}
+
+.js-editable-groupes .ts-wrapper {
+    min-width: 12rem;
+}
+
+/* Badge d'un groupe : même couleur que les groupes du récapitulatif d'adhésion (btn-primary du
+   template). Préfixé par .badge : template.css, chargé après, impose sinon sa taille et sa couleur. */
+.badge.gda-badge-groupe {
+    background-color: var(--cassiopeia-color-primary);
+    color: #fff;
+    font-size: .85rem;
+    font-weight: 500;
+    padding: .4em .65em;
 }
 
 /* Champ de saisie de l'ordre d'affichage (trombinoscope Bureau) : étroit et centré. */

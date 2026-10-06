@@ -2,6 +2,7 @@
 
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Layout\LayoutHelper;
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
 use NCB\Component\Gda\Site\Helper\FileHelper;
 use NCB\Component\Gda\Site\Helper\ToolsHelper;
@@ -18,10 +19,16 @@ use NCB\Component\Gda\Site\Service\ReservationService;
  *   showRole. La cellule Statut est éditable au double-clic (voir
  *   CampagnesController::changerStatutInscription()) : le responsable de campagne y valide ou
  *   refuse une inscription, ou revient en arrière entre attente/confirmee/refusee.
+ * - $displayData['showGroupes'] : bool, affiche la colonne Groupes (adherent->groupes) — onglet
+ *   « Tous les groupes » et « Sans groupe » de la vue Groupes uniquement.
+ * - $displayData['peutModifierGroupes'] : bool, colonne Groupes modifiable au clic (Responsables de
+ *   Groupe, voir GroupesController::updateGroupesAdherent()).
  */
 
 $groupe = $displayData['groupe'];
 $adherents = $groupe->adherents;
+$showGroupes = $displayData['showGroupes'] ?? false;
+$peutModifierGroupes = $displayData['peutModifierGroupes'] ?? false;
 $showRole = $displayData['showRole'] ?? false;
 $showReservationStatut = $displayData['showReservationStatut'] ?? false;
 
@@ -43,6 +50,9 @@ $fusionLicenceCaci = $showReservationStatut;
             <tr>
                 <th class="text-center col-secretariat-xs"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_PHOTO') ?></th>
                 <th class="text-center col-secretariat-lg"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_NAME') ?></th>
+                <?php if ($showGroupes) : ?>
+                    <th class="text-center col-secretariat-md"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_GROUPES') ?></th>
+                <?php endif; ?>
                 <th class="text-center col-secretariat-md"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_BREVETS') ?></th>
                 <?php if ($fusionLicenceCaci) : ?>
                     <th class="text-center col-secretariat-sm"><?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_LICENCE') ?> / <?= Text::_('COM_GDA_GROUPES_TABLE_HEADER_CACI') ?></th>
@@ -100,6 +110,9 @@ $fusionLicenceCaci = $showReservationStatut;
                     <td class="col-secretariat-lg">
                         <a href="#" class="js-show-profil-card" data-id-profil="<?= (int) $adherent->id_profil ?>"><?= $this->escape($fullName) ?></a>
                     </td>
+                    <?php if ($showGroupes) : ?>
+                        <?= LayoutHelper::render('groupes.cellule_groupes', ['adherent' => $adherent, 'editable' => $peutModifierGroupes]) ?>
+                    <?php endif; ?>
                     <td class="col-secretariat-md">
                         <?php $shortlist = $adherent->brevets_shortlist ?? []; ?>
                         <?php if (empty($shortlist)) : ?>

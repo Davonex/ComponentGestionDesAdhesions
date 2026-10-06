@@ -1,5 +1,13 @@
 # Component com_gadhesions
 
+## Version 1.0.6
+
+- 📰 Nouveautés  
+  - Posibilité par les responsable de groupes de modifier l'appartenance a un groupe. Fans longlet toutes les groupe ajouter une colonnes avec groupe.
+
+- 📈 Améliorations
+  - Modification des 3 niveaux d'appréciation et des icônes associés
+
 ## Version 1.0.5
 
 - 📰 Nouveautés

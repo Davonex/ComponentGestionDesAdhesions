@@ -91,13 +91,13 @@ Deux façons de la charger : **glisser-déposer** le fichier sur la zone prévue
 
 > **À faire** : une photo de type photo d'identité, cadrée sur le visage. Elle apparaît dans le trombinoscope et sur votre fiche.
 >
-> **À ne pas faire** : déposer un fichier de plusieurs mégaoctets sorti de l'appareil photo, ou un format exotique (HEIC, BMP, TIFF…). Le site les refuse — voir « Fichier invalide » au §8.
+> **⚠️ À ne pas faire** : déposer un fichier de plusieurs mégaoctets sorti de l'appareil photo, ou un format exotique (HEIC, BMP, TIFF…). Le site les refuse — voir « Fichier invalide » au §8.
 
 ### Le code postal et la date de naissance comptent
 
 Ces deux champs ne sont pas de simples informations : ils **déterminent le montant de votre cotisation** (tarif Val d'Yerres ou hors agglomération, tarif enfant ou adulte), calculé à l'étape 3.
 
-> **À faire** : vérifiez-les avant de continuer. Une erreur ici fausse le montant affiché et le tarif à choisir sur HelloAsso.
+> **⚠️** :  Une erreur ici fausse le montant affiché et le tarif à choisir sur HelloAsso. Car l'appartenance à l'agglomeration du Val d'Yerres et du Val de Seine depend du **Code Postal**
 
 ### Le droit à l'image
 
@@ -139,6 +139,8 @@ La liste **Tarification** correspond aux réductions proposées par le club (fam
 ### Rejoignez la/les formation(s)
 
 Ce champ est **obligatoire**, sauf si vous avez choisi « Licence seule ». Il est vérifié au moment où vous arrivez sur le récapitulatif.
+
+![Choix des groupes](../images/joindre_groupes.png)
 
 > **À faire** : les moniteurs choisissent **« Encadrant Impliqué »**. Si aucune formation ne vous concerne cette saison, choisissez **« Maintien des acquis »**.
 
@@ -276,6 +278,12 @@ Ensuite, le secrétariat vérifie votre dossier, votre CACI et votre paiement, p
 | *Une erreur technique est survenue lors de l'enregistrement de votre adhésion…* | Incident technique du site | Vérifiez votre boîte de réception, réessayez dans un instant, puis contactez le secrétariat si le problème persiste |
 
 ---
+
+### Questions les plus frequentes
+
+| Questions | Reponses |
+| --- | --- |
+| *Je me suis trompé de groupe ou bien je souhaiterai integré un groupe suplémentaire* | |
 
 ## 9. Mémo
 

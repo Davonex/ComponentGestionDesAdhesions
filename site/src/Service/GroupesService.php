@@ -4,6 +4,7 @@ namespace NCB\Component\Gda\Site\Service;
 
 \defined('_JEXEC') or die;
 
+use Joomla\CMS\Language\Text;
 use Joomla\Database\DatabaseInterface;
 use Joomla\Database\ParameterType;
 
@@ -118,5 +119,158 @@ final class GroupesService
             $this->db->setQuery($query);
             $this->db->execute();
         }
+    }
+
+    /**
+     * Groupes publiés auxquels un adhérent est inscrit pour une saison (#__gda_composition_groupes),
+     * dans l'ordre d'affichage des groupes.
+     *
+     * @param int $idProfil   Identifiant du profil de l'adhérent.
+     * @param int $idCampagne Identifiant de la campagne Saison.
+     * @return object[] Groupes {id_groupe, groupe_name, icon}.
+     */
+    public function getGroupesAdherent(int $idProfil, int $idCampagne): array
+    {
+        $query = $this->db->createQuery()
+            ->select($this->db->quoteName(['g.id_groupe', 'g.groupe_name', 'g.icon']))
+            ->from($this->db->quoteName('#__gda_composition_groupes', 'cg'))
+            ->join('INNER', $this->db->quoteName('#__gda_groupes', 'g'), $this->db->quoteName('g.id_groupe') . ' = ' . $this->db->quoteName('cg.id_groupe'))
+            ->where($this->db->quoteName('cg.id_profil') . ' = :id_profil')
+            ->where($this->db->quoteName('cg.id_campagne') . ' = :id_campagne')
+            ->where($this->db->quoteName('g.published') . ' = 1')
+            ->order($this->db->quoteName('g.groupe_tri') . ' ASC')
+            ->bind(':id_profil', $idProfil, ParameterType::INTEGER)
+            ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER);
+
+        $this->db->setQuery($query);
+
+        return $this->db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Remplace les groupes publiés d'un adhérent pour une saison (correction par un Responsable de
+     * Groupe depuis la vue Groupes). Les inscriptions à des groupes non publiés, invisibles dans
+     * cette vue, sont conservées telles quelles.
+     *
+     * L'adhérent doit appartenir à la saison (souscription, ou inscription à un groupe). Une
+     * sélection vide le retire de tous les groupes publiés : il apparaît alors dans l'onglet
+     * « Sans groupe » de la vue Groupes.
+     *
+     * @param int   $idProfil   Identifiant du profil de l'adhérent.
+     * @param int   $idCampagne Identifiant de la campagne Saison.
+     * @param int[] $idsGroupes Identifiants des groupes publiés retenus.
+     * @return object[] Groupes de l'adhérent après mise à jour (voir getGroupesAdherent()).
+     * @throws \InvalidArgumentException 400 si la sélection contient un groupe inconnu ou non publié.
+     * @throws \RuntimeException 404 si l'adhérent n'appartient pas à la saison, 500 si l'écriture échoue.
+     */
+    public function remplacerGroupesAdherent(int $idProfil, int $idCampagne, array $idsGroupes): array
+    {
+        $idsGroupes = array_values(array_unique(array_filter(
+            array_map('intval', $idsGroupes),
+            static fn (int $idGroupe): bool => $idGroupe > 0
+        )));
+
+        $idsPublies = $this->getIdsGroupesPublies();
+
+        if (array_diff($idsGroupes, $idsPublies) !== []) {
+            throw new \InvalidArgumentException(Text::_('COM_GDA_GROUPES_COMPOSITION_GROUPE_INCONNU'), 400);
+        }
+
+        $groupesActuels = $this->getGroupesAdherent($idProfil, $idCampagne);
+
+        if ($groupesActuels === [] && !$this->isAdherentDeLaSaison($idProfil, $idCampagne)) {
+            throw new \RuntimeException(Text::_('COM_GDA_GROUPES_COMPOSITION_ADHERENT_INTROUVABLE'), 404);
+        }
+
+        $idsActuels = array_map(static fn (object $groupe): int => (int) $groupe->id_groupe, $groupesActuels);
+        sort($idsActuels);
+        sort($idsGroupes);
+
+        if ($idsActuels === $idsGroupes) {
+            return $groupesActuels;
+        }
+
+        $this->db->transactionStart();
+
+        try {
+            $query = $this->db->createQuery()
+                ->delete($this->db->quoteName('#__gda_composition_groupes'))
+                ->where($this->db->quoteName('id_profil') . ' = :id_profil')
+                ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
+                ->whereIn($this->db->quoteName('id_groupe'), $idsPublies)
+                ->bind(':id_profil', $idProfil, ParameterType::INTEGER)
+                ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER);
+
+            $this->db->setQuery($query);
+            $this->db->execute();
+
+            if ($idsGroupes !== []) {
+                // Valeurs entières déjà validées : une seule requête pour toutes les lignes.
+                $query = $this->db->createQuery()
+                    ->insert($this->db->quoteName('#__gda_composition_groupes'))
+                    ->columns($this->db->quoteName(['id_profil', 'id_groupe', 'id_campagne']));
+
+                foreach ($idsGroupes as $idGroupe) {
+                    $query->values($idProfil . ', ' . $idGroupe . ', ' . $idCampagne);
+                }
+
+                $this->db->setQuery($query);
+                $this->db->execute();
+            }
+
+            $this->db->transactionCommit();
+        } catch (\Throwable $e) {
+            $this->db->transactionRollback();
+
+            throw new \RuntimeException($e->getMessage(), 500, $e);
+        }
+
+        return $this->getGroupesAdherent($idProfil, $idCampagne);
+    }
+
+    /**
+     * Indique si l'adhérent appartient à la saison : souscription, ou inscription à un groupe
+     * (y compris non publié).
+     *
+     * @param int $idProfil   Identifiant du profil de l'adhérent.
+     * @param int $idCampagne Identifiant de la campagne Saison.
+     * @return bool True si l'adhérent appartient à la saison.
+     */
+    private function isAdherentDeLaSaison(int $idProfil, int $idCampagne): bool
+    {
+        foreach (['#__gda_souscriptions', '#__gda_composition_groupes'] as $table) {
+            $query = $this->db->createQuery()
+                ->select('1')
+                ->from($this->db->quoteName($table))
+                ->where($this->db->quoteName('id_profil') . ' = :id_profil')
+                ->where($this->db->quoteName('id_campagne') . ' = :id_campagne')
+                ->bind(':id_profil', $idProfil, ParameterType::INTEGER)
+                ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER);
+
+            $this->db->setQuery($query, 0, 1);
+
+            if ($this->db->loadResult() !== null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Identifiants des groupes publiés.
+     *
+     * @return int[]
+     */
+    private function getIdsGroupesPublies(): array
+    {
+        $query = $this->db->createQuery()
+            ->select($this->db->quoteName('id_groupe'))
+            ->from($this->db->quoteName('#__gda_groupes'))
+            ->where($this->db->quoteName('published') . ' = 1');
+
+        $this->db->setQuery($query);
+
+        return array_map('intval', $this->db->loadColumn() ?: []);
     }
 }

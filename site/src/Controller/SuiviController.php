@@ -8,7 +8,6 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\CMS\Response\JsonResponse;
-use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 use NCB\Component\Gda\Site\Model\SuiviModel;
 
@@ -280,20 +279,6 @@ class SuiviController extends AjaxController
     }
 
     /**
-     * Refuse la requête si l'utilisateur n'est pas Responsable de Groupe (administration des
-     * compétences et des techniques).
-     *
-     * @return void
-     * @throws \RuntimeException 403 si l'utilisateur n'est pas Responsable de Groupe.
-     */
-    private function guardResponsableGroupe(): void
-    {
-        if (!UsersHelper::isResponsableGroupe()) {
-            throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
-        }
-    }
-
-    /**
      * Refuse la requête si l'utilisateur n'est ni Moniteur, ni Responsable de Groupe, ni membre
      * du Bureau.
      *
@@ -305,23 +290,6 @@ class SuiviController extends AjaxController
         if (!UsersHelper::canViewMemberDetails()) {
             throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
         }
-    }
-
-    /**
-     * Identifiant de la saison courante.
-     *
-     * @return int Identifiant de la campagne Saison courante.
-     * @throws \RuntimeException 404 si aucune saison courante n'est déclarée.
-     */
-    private function getIdSaisonCourante(): int
-    {
-        $saison = ConfHelper::getSaisonService()->getSaisonCourante();
-
-        if ($saison === null) {
-            throw new \RuntimeException(Text::_('COM_GDA_GROUPES_NO_SAISON'), 404);
-        }
-
-        return (int) $saison->id_campagne;
     }
 
     /**

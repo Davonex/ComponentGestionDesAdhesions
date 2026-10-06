@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // colonnes - important ici puisque les onglets Niveau d'accès/Trombinoscope démarrent
         // cachés (display: none), où une mesure JS des largeurs donnerait 0.
         fixedColumns: false,
+        // 50 lignes par page par défaut (la liste par défaut de simple-datatables s'arrête à 25).
+        perPage: 50,
+        perPageSelect: [10, 25, 50, 100],
         labels: {
           placeholder: 'Rechercher...',
           perPage: 'lignes par page',

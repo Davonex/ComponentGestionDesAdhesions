@@ -55,9 +55,9 @@ La séance n'est enregistrée qu'à la **première évaluation** d'un élève. S
 1. Cliquez sur la case de l'élève, dans la colonne de la séance.
 2. La fenêtre d'évaluation s'ouvre (en plein écran sur téléphone). Elle liste les compétences du niveau. Sous le nom de chaque compétence, le lien **▾ Techniques (n)** déplie (puis replie) la liste des techniques à observer.
 3. Pour chaque compétence observée, choisissez une **appréciation** :
+   - Non acquis
    - En cours d'acquisition
    - Acquis
-   - Maîtrisé
 4. Ajoutez si besoin une **observation** (250 caractères au maximum).
 5. Cliquez sur **Enregistrer**, en bas à droite. La croix en haut à droite ferme la fenêtre sans enregistrer.
 
@@ -99,9 +99,9 @@ Chaque case porte une icône :
 
 | Icône | Appréciation |
 | --- | --- |
+| ✖ rouge | Non acquis |
 | ⏳ orange | En cours d'acquisition |
 | ✔ vert | Acquis |
-| ★ bleu | Maîtrisé |
 | – | Pas évalué à cette séance |
 
 Une légende rappelle ces icônes en bas de la fenêtre.

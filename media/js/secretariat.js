@@ -6,6 +6,9 @@
    * Options de configuration pour simple-datatables avec les labels en français.
    */
   const frenchDataTableOptions = {
+    // 50 lignes par page par défaut (la liste par défaut de simple-datatables s'arrête à 25).
+    perPage: 50,
+    perPageSelect: [10, 25, 50, 100],
     labels: {
       placeholder: 'Rechercher...',
       // Sur cette version de simple-datatables, le select est déjà rendu dans le label.

@@ -125,7 +125,9 @@ const campagneRapportCB = function (response) {
 
     if (rapport && datatableApi && datatableApi.DataTable) {
         new datatableApi.DataTable(rapport, {
-            perPage: 10,
+            // 50 lignes par page par défaut (la liste par défaut de simple-datatables s'arrête à 25).
+            perPage: 50,
+            perPageSelect: [10, 25, 50, 100],
             ...frenchDataTableOptions
         });
     } else if (rapport) {

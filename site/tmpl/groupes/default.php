@@ -6,6 +6,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\CMS\HTML\Helpers\Bootstrap;
+use NCB\Component\Gda\Site\Model\GroupesModel;
 
 Bootstrap::tab();
 Bootstrap::modal();
@@ -28,6 +29,24 @@ $wa->useScript('com_gdadhesions.form_modal');
 
 /** @var array $groupes */
 $groupes = $this->groupes;
+
+// Edition de la colonne Groupes (onglets « Tous les groupes » et « Sans groupe ») : liste des groupes
+// publiés proposés par la liste déroulante (groupes.js), sans les groupes virtuels (id <= 0).
+if ($this->peutModifierGroupes) {
+    $wa->useStyle('com_gdadhesions.tom-select');
+    $wa->useScript('com_gdadhesions.tom-select');
+
+    $groupesDisponibles = [];
+
+    foreach ($groupes as $groupe) {
+        if ($groupe->id_groupe > 0) {
+            $groupesDisponibles[] = ['id' => $groupe->id_groupe, 'nom' => $groupe->groupe_name];
+        }
+    }
+
+    $app->getDocument()->addScriptOptions('com_gdadhesions.groupesDisponibles', $groupesDisponibles);
+    Text::script('COM_GDA_GROUPES_COMPOSITION_RETIRER');
+}
 ?>
 
 <div class="gda-groupes card shadow-lg p-2 p-md-4">
@@ -60,7 +79,7 @@ $groupes = $this->groupes;
             <?php foreach ($groupes as $index => $groupe) : ?>
                 <?php $count = count($groupe->adherents); ?>
                 <option value="groupe-tab-<?= $groupe->id_groupe ?>" data-count="<?= $count ?>"<?= $index === 0 ? ' selected' : '' ?>>
-                    <?= $this->escape($groupe->id_groupe === 0 ? Text::_('COM_GDA_GROUPES_ALL_TAB') : $groupe->groupe_name) ?> (<?= $count ?>)
+                    <?= $this->escape($groupe->id_groupe === GroupesModel::ID_GROUPE_TOUS ? Text::_('COM_GDA_GROUPES_ALL_TAB') : $groupe->groupe_name) ?> (<?= $count ?>)
                 </option>
             <?php endforeach; ?>
         </select>
@@ -85,7 +104,7 @@ $groupes = $this->groupes;
                         <?php if (!empty($groupe->icon)) : ?>
                             <i class="fa-solid <?= $this->escape($groupe->icon) ?> me-1" aria-hidden="true"></i>
                         <?php endif; ?>
-                        <?= $this->escape($groupe->id_groupe === 0 ? Text::_('COM_GDA_GROUPES_ALL_TAB') : $groupe->groupe_name) ?>
+                        <?= $this->escape($groupe->id_groupe === GroupesModel::ID_GROUPE_TOUS ? Text::_('COM_GDA_GROUPES_ALL_TAB') : $groupe->groupe_name) ?>
                         <span class="badge bg-secondary ms-1"><?= $count ?></span>
                     </button>
                 </li>
@@ -108,7 +127,11 @@ $groupes = $this->groupes;
                     </div>
 
                     <div class="gda-groupes-view gda-groupes-view--detail d-none" data-view-mode="detail">
-                        <?= LayoutHelper::render('groupes.detail', ['groupe' => $groupe]) ?>
+                        <?= LayoutHelper::render('groupes.detail', [
+                            'groupe'              => $groupe,
+                            'showGroupes'         => $groupe->id_groupe <= GroupesModel::ID_GROUPE_TOUS,
+                            'peutModifierGroupes' => $this->peutModifierGroupes,
+                        ]) ?>
                     </div>
                     <div class="gda-groupes-view gda-groupes-view--vignette" data-view-mode="vignette">
                         <?= LayoutHelper::render('groupes.vignette', ['groupe' => $groupe]) ?>

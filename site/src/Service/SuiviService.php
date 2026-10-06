@@ -29,9 +29,9 @@ use NCB\Component\Gda\Site\Helper\ToolsHelper;
  */
 final class SuiviService
 {
-    public const APPRECIATION_EN_COURS = 'en_cours';
-    public const APPRECIATION_ACQUIS   = 'acquis';
-    public const APPRECIATION_MAITRISE = 'maitrise';
+    public const APPRECIATION_NON_ACQUIS = 'non_acquis';
+    public const APPRECIATION_EN_COURS   = 'en_cours';
+    public const APPRECIATION_ACQUIS     = 'acquis';
 
     public const OBSERVATION_LONGUEUR_MAX = 250;
     public const COMPETENCE_LONGUEUR_MAX  = 150;
@@ -39,9 +39,9 @@ final class SuiviService
 
     /** Valeur stockée => clé de langue, dans l'ordre de progression. */
     private const APPRECIATIONS = [
-        self::APPRECIATION_EN_COURS => 'COM_GDA_SUIVI_APPRECIATION_EN_COURS',
-        self::APPRECIATION_ACQUIS   => 'COM_GDA_SUIVI_APPRECIATION_ACQUIS',
-        self::APPRECIATION_MAITRISE => 'COM_GDA_SUIVI_APPRECIATION_MAITRISE',
+        self::APPRECIATION_NON_ACQUIS => 'COM_GDA_SUIVI_APPRECIATION_NON_ACQUIS',
+        self::APPRECIATION_EN_COURS   => 'COM_GDA_SUIVI_APPRECIATION_EN_COURS',
+        self::APPRECIATION_ACQUIS     => 'COM_GDA_SUIVI_APPRECIATION_ACQUIS',
     ];
 
     private DatabaseInterface $db;

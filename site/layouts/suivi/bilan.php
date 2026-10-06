@@ -22,9 +22,9 @@ $nomComplet = trim($eleve->prenom . ' ' . $eleve->nom);
 
 // Icône et couleur de chaque appréciation, dans l'ordre de progression.
 $icones = [
-    SuiviService::APPRECIATION_EN_COURS => 'fa-hourglass-half text-warning',
-    SuiviService::APPRECIATION_ACQUIS   => 'fa-circle-check text-success',
-    SuiviService::APPRECIATION_MAITRISE => 'fa-star text-primary',
+    SuiviService::APPRECIATION_NON_ACQUIS => 'fa-circle-xmark text-danger',
+    SuiviService::APPRECIATION_EN_COURS   => 'fa-hourglass-half text-warning',
+    SuiviService::APPRECIATION_ACQUIS     => 'fa-circle-check text-success',
 ];
 ?>
 <div class="modal-header">

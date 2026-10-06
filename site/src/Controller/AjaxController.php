@@ -9,6 +9,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Response\JsonResponse;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
+use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 
@@ -38,6 +39,37 @@ abstract class AjaxController extends BaseController
         if (!UsersHelper::isBureauMember()) {
             throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
         }
+    }
+
+    /**
+     * Refuse la requête si l'utilisateur connecté n'est pas Responsable de Groupe (administration
+     * des compétences de la vue Suivi, composition des groupes de la vue Groupes).
+     *
+     * @return void
+     * @throws \RuntimeException 403 si l'utilisateur n'est pas Responsable de Groupe.
+     */
+    protected function guardResponsableGroupe(): void
+    {
+        if (!UsersHelper::isResponsableGroupe()) {
+            throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
+        }
+    }
+
+    /**
+     * Identifiant de la saison courante.
+     *
+     * @return int Identifiant de la campagne Saison courante.
+     * @throws \RuntimeException 404 si aucune saison courante n'est déclarée.
+     */
+    protected function getIdSaisonCourante(): int
+    {
+        $saison = ConfHelper::getSaisonService()->getSaisonCourante();
+
+        if ($saison === null) {
+            throw new \RuntimeException(Text::_('COM_GDA_GROUPES_NO_SAISON'), 404);
+        }
+
+        return (int) $saison->id_campagne;
     }
 
     /**
