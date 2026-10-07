@@ -279,20 +279,6 @@ class SuiviController extends AjaxController
     }
 
     /**
-     * Refuse la requête si l'utilisateur n'est ni Moniteur, ni Responsable de Groupe, ni membre
-     * du Bureau.
-     *
-     * @return void
-     * @throws \RuntimeException 403 si l'utilisateur n'encadre pas.
-     */
-    private function guardEncadrant(): void
-    {
-        if (!UsersHelper::canViewMemberDetails()) {
-            throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
-        }
-    }
-
-    /**
      * Modèle Suivi du site.
      *
      * @return SuiviModel Le modèle.

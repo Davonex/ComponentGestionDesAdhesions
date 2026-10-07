@@ -57,10 +57,10 @@ foreach ($mesPlaces as $place) {
 <div class="modal-header bg-gda-header text-header">
     <h5 class="modal-title mb-0">
         <i class="fa-solid fa-graduation-cap me-2" aria-hidden="true"></i>
-        <?= htmlspecialchars((string) $campagne->titre, ENT_QUOTES, 'UTF-8') ?>
+        <?= $this->escape((string) $campagne->titre) ?>
     </h5>
     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-        aria-label="<?= htmlspecialchars(Text::_('JCLOSE'), ENT_QUOTES, 'UTF-8') ?>"></button>
+        aria-label="<?= $this->escape(Text::_('JCLOSE')) ?>"></button>
 </div>
 
 <div class="modal-body p-4">
@@ -72,7 +72,7 @@ foreach ($mesPlaces as $place) {
     <?php if (!empty($rolesComplets) && !$dejaReserve) : ?>
         <div class="alert alert-info d-flex align-items-center" role="alert">
             <i class="fa-solid fa-circle-info me-2" aria-hidden="true"></i>
-            <span><?= Text::sprintf('COM_GDA_RESERVATION_ALERTE_COMPLET_ROLES', htmlspecialchars(implode(', ', $rolesComplets), ENT_QUOTES, 'UTF-8')) ?></span>
+            <span><?= Text::sprintf('COM_GDA_RESERVATION_ALERTE_COMPLET_ROLES', $this->escape(implode(', ', $rolesComplets))) ?></span>
         </div>
     <?php endif; ?>
 
@@ -99,12 +99,12 @@ foreach ($mesPlaces as $place) {
         <div class="mb-0">
             <label class="form-label" for="reservation_commentaire"><?= Text::_('COM_GDA_RESERVATION_COMMENTAIRE') ?></label>
             <textarea class="form-control" id="reservation_commentaire" name="commentaire" rows="3"
-                placeholder="<?= htmlspecialchars(Text::_('COM_GDA_RESERVATION_COMMENTAIRE_PLACEHOLDER'), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($monCommentaire, ENT_QUOTES, 'UTF-8') ?></textarea>
+                placeholder="<?= $this->escape(Text::_('COM_GDA_RESERVATION_COMMENTAIRE_PLACEHOLDER')) ?>"><?= $this->escape($monCommentaire) ?></textarea>
         </div>
     </form>
 
     <!-- Lu par reservation.js à l'ouverture pour préremplir les lignes rôle+quantité ci-dessus. -->
-    <div id="reservationExistantes" class="d-none"><?= htmlspecialchars(json_encode($quantiteParRole), ENT_QUOTES, 'UTF-8') ?></div>
+    <div id="reservationExistantes" class="d-none"><?= $this->escape(json_encode($quantiteParRole)) ?></div>
 </div>
 
 <div class="modal-footer">

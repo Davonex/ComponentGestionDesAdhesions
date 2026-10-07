@@ -53,7 +53,7 @@ $renderFieldHint = function (string $fieldName, bool $inline = false) use ($form
     $description = $field->description ? Text::_($field->description) : '';
 
     $hint = $description === '' ? '' : ' <i class="fa-solid fa-circle-question gda-field-hint-icon" title="'
-        . htmlspecialchars($description, ENT_QUOTES, 'UTF-8') . '"></i>';
+        . $this->escape($description) . '"></i>';
 
     // gda-field-hint-label garde le libellé et l'icône sur une même ligne : sans elle, le
     // control-label reste un bloc dont le <label> occupe toute la largeur, ce qui renvoie
@@ -202,7 +202,7 @@ $renderFieldHint = function (string $fieldName, bool $inline = false) use ($form
                  il n'est jamais soumis lui-même. data-type-meta porte les métadonnées par nature
                  (nom + rôles par défaut) lues par campagne.js. -->
             <div class="row g-3 align-items-start" id="fieldRolePlaces"
-                data-type-meta='<?= htmlspecialchars(json_encode($typesMeta), ENT_QUOTES, 'UTF-8'); ?>'>
+                data-type-meta='<?= $this->escape(json_encode($typesMeta)); ?>'>
               <div class="col-12">
                 <label class="control-label gda-field-hint-label gda-label-icon gda-icon-roles mb-2"><?= Text::_('COM_GDA_CAMPAGNE_ROLE_PLACES'); ?></label>
                 <div id="jform_campagne_role_places_rows"></div>

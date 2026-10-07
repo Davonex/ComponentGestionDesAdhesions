@@ -38,7 +38,7 @@ $statutBadges = [
     <?php if ($isHelloAsso) : ?>
         <?= HTMLHelper::_('image', FileHelper::getHelloAssoLogoSrc(), Text::_('COM_GDA_CAMPAGNE_HELLOASSO'), ['width' => '20', 'height' => '20', 'class' => 'me-2']); ?>
     <?php endif; ?>
-    <h3 class="modal-title" modal-title><?= htmlspecialchars($form['titre']) ?></h3>
+    <h3 class="modal-title" modal-title><?= $this->escape($form['titre']) ?></h3>
     <button type="button" id="closeModalForm" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div><!-- .modal-header -->
 
@@ -65,12 +65,12 @@ $statutBadges = [
                 <tbody>
                     <?php foreach ($items as $item) : ?>
                         <tr>
-                            <td><?= htmlspecialchars($item['Acheteur']) ?></td>
-                            <td><?= htmlspecialchars($item['EmailAcheteur']) ?></td>
-                            <td><?= htmlspecialchars($item['Produit']) ?></td>
-                            <td><?= htmlspecialchars($item['Montant']) ?></td>
+                            <td><?= $this->escape($item['Acheteur']) ?></td>
+                            <td><?= $this->escape($item['EmailAcheteur']) ?></td>
+                            <td><?= $this->escape($item['Produit']) ?></td>
+                            <td><?= $this->escape($item['Montant']) ?></td>
                             <?php // Déjà formatée en chaîne française par ToolsHelper::isoToUtcFormatted() : ne pas repasser par HTMLHelper::_('date', ...), qui attend une date SQL/parseable. ?>
-                            <td><?= $item['Date'] !== '' ? htmlspecialchars($item['Date']) : '—' ?></td>
+                            <td><?= $item['Date'] !== '' ? $this->escape($item['Date']) : '—' ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -89,11 +89,11 @@ $statutBadges = [
                 <tbody>
                     <?php foreach ($items as $item) : ?>
                         <tr>
-                            <td><?= htmlspecialchars($item['User']) ?></td>
-                            <td><?= htmlspecialchars($item['UserPaiment']) ?></td>
-                            <td><?= htmlspecialchars($item['EmailPaiment']) ?></td>
+                            <td><?= $this->escape($item['User']) ?></td>
+                            <td><?= $this->escape($item['UserPaiment']) ?></td>
+                            <td><?= $this->escape($item['EmailPaiment']) ?></td>
                             <?php // Déjà formatée en chaîne française par ToolsHelper::isoToUtcFormatted() : ne pas repasser par HTMLHelper::_('date', ...), qui attend une date SQL/parseable. ?>
-                            <td><?= $item['Date'] !== '' ? htmlspecialchars($item['Date']) : '—' ?></td>
+                            <td><?= $item['Date'] !== '' ? $this->escape($item['Date']) : '—' ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -115,11 +115,11 @@ $statutBadges = [
                     <?php foreach ($items as $item) : ?>
                         <tr>
                             <td>
-                                <?= htmlspecialchars($item['nom_complet']) ?>
-                                <br><small class="text-muted"><?= htmlspecialchars($item['username']) ?></small>
+                                <?= $this->escape($item['nom_complet']) ?>
+                                <br><small class="text-muted"><?= $this->escape($item['username']) ?></small>
                             </td>
-                            <td><?= htmlspecialchars($item['niveau']) ?></td>
-                            <td><?= htmlspecialchars($item['role']) ?></td>
+                            <td><?= $this->escape($item['niveau']) ?></td>
+                            <td><?= $this->escape($item['role']) ?></td>
                             <td><?= $item['date_reservation'] ? HTMLHelper::_('date', $item['date_reservation'], 'd M Y H:i') : '—' ?></td>
                             <td>
                                 <?php // Mêmes libellés/couleurs que la colonne Statut de l'onglet Suivi des inscriptions

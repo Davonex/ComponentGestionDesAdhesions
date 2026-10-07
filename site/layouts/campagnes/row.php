@@ -123,7 +123,7 @@ $hasHelloAsso = CampagnesModel::aUnLienHelloAsso($item->event_helloasso);
                     <?php foreach ($rolePlaces as $role => $capacite) : ?>
                         <?php $compte = $roleOccupees[$role] ?? ['confirmee' => 0, 'attente' => 0]; ?>
                         <div class="mb-1">
-                            <?= htmlspecialchars($role) ?> :
+                            <?= $this->escape($role) ?> :
                             <span class="badge bg-success" title="<?= Text::_('COM_GDA_RESERVATION_STATUT_CONFIRMEE') ?>">
                                 <i class="fa-solid fa-circle-check" aria-hidden="true"></i> <?= (int) $compte['confirmee'] ?>
                             </span>
@@ -205,7 +205,7 @@ $hasHelloAsso = CampagnesModel::aUnLienHelloAsso($item->event_helloasso);
                 <span class="hidden" data-bs name="active"><?= $item->active; ?></span>
                 <span class="hidden" data-bs name="date_evenement"><?= $dateEvenement; ?></span>
                 <span class="hidden" data-bs name="reservation_multiple"><?= (int) $item->reservation_multiple; ?></span>
-                <span class="hidden" data-bs name="role_places"><?= htmlspecialchars(json_encode($item->role_places ?? []), ENT_QUOTES, 'UTF-8'); ?></span>
+                <span class="hidden" data-bs name="role_places"><?= $this->escape(json_encode($item->role_places ?? [])); ?></span>
                 <span class="hidden" data-bs name="modal-title"><?= Text::_('COM_GDA_CAMPAGNE_EDIT'); ?></span>
             </td>
         </tr>

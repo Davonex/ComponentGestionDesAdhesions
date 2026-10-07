@@ -8,6 +8,8 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Response\JsonResponse;
+use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
 
 class UtilisateursController extends AjaxController
@@ -275,5 +277,56 @@ class UtilisateursController extends AjaxController
 
         echo $response;
         $app->close();
+    }
+
+    /**
+     * Télécharger l'export Excel de l'onglet Profils (formulaire POST classique, pas d'ajax) :
+     * les lignes filtrées à l'écran (ids[]) et les colonnes cochées dans la popup (champs[]).
+     * Le classeur est envoyé directement au navigateur, sans fichier sur disque.
+     *
+     * @return void
+     * @throws \Exception Si l'application ne peut pas être fermée ou redirigée.
+     */
+    public function exportProfils(): void
+    {
+        /** @var \Joomla\CMS\Application\SiteApplication $app */
+        $app = Factory::getApplication();
+        $input = $app->input;
+
+        $this->checkToken();
+
+        try {
+            $this->guardBureauMember();
+
+            $idsProfils = array_map('intval', $input->post->get('ids', [], 'array'));
+            $champs = array_map(
+                static fn ($champ) => (string) preg_replace('/[^a-z0-9_]/', '', (string) $champ),
+                $input->post->get('champs', [], 'array')
+            );
+
+            /** @var \NCB\Component\Gda\Site\Model\UtilisateursModel $model */
+            $model = $this->getModel('utilisateurs', 'site');
+            $classeur = $model->genererExportProfils($idsProfils, $champs);
+
+            GdaLogger::info(sprintf(
+                '[%s] Export Excel des profils : %d ligne(s) demandée(s), colonnes : %s',
+                $this->getActingUserName(),
+                \count($idsProfils),
+                implode(', ', $champs)
+            ));
+
+            if (!$classeur->downloadAs('adherents_' . Factory::getDate()->format('Y-m-d') . '.xlsx')) {
+                throw new \RuntimeException('Écriture du classeur impossible.');
+            }
+
+            $app->close();
+        } catch (\Throwable $e) {
+            GdaLogger::error('[' . $this->getActingUserName() . '] Erreur lors de l\'export Excel des profils : ' . $e->getMessage());
+            $app->enqueueMessage(Text::sprintf('COM_GDA_UTILISATEURS_EXPORT_ERREUR', $e->getMessage()), 'error');
+
+            $itemId = $input->post->getInt('Itemid', 0);
+            $this->setRedirect($itemId > 0 ? Route::_('index.php?Itemid=' . $itemId, false) : Uri::root());
+            $this->redirect();
+        }
     }
 }

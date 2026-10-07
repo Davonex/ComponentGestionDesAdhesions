@@ -38,7 +38,7 @@ class HtmlView extends BaseHtmlView
         /** @var GroupesModel $model */
         $model = $this->getModel();
         $this->groupes = $this->saison
-            ? $model->getGroupesAvecAdherents((int) $this->saison->id_campagne)
+            ? $model->getOngletsGroupes((int) $this->saison->id_campagne)
             : [];
         $this->peutModifierGroupes = UsersHelper::isResponsableGroupe();
 

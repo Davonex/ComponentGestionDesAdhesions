@@ -25,6 +25,7 @@ Il accompagne l'adhérent de sa demande d'adhésion jusqu'à l'accès à son esp
 | [Les campagnes : mode d'emploi](docs/utilisateur/campagnes.md) | Adhérents et organisateurs |
 | [Les groupes : mode d'emploi](docs/utilisateur/groupes.md) | Moniteurs, responsables de groupe et bureau |
 | [Le suivi des formations : mode d'emploi](docs/utilisateur/suivi.md) | Moniteurs, responsables de groupe et bureau |
+| [Les utilisateurs : mode d'emploi](docs/utilisateur/utilisateurs.md) | Bureau |
 
 ### Pour les développeurs
 

@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ListModel;
 use Joomla\Database\ParameterType;
+use Joomla\Database\QueryInterface;
 use NCB\Component\Gda\Site\Helper\AdhesionStatusHelper;
 use NCB\Component\Gda\Site\Service\BrevetService;
 use NCB\Component\Gda\Site\Service\CotisationService;
@@ -45,16 +46,120 @@ class GroupesModel extends ListModel
     private ?GroupesService $groupesService = null;
 
     /**
-     * Récupère les groupes publiés avec la liste des adhérents inscrits pour la campagne donnée.
+     * Onglets de la vue Groupes avec leur nombre d'adhérents, sans charger les adhérents :
+     * « Tous les groupes », les groupes publiés (ordre d'affichage), puis « Sans groupe ».
      *
-     * Chaque groupe est retourné même s'il ne compte aucun adhérent pour la campagne
-     * (nécessaire pour permettre le masquage des groupes vides côté affichage).
+     * Chaque groupe publié est retourné même s'il ne compte aucun adhérent (masquage des groupes
+     * vides côté affichage).
      *
      * @param int $idCampagne Identifiant de la campagne (saison courante).
-     *
-     * @return array<int, object> Liste des groupes, chacun portant la propriété `adherents`.
+     * @return object[] Onglets {id_groupe, groupe_name, icon, nb_adherents} ; vide s'il n'existe
+     *                  aucun groupe publié.
      */
-    public function getGroupesAvecAdherents(int $idCampagne): array
+    public function getOngletsGroupes(int $idCampagne): array
+    {
+        $db = $this->getDatabase();
+
+        $query = $db->createQuery()
+            ->select([
+                $db->quoteName('g.id_groupe'),
+                $db->quoteName('g.groupe_name'),
+                $db->quoteName('g.icon'),
+                'COUNT(DISTINCT ' . $db->quoteName('cg.id_profil') . ') AS ' . $db->quoteName('nb_adherents'),
+            ])
+            ->from($db->quoteName('#__gda_groupes', 'g'))
+            ->join(
+                'LEFT',
+                $db->quoteName('#__gda_composition_groupes', 'cg'),
+                $db->quoteName('cg.id_groupe') . ' = ' . $db->quoteName('g.id_groupe')
+                    . ' AND ' . $db->quoteName('cg.id_campagne') . ' = :id_campagne'
+            )
+            ->where($db->quoteName('g.published') . ' = 1')
+            ->group($db->quoteName(['g.id_groupe', 'g.groupe_name', 'g.icon', 'g.groupe_tri']))
+            ->order($db->quoteName('g.groupe_tri') . ' ASC')
+            ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER);
+
+        $db->setQuery($query);
+        $onglets = $db->loadObjectList() ?: [];
+
+        if ($onglets === []) {
+            return [];
+        }
+
+        foreach ($onglets as $onglet) {
+            $onglet->id_groupe = (int) $onglet->id_groupe;
+            $onglet->groupe_name = (string) $onglet->groupe_name;
+            $onglet->icon = (string) ($onglet->icon ?? '');
+            $onglet->nb_adherents = (int) $onglet->nb_adherents;
+        }
+
+        $db->setQuery($this->getRequeteSansGroupe($idCampagne)->select('COUNT(*)'));
+        $nbSansGroupe = (int) $db->loadResult();
+
+        $query = $db->createQuery()
+            ->select('COUNT(DISTINCT ' . $db->quoteName('cg.id_profil') . ')')
+            ->from($db->quoteName('#__gda_composition_groupes', 'cg'))
+            ->join('INNER', $db->quoteName('#__gda_groupes', 'g'), $db->quoteName('g.id_groupe') . ' = ' . $db->quoteName('cg.id_groupe'))
+            ->where($db->quoteName('cg.id_campagne') . ' = :id_campagne')
+            ->where($db->quoteName('g.published') . ' = 1')
+            ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER);
+        $db->setQuery($query);
+        $nbAvecGroupe = (int) $db->loadResult();
+
+        $ongletTous = $this->buildGroupeTous([]);
+        $ongletTous->nb_adherents = $nbAvecGroupe + $nbSansGroupe;
+        unset($ongletTous->adherents);
+
+        $ongletSans = $this->buildGroupeSans([]);
+        $ongletSans->nb_adherents = $nbSansGroupe;
+        unset($ongletSans->adherents);
+
+        return array_merge([$ongletTous], $onglets, [$ongletSans]);
+    }
+
+    /**
+     * Un onglet de la vue Groupes avec ses adhérents (chargé en ajax à l'ouverture de l'onglet).
+     *
+     * @param int $idGroupe   Identifiant du groupe, ou ID_GROUPE_TOUS / ID_GROUPE_SANS.
+     * @param int $idCampagne Identifiant de la campagne (saison courante).
+     * @return object Onglet {id_groupe, groupe_name, icon, adherents}, chaque adhérent portant
+     *                `groupes` et `brevets_shortlist`.
+     * @throws \RuntimeException 404 si le groupe n'existe pas ou n'est pas publié.
+     */
+    public function getOngletGroupe(int $idGroupe, int $idCampagne): object
+    {
+        $groupes = $this->getGroupesAvecAdherents($idCampagne);
+        $onglet = null;
+
+        if ($idGroupe === self::ID_GROUPE_TOUS) {
+            $onglet = $this->buildGroupeTous($groupes);
+        } else {
+            foreach ($groupes as $groupe) {
+                if ($groupe->id_groupe === $idGroupe) {
+                    $onglet = $groupe;
+                    break;
+                }
+            }
+        }
+
+        if ($onglet === null) {
+            throw new \RuntimeException(Text::_('COM_GDA_GROUPES_ONGLET_INTROUVABLE'), 404);
+        }
+
+        // Brevets calculés pour le seul onglet affiché.
+        $this->enrichirBrevetsShortList([$onglet]);
+
+        return $onglet;
+    }
+
+    /**
+     * Groupes publiés avec leurs adhérents pour la campagne, suivis du groupe « Sans groupe ».
+     * Chaque adhérent porte `groupes` (ses groupes publiés, colonne Groupes).
+     *
+     * @param int $idCampagne Identifiant de la campagne (saison courante).
+     * @return object[] Groupes {id_groupe, groupe_name, icon, adherents}.
+     */
+    private function getGroupesAvecAdherents(int $idCampagne): array
     {
         $db = $this->getDatabase();
 
@@ -127,19 +232,38 @@ class GroupesModel extends ListModel
 
         $groupesList = array_values($groupes);
 
-        if (empty($groupesList)) {
-            return [];
-        }
-
         // Adhérents de la saison sans groupe (« Licence seule », ou aucun groupe choisi) : onglet
         // dédié en fin de liste, et repris dans « Tous les groupes ».
         $groupesList[] = $this->buildGroupeSans($this->getAdherentsSansGroupe($idCampagne));
 
-        $this->enrichirBrevetsShortList($groupesList);
-
-        array_unshift($groupesList, $this->buildGroupeTous($groupesList));
-
         return $groupesList;
+    }
+
+    /**
+     * Requête de base des adhérents ayant souscrit à la saison sans être inscrits à aucun groupe
+     * publié (sans SELECT), partagée par la liste et le compteur de l'onglet « Sans groupe ».
+     *
+     * @param int $idCampagne Identifiant de la campagne (saison courante).
+     * @return QueryInterface Requête sur `#__gda_souscriptions` (alias s) et `#__gda_profils` (alias p).
+     */
+    private function getRequeteSansGroupe(int $idCampagne): QueryInterface
+    {
+        $db = $this->getDatabase();
+
+        $inscritAUnGroupe = $db->createQuery()
+            ->select('1')
+            ->from($db->quoteName('#__gda_composition_groupes', 'cg'))
+            ->join('INNER', $db->quoteName('#__gda_groupes', 'g'), $db->quoteName('g.id_groupe') . ' = ' . $db->quoteName('cg.id_groupe'))
+            ->where($db->quoteName('cg.id_profil') . ' = ' . $db->quoteName('s.id_profil'))
+            ->where($db->quoteName('cg.id_campagne') . ' = ' . $db->quoteName('s.id_campagne'))
+            ->where($db->quoteName('g.published') . ' = 1');
+
+        return $db->createQuery()
+            ->from($db->quoteName('#__gda_souscriptions', 's'))
+            ->join('INNER', $db->quoteName('#__gda_profils', 'p'), $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('s.id_profil'))
+            ->where($db->quoteName('s.id_campagne') . ' = :id_campagne')
+            ->where('NOT EXISTS (' . $inscritAUnGroupe . ')')
+            ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER);
     }
 
     /**
@@ -154,15 +278,7 @@ class GroupesModel extends ListModel
     {
         $db = $this->getDatabase();
 
-        $inscritAUnGroupe = $db->createQuery()
-            ->select('1')
-            ->from($db->quoteName('#__gda_composition_groupes', 'cg'))
-            ->join('INNER', $db->quoteName('#__gda_groupes', 'g'), $db->quoteName('g.id_groupe') . ' = ' . $db->quoteName('cg.id_groupe'))
-            ->where($db->quoteName('cg.id_profil') . ' = ' . $db->quoteName('s.id_profil'))
-            ->where($db->quoteName('cg.id_campagne') . ' = ' . $db->quoteName('s.id_campagne'))
-            ->where($db->quoteName('g.published') . ' = 1');
-
-        $query = $db->createQuery()
+        $query = $this->getRequeteSansGroupe($idCampagne)
             ->select($db->quoteName([
                 'p.id_profil',
                 'p.civilite',
@@ -174,12 +290,7 @@ class GroupesModel extends ListModel
                 'p.date_licence',
                 's.cotisation_code',
             ]))
-            ->from($db->quoteName('#__gda_souscriptions', 's'))
-            ->join('INNER', $db->quoteName('#__gda_profils', 'p'), $db->quoteName('p.id_profil') . ' = ' . $db->quoteName('s.id_profil'))
-            ->where($db->quoteName('s.id_campagne') . ' = :id_campagne')
-            ->where('NOT EXISTS (' . $inscritAUnGroupe . ')')
-            ->order($db->quoteName(['p.nom', 'p.prenom']))
-            ->bind(':id_campagne', $idCampagne, ParameterType::INTEGER);
+            ->order($db->quoteName(['p.nom', 'p.prenom']));
 
         $db->setQuery($query);
 

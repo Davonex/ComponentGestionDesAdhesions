@@ -77,9 +77,13 @@ if ($this->peutModifierGroupes) {
         <?php // Sur téléphone, les onglets empilés occupent tout l'écran : une liste déroulante les remplace et pilote les mêmes onglets (groupes.js). ?>
         <select class="form-select d-md-none mb-2" id="groupesSelect" aria-label="<?= $this->escape(Text::_('COM_GDA_GROUPES_SELECT_LABEL')) ?>">
             <?php foreach ($groupes as $index => $groupe) : ?>
-                <?php $count = count($groupe->adherents); ?>
-                <option value="groupe-tab-<?= $groupe->id_groupe ?>" data-count="<?= $count ?>"<?= $index === 0 ? ' selected' : '' ?>>
-                    <?= $this->escape($groupe->id_groupe === GroupesModel::ID_GROUPE_TOUS ? Text::_('COM_GDA_GROUPES_ALL_TAB') : $groupe->groupe_name) ?> (<?= $count ?>)
+                <?php $libelle = $groupe->id_groupe === GroupesModel::ID_GROUPE_TOUS ? Text::_('COM_GDA_GROUPES_ALL_TAB') : $groupe->groupe_name; ?>
+                <option
+                    value="groupe-tab-<?= $groupe->id_groupe ?>"
+                    data-id-groupe="<?= $groupe->id_groupe ?>"
+                    data-libelle="<?= $this->escape($libelle) ?>"
+                    data-count="<?= $groupe->nb_adherents ?>"<?= $index === 0 ? ' selected' : '' ?>>
+                    <?= $this->escape($libelle) ?> (<?= $groupe->nb_adherents ?>)
                 </option>
             <?php endforeach; ?>
         </select>
@@ -89,9 +93,8 @@ if ($this->peutModifierGroupes) {
                 <?php
                 $tabId = 'groupe-tab-' . $groupe->id_groupe;
                 $paneId = 'groupe-pane-' . $groupe->id_groupe;
-                $count = count($groupe->adherents);
                 ?>
-                <li class="nav-item gda-groupes-tab-item" role="presentation" data-count="<?= $count ?>">
+                <li class="nav-item gda-groupes-tab-item" role="presentation" data-id-groupe="<?= $groupe->id_groupe ?>" data-count="<?= $groupe->nb_adherents ?>">
                     <button
                         class="nav-link<?= $index === 0 ? ' active' : '' ?>"
                         id="<?= $tabId ?>"
@@ -105,7 +108,7 @@ if ($this->peutModifierGroupes) {
                             <i class="fa-solid <?= $this->escape($groupe->icon) ?> me-1" aria-hidden="true"></i>
                         <?php endif; ?>
                         <?= $this->escape($groupe->id_groupe === GroupesModel::ID_GROUPE_TOUS ? Text::_('COM_GDA_GROUPES_ALL_TAB') : $groupe->groupe_name) ?>
-                        <span class="badge bg-secondary ms-1"><?= $count ?></span>
+                        <span class="badge bg-secondary ms-1 js-groupe-compteur"><?= $groupe->nb_adherents ?></span>
                     </button>
                 </li>
             <?php endforeach; ?>
@@ -118,23 +121,11 @@ if ($this->peutModifierGroupes) {
                     class="tab-pane fade<?= $index === 0 ? ' show active' : '' ?>"
                     id="<?= $paneId ?>"
                     role="tabpanel"
-                    aria-labelledby="groupe-tab-<?= $groupe->id_groupe ?>">
-
-                    <div class="d-none d-md-flex justify-content-end mb-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary js-groupe-export-pdf" data-target="#<?= $paneId ?> table">
-                            <i class="fa-solid fa-file-pdf me-1" aria-hidden="true"></i><?= Text::_('COM_GDA_GROUPES_EXPORT_PDF') ?>
-                        </button>
-                    </div>
-
-                    <div class="gda-groupes-view gda-groupes-view--detail d-none" data-view-mode="detail">
-                        <?= LayoutHelper::render('groupes.detail', [
-                            'groupe'              => $groupe,
-                            'showGroupes'         => $groupe->id_groupe <= GroupesModel::ID_GROUPE_TOUS,
-                            'peutModifierGroupes' => $this->peutModifierGroupes,
-                        ]) ?>
-                    </div>
-                    <div class="gda-groupes-view gda-groupes-view--vignette" data-view-mode="vignette">
-                        <?= LayoutHelper::render('groupes.vignette', ['groupe' => $groupe]) ?>
+                    aria-labelledby="groupe-tab-<?= $groupe->id_groupe ?>"
+                    data-id-groupe="<?= $groupe->id_groupe ?>">
+                    <?php // Contenu (layout groupes.onglet) chargé en ajax à l'ouverture de l'onglet par groupes.js. ?>
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-success" role="status"><span class="visually-hidden"><?= Text::_('COM_GDA_GROUPES_CHARGEMENT') ?></span></div>
                     </div>
                 </div>
             <?php endforeach; ?>

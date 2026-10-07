@@ -52,9 +52,12 @@ class AdhesionStatusHelper
      * Logique prioritaire : pas de souscription → CACI → Paiement → Licence → Complété
      *
      * @param object|null $souscription Objet souscription ou null
+     * @param bool        $forceRefresh true = paiement recherché en direct sur HelloAsso (vue d'un
+     *                                  seul adhérent), false = cache de 30 minutes accepté (listes :
+     *                                  vue Utilisateurs, export Excel). Voir SouscriptionService::resolveIdOrder().
      * @return string Code du statut
      */
-    public static function getStatusEnum(?object $souscription): string
+    public static function getStatusEnum(?object $souscription, bool $forceRefresh = true): string
     {
         // Pas de souscription
         if ($souscription === null) {
@@ -73,7 +76,7 @@ class AdhesionStatusHelper
             // id_order pas encore connu localement : on tente de le retrouver sur HelloAsso
             // (ex: paiement effectué mais webhook/retour HelloAsso pas encore traité)
             if ($souscription->id_order === "0" || empty($souscription->id_order)) {
-                $souscription->id_order = self::resolveIdOrder($souscription);
+                $souscription->id_order = self::resolveIdOrder($souscription, $forceRefresh);
             }
 
             if ($souscription->id_order === "0" || empty($souscription->id_order)) {
@@ -96,9 +99,10 @@ class AdhesionStatusHelper
      * (recherche par username) et le persiste dans #__gda_souscriptions si trouvé.
      *
      * @param object $souscription Objet souscription (id_profil, id_campagne, id_order, username)
+     * @param bool   $forceRefresh true = appel HelloAsso direct, false = cache de 30 minutes accepté.
      * @return string L'id_order résolu, ou '0'/vide si toujours introuvable
      */
-    private static function resolveIdOrder(object $souscription): string
+    private static function resolveIdOrder(object $souscription, bool $forceRefresh = true): string
     {
         $db = Factory::getContainer()->get(DatabaseInterface::class);
 
@@ -106,7 +110,8 @@ class AdhesionStatusHelper
             (int) ($souscription->id_profil ?? 0),
             (int) ($souscription->id_campagne ?? 0),
             (string) ($souscription->id_order ?? '0'),
-            (string) ($souscription->username ?? '')
+            (string) ($souscription->username ?? ''),
+            $forceRefresh
         );
     }
 

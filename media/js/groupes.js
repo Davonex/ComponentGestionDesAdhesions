@@ -35,6 +35,12 @@ document.addEventListener('DOMContentLoaded', function () {
   const dataTableInstances = new Map();
 
   /**
+   * Mode d'affichage courant (detail / vignette), applique a chaque onglet charge en ajax.
+   * Vignettes par defaut (bouton actif dans le template).
+   */
+  let modeAffichage = 'vignette';
+
+  /**
    * Initialise (une seule fois) la DataTable d'un onglet groupe.
    *
    * @param {HTMLElement} pane Le panneau .tab-pane du groupe.
@@ -60,60 +66,143 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   /**
-   * Indique si la vue detail (tableau) est actuellement affichee (non masquee par le mode vignette).
+   * Libere la DataTable d'un volet avant le remplacement de son contenu.
+   *
+   * @param {HTMLElement} pane Le panneau .tab-pane du groupe.
+   * @returns {void}
+   */
+  const oublierDataTable = function (pane) {
+    dataTableInstances.forEach(function (instance, table) {
+      if (pane.contains(table)) {
+        instance.destroy();
+        dataTableInstances.delete(table);
+      }
+    });
+  };
+
+  /**
+   * Indique si la vue detail (tableau) est le mode d'affichage courant.
    *
    * @returns {boolean}
    */
   const isDetailModeActive = function () {
-    const detailView = document.querySelector('.gda-groupes-view--detail');
-
-    return !!detailView && !detailView.classList.contains('d-none');
+    return modeAffichage === 'detail';
   };
 
-  // Initialise la table du premier onglet, seulement si la vue detail est affichee par defaut
-  // (un tableau cache par le mode vignette ou par un onglet inactif fausse les largeurs de colonnes).
-  const activePane = document.querySelector('#groupesTabContent .tab-pane.active');
+  /**
+   * Applique le mode d'affichage courant aux vues d'un volet, et initialise sa DataTable en mode
+   * detail (un tableau cache par le mode vignette ou par un onglet inactif fausse les largeurs).
+   *
+   * @param {HTMLElement} pane Le panneau .tab-pane du groupe.
+   * @returns {void}
+   */
+  const appliquerModeAffichage = function (pane) {
+    pane.querySelectorAll('.gda-groupes-view').forEach(function (view) {
+      view.classList.toggle('d-none', view.dataset.viewMode !== modeAffichage);
+    });
 
-  if (isDetailModeActive()) {
-    initGroupeTable(activePane);
-  }
+    if (isDetailModeActive() && pane.classList.contains('active')) {
+      initGroupeTable(pane);
+    }
+  };
 
-  // Initialise la table d'un onglet a sa premiere ouverture en mode detail (les tableaux caches faussent les largeurs de colonnes).
+  /**
+   * Charge (ou recharge) en ajax le contenu d'un onglet : vues Detail et Vignette du groupe
+   * (task groupes.onglet, layout groupes.onglet).
+   *
+   * @param {HTMLElement} pane Le panneau .tab-pane du groupe (data-id-groupe).
+   * @returns {void}
+   */
+  const chargerOnglet = function (pane) {
+    if (!pane || pane.dataset.chargement === '1') {
+      return;
+    }
+
+    pane.dataset.chargement = '1';
+
+    const ajaxData = {
+      task: 'groupes.onglet',
+      id_groupe: pane.dataset.idGroupe || '0'
+    };
+    const csrfTokenName = Joomla.getOptions('csrf.token');
+
+    if (csrfTokenName) {
+      ajaxData[csrfTokenName] = 1;
+    }
+
+    simpleCallAjax(ajaxData, function (response) {
+      oublierDataTable(pane);
+      pane.innerHTML = decodeURIComponent(escape(atob(response.data.html)));
+      pane.dataset.charge = '1';
+      delete pane.dataset.chargement;
+      appliquerModeAffichage(pane);
+    }, false, function (response) {
+      delete pane.dataset.chargement;
+
+      const alerte = document.createElement('div');
+      alerte.className = 'alert alert-danger';
+      alerte.textContent = (response && response.message) || 'Erreur inconnue';
+      pane.replaceChildren(alerte);
+    });
+  };
+
+  /**
+   * Affiche un onglet : le charge s'il ne l'est pas encore ou s'il est perime (modification d'un
+   * adherent depuis), sinon applique le mode d'affichage courant.
+   *
+   * @param {HTMLElement|null} pane Le panneau .tab-pane du groupe.
+   * @returns {void}
+   */
+  const afficherOnglet = function (pane) {
+    if (!pane) {
+      return;
+    }
+
+    if (pane.dataset.charge !== '1') {
+      chargerOnglet(pane);
+    } else {
+      appliquerModeAffichage(pane);
+    }
+  };
+
+  const getVoletActif = function () {
+    return document.querySelector('#groupesTabContent .tab-pane.active');
+  };
+
   document.querySelectorAll('#groupesTabNav button[data-bs-toggle="tab"]').forEach(function (tabButton) {
     tabButton.addEventListener('shown.bs.tab', function (event) {
-      if (!isDetailModeActive()) {
-        return;
-      }
-
       const targetSelector = event.target.getAttribute('data-bs-target');
-      const pane = targetSelector ? document.querySelector(targetSelector) : null;
 
-      initGroupeTable(pane);
+      afficherOnglet(targetSelector ? document.querySelector(targetSelector) : null);
     });
   });
 
   /**
-   * Bascule l'affichage des onglets sans adherent.
+   * Bascule l'affichage des onglets sans adherent. Reevalue tous les onglets : les compteurs
+   * changent apres une modification des groupes d'un adherent.
    *
    * @param {boolean} hiding Masquer (true) ou reafficher (false) les groupes vides.
    * @returns {void}
    */
   const applyHideEmptyGroups = function (hiding) {
-    const emptyTabItems = document.querySelectorAll('#groupesTabNav .gda-groupes-tab-item[data-count="0"]');
     let activeTabHidden = false;
 
-    emptyTabItems.forEach(function (tabItem) {
-      tabItem.classList.toggle('d-none', hiding);
+    document.querySelectorAll('#groupesTabNav .gda-groupes-tab-item').forEach(function (tabItem) {
+      const masquer = hiding && tabItem.dataset.count === '0';
 
-      if (hiding && tabItem.querySelector('.nav-link.active')) {
+      tabItem.classList.toggle('d-none', masquer);
+
+      if (masquer && tabItem.querySelector('.nav-link.active')) {
         activeTabHidden = true;
       }
     });
 
     // Meme filtre sur la liste deroulante mobile ; disabled en plus de hidden car Safari iOS ignore hidden sur <option>.
-    document.querySelectorAll('#groupesSelect option[data-count="0"]').forEach(function (option) {
-      option.hidden = hiding;
-      option.disabled = hiding;
+    document.querySelectorAll('#groupesSelect option').forEach(function (option) {
+      const masquer = hiding && option.dataset.count === '0';
+
+      option.hidden = masquer;
+      option.disabled = masquer;
     });
 
     // Si l'onglet actif vient d'etre masque, on bascule sur le premier onglet visible.
@@ -159,6 +248,47 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // Chargement de l'onglet affiche a l'ouverture de la page (les autres le sont a leur ouverture).
+  afficherOnglet(getVoletActif());
+
+  /**
+   * Reporte les nouveaux compteurs des onglets (barre d'onglets et liste deroulante) apres une
+   * modification des groupes d'un adherent, et marque tous les onglets comme perimes : chacun sera
+   * recharge a sa prochaine ouverture. L'onglet courant garde son affichage (ligne deja mise a jour).
+   *
+   * @param {Array<{id_groupe: number, nb: number}>} comptes Compteurs renvoyes par groupes.updateGroupesAdherent.
+   * @returns {void}
+   */
+  const mettreAJourCompteurs = function (comptes) {
+    comptes.forEach(function (compte) {
+      const idGroupe = String(compte.id_groupe);
+      const nb = String(compte.nb);
+      const tabItem = document.querySelector('#groupesTabNav .gda-groupes-tab-item[data-id-groupe="' + idGroupe + '"]');
+      const option = document.querySelector('#groupesSelect option[data-id-groupe="' + idGroupe + '"]');
+
+      if (tabItem) {
+        tabItem.dataset.count = nb;
+
+        const badge = tabItem.querySelector('.js-groupe-compteur');
+
+        if (badge) {
+          badge.textContent = nb;
+        }
+      }
+
+      if (option) {
+        option.dataset.count = nb;
+        option.textContent = (option.dataset.libelle || '') + ' (' + nb + ')';
+      }
+    });
+
+    document.querySelectorAll('#groupesTabContent .tab-pane').forEach(function (pane) {
+      pane.dataset.charge = '0';
+    });
+
+    applyHideEmptyGroups(switchHideEmpty ? switchHideEmpty.checked : false);
+  };
+
   /**
    * Bascule le mode d'affichage (detail / vignette) pour tous les onglets.
    */
@@ -166,9 +296,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const btnDisplayVignette = document.getElementById('btnGroupesDisplayVignette');
 
   const setDisplayMode = function (mode) {
-    document.querySelectorAll('.gda-groupes-view').forEach(function (view) {
-      view.classList.toggle('d-none', view.dataset.viewMode !== mode);
-    });
+    modeAffichage = mode;
 
     if (btnDisplayDetail) {
       btnDisplayDetail.classList.toggle('active', mode === 'detail');
@@ -178,11 +306,9 @@ document.addEventListener('DOMContentLoaded', function () {
       btnDisplayVignette.classList.toggle('active', mode === 'vignette');
     }
 
-    // Bascule vers le detail : initialise la DataTable de l'onglet actif si ce n'est pas deja fait
-    // (jusque-la elle etait masquee par le mode vignette, donc jamais initialisee).
-    if (mode === 'detail') {
-      initGroupeTable(document.querySelector('#groupesTabContent .tab-pane.active'));
-    }
+    // L'onglet courant est recharge s'il est perime (sa vue Vignette n'a pas suivi une modification
+    // faite dans la vue Detail) ; les autres appliqueront le mode a leur ouverture.
+    afficherOnglet(getVoletActif());
   };
 
   if (btnDisplayDetail) {
@@ -363,6 +489,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     simpleCallAjax(ajaxData, function (response) {
       remplacerCelluleGroupes(cellule, decodeURIComponent(escape(atob(response.data.html))));
+      mettreAJourCompteurs(response.data.comptes || []);
     }, true, function () {
       affichage.classList.remove('opacity-50');
     });

@@ -1,5 +1,15 @@
 # Component com_gadhesions
 
+## Version 1.0.7
+
+- 📰 Nouveautés
+  - Page `Utilisateurs`, onglet Profils : export Excel des adhérents affichés, avec le choix des colonnes.
+
+- 📈 Améliorations
+  - Chaque onglets du groupe est chargée à l'ouverture. ce qui permet de prendre en compte les changements sans recharger la page.
+  - Optiisation des appels HelloAsso. Pour les vues User et Secretariat, il y a un cache de 30 min.
+  Pour la Vue secretariat, il existe un bouton rafrachir
+
 ## Version 1.0.6
 
 - 📰 Nouveautés  

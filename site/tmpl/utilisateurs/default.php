@@ -33,6 +33,10 @@ $wa->useStyle('simple-datatables');
 
 $wa->useScript('com_gdadhesions.utilisateurs');
 
+Text::script('COM_GDA_UTILISATEURS_EXPORT_AUCUN_CHAMP');
+Text::script('COM_GDA_UTILISATEURS_EXPORT_AUCUNE_LIGNE');
+Text::script('COM_GDA_UTILISATEURS_EXPORT_NB_LIGNES');
+
 /** @var array $utilisateurs */
 $utilisateurs = $this->utilisateurs;
 
@@ -78,6 +82,11 @@ $clubGroups = [
                     <?php endforeach; ?>
                 </select>
             </div>
+            <button type="button" class="btn btn-sm btn-outline-success ms-auto js-export-profils"
+                data-bs-toggle="modal" data-bs-target="#exportProfilsModal">
+                <i class="fa-solid fa-file-excel me-1" aria-hidden="true"></i>
+                <?= Text::_('COM_GDA_UTILISATEURS_EXPORT_BUTTON') ?>
+            </button>
         </div>
 
         <ul class="nav nav-tabs" id="utilisateursTabNav" role="tablist">
@@ -188,6 +197,12 @@ $clubGroups = [
                 </div>
             </div>
         </div>
+
+        <!-- Popup d'export Excel de l'onglet Profils (lignes filtrées, colonnes au choix) -->
+        <?= LayoutHelper::render('utilisateurs.export_modal', [
+            'champs' => $this->champsExport,
+            'itemId' => $this->itemId,
+        ]) ?>
     <?php endif; ?>
 
     <!-- Modal de prévisualisation de la photo / du CACI -->

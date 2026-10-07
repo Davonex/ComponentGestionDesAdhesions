@@ -322,23 +322,27 @@ final class SouscriptionService
 
     /**
      * Résout un id_order manquant en interrogeant HelloAsso par username, et persiste
-     * le résultat dans #__gda_souscriptions si une commande est trouvée. Recherche toujours en
-     * direct (sans le cache de 30 minutes de HelloAssoService::getFormsOrders()) : l'adhérent
-     * consulte son statut d'adhésion ou son détail de paiement juste après avoir payé, et ne doit
-     * pas attendre le TTL du cache pour voir son paiement détecté (même motif que
-     * ReservationService::resolveIdOrder(), pour les réservations de campagne).
+     * le résultat dans #__gda_souscriptions si une commande est trouvée.
+     *
+     * Par défaut, recherche en direct (sans le cache de 30 minutes de
+     * HelloAssoService::getFormsOrders()) : l'adhérent consulte son statut d'adhésion ou son
+     * détail de paiement juste après avoir payé, et ne doit pas attendre le TTL du cache pour voir
+     * son paiement détecté (même motif que ReservationService::resolveIdOrder()). Les listes
+     * (vue Utilisateurs, export Excel) passent $forceRefresh = false : sans cela, chaque adhérent
+     * au paiement non rattaché relancerait le téléchargement complet des commandes du formulaire.
      *
      * Ne fait rien (retourne l'id_order tel quel) si l'id_order est déjà connu, si la
      * campagne n'a pas de formulaire HelloAsso configuré, ou si aucune commande n'est
      * trouvée pour ce username.
      *
-     * @param int    $idProfil   Identifiant du profil.
-     * @param int    $idCampagne Identifiant de la campagne.
-     * @param string $idOrder    id_order actuel ('0' ou vide si inconnu).
-     * @param string $username   Username Joomla à rechercher dans les commandes HelloAsso.
+     * @param int    $idProfil     Identifiant du profil.
+     * @param int    $idCampagne   Identifiant de la campagne.
+     * @param string $idOrder      id_order actuel ('0' ou vide si inconnu).
+     * @param string $username     Username Joomla à rechercher dans les commandes HelloAsso.
+     * @param bool   $forceRefresh true = appel HelloAsso direct, false = cache de 30 minutes accepté.
      * @return string L'id_order (inchangé si déjà connu ou introuvable, résolu sinon).
      */
-    public function resolveIdOrder(int $idProfil, int $idCampagne, string $idOrder, string $username): string
+    public function resolveIdOrder(int $idProfil, int $idCampagne, string $idOrder, string $username, bool $forceRefresh = true): string
     {
         if ($idOrder !== '0' && $idOrder !== '') {
             return $idOrder;
@@ -350,7 +354,7 @@ final class SouscriptionService
         }
 
         try {
-            $foundOrder = (new HelloAssoService())->findOrderByUsername($saison->formType, $saison->formSlug, $username, true);
+            $foundOrder = (new HelloAssoService())->findOrderByUsername($saison->formType, $saison->formSlug, $username, $forceRefresh);
         } catch (\Throwable $e) {
             // Ne doit jamais casser l'affichage du statut d'adhésion (ex: HelloAsso indisponible
             // ou mal configuré) : on se contente de journaliser et de garder l'id_order tel quel.

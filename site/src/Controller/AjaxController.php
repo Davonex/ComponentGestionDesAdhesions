@@ -56,6 +56,20 @@ abstract class AjaxController extends BaseController
     }
 
     /**
+     * Refuse la requête si l'utilisateur n'est ni Moniteur, ni Responsable de Groupe, ni membre
+     * du Bureau (vues Suivi et Groupes).
+     *
+     * @return void
+     * @throws \RuntimeException 403 si l'utilisateur n'encadre pas.
+     */
+    protected function guardEncadrant(): void
+    {
+        if (!UsersHelper::canViewMemberDetails()) {
+            throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
+        }
+    }
+
+    /**
      * Identifiant de la saison courante.
      *
      * @return int Identifiant de la campagne Saison courante.

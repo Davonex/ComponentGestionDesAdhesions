@@ -37,8 +37,8 @@ $reservationMultiple      = !empty($displayData['reservationMultiple']);
                 $suffixe = ' (' . Text::_('COM_GDA_RESERVATION_ROLE_COMPLET') . ')';
             }
         ?>
-          <option value="<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>">
-            <?= htmlspecialchars($role . $suffixe, ENT_QUOTES, 'UTF-8') ?>
+          <option value="<?= $this->escape($role) ?>">
+            <?= $this->escape($role . $suffixe) ?>
           </option>
         <?php endforeach; ?>
       </select>

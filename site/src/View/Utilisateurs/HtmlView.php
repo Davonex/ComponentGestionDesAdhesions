@@ -29,6 +29,12 @@ class HtmlView extends BaseHtmlView
         $model = $this->getModel();
         $this->utilisateurs = $model->getUtilisateurs();
 
+        // Popup d'export Excel de l'onglet Profils : colonnes proposées, et menu courant pour
+        // revenir sur cette page en cas d'erreur d'export.
+        $this->champsExport = $model->getChampsExport();
+        $menuActif = $app->getMenu()->getActive();
+        $this->itemId = $menuActif ? (int) $menuActif->id : 0;
+
         parent::display($tpl);
     }
 }

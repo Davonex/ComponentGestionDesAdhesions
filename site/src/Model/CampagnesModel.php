@@ -421,7 +421,7 @@ class CampagnesModel extends ListModel
 
     /**
      * Retourne les adhérents ayant réservé une place sur une campagne (hors saison), sous la même
-     * forme qu'un groupe issu de GroupesModel::getGroupesAvecAdherents() afin de pouvoir réutiliser
+     * forme qu'un groupe issu de GroupesModel::getOngletGroupe() afin de pouvoir réutiliser
      * tel quel les layouts groupes.detail / groupes.vignette pour l'onglet "Suivi des inscriptions".
      */
     function getInscritsCampagne(int $id_campagne, string $titre): object

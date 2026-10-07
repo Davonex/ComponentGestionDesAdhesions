@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       });
 
-      return { instance: instance, adhesionColumn: def.adhesionColumn, groupeColumn: def.groupeColumn };
+      return { id: def.id, instance: instance, adhesionColumn: def.adhesionColumn, groupeColumn: def.groupeColumn };
     })
     .filter(function (entry) { return entry !== null; });
 
@@ -577,6 +577,135 @@ document.addEventListener('DOMContentLoaded', function () {
       resetPasswordEmail.textContent = '';
       resetPasswordPhoto.src = '';
       resetPasswordPhoto.classList.add('d-none');
+    });
+  }
+
+  /**
+   * Export Excel de l'onglet Profils (popup #exportProfilsModal, layout utilisateurs.export_modal).
+   * Les lignes exportées sont celles retenues par les filtres et la recherche du tableau, toutes
+   * pages confondues : simple-datatables (v10) conserve dans _searchData les index des lignes
+   * correspondant aux recherches actives (_searchQueries), et dans row.attributes les attributs
+   * du <tr> d'origine (data-id-user). La sélection de colonnes est mémorisée dans le navigateur.
+   */
+  const exportModalEl = document.getElementById('exportProfilsModal');
+  const exportForm = document.getElementById('exportProfilsForm');
+  const profilsTable = dataTables.find(function (entry) { return entry.id === 'tableUtilisateursProfils'; });
+  const EXPORT_STORAGE_KEY = 'gda.utilisateurs.exportChamps';
+
+  /**
+   * Identifiants des comptes retenus par les filtres/recherche du tableau Profils.
+   * @returns {string[]}
+   */
+  const getIdsLignesFiltrees = function () {
+    if (!profilsTable) {
+      return [];
+    }
+
+    const dt = profilsTable.instance;
+    const lignes = dt._searchQueries && dt._searchQueries.length
+      ? dt._searchData.map(function (index) { return dt.data.data[index]; })
+      : dt.data.data;
+
+    return lignes
+      .map(function (ligne) { return ligne && ligne.attributes ? ligne.attributes['data-id-user'] : null; })
+      .filter(function (id) { return id; });
+  };
+
+  if (exportModalEl && exportForm) {
+    const champs = Array.from(exportForm.querySelectorAll('.js-export-champ'));
+    const erreurEl = exportForm.querySelector('.js-export-erreur');
+
+    const afficherErreur = function (message) {
+      erreurEl.textContent = message;
+      erreurEl.classList.toggle('d-none', !message);
+    };
+
+    // Case « tout cocher » d'un groupe : reflète l'état de ses colonnes (cochée / indéterminée).
+    const synchroniserGroupes = function () {
+      exportForm.querySelectorAll('.js-export-groupe').forEach(function (groupe) {
+        const casesGroupe = Array.from(groupe.querySelectorAll('.js-export-champ'));
+        const nbCochees = casesGroupe.filter(function (c) { return c.checked; }).length;
+        const toutCocher = groupe.querySelector('.js-export-tout-cocher');
+        toutCocher.checked = nbCochees === casesGroupe.length;
+        toutCocher.indeterminate = nbCochees > 0 && nbCochees < casesGroupe.length;
+      });
+    };
+
+    const memoriserChamps = function () {
+      try {
+        const coches = champs.filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+        localStorage.setItem(EXPORT_STORAGE_KEY, JSON.stringify(coches));
+      } catch (e) {
+        // Stockage indisponible (navigation privée...) : la sélection n'est simplement pas mémorisée.
+      }
+    };
+
+    exportModalEl.addEventListener('show.bs.modal', function () {
+      let memorises = null;
+
+      try {
+        memorises = JSON.parse(localStorage.getItem(EXPORT_STORAGE_KEY) || 'null');
+      } catch (e) {
+        memorises = null;
+      }
+
+      if (Array.isArray(memorises)) {
+        champs.forEach(function (c) { c.checked = memorises.includes(c.value); });
+      }
+
+      synchroniserGroupes();
+      afficherErreur('');
+
+      const nbLignes = getIdsLignesFiltrees().length;
+      exportForm.querySelector('.js-export-nb-lignes').textContent =
+        Joomla.Text._('COM_GDA_UTILISATEURS_EXPORT_NB_LIGNES').replace('%s', nbLignes);
+    });
+
+    exportForm.addEventListener('change', function (event) {
+      const target = event.target;
+
+      if (target.classList.contains('js-export-tout-cocher')) {
+        target.closest('.js-export-groupe').querySelectorAll('.js-export-champ').forEach(function (c) {
+          c.checked = target.checked;
+        });
+      }
+
+      synchroniserGroupes();
+      memoriserChamps();
+    });
+
+    exportForm.addEventListener('submit', function (event) {
+      const ids = getIdsLignesFiltrees();
+
+      if (!champs.some(function (c) { return c.checked; })) {
+        event.preventDefault();
+        afficherErreur(Joomla.Text._('COM_GDA_UTILISATEURS_EXPORT_AUCUN_CHAMP'));
+        return;
+      }
+
+      if (ids.length === 0) {
+        event.preventDefault();
+        afficherErreur(Joomla.Text._('COM_GDA_UTILISATEURS_EXPORT_AUCUNE_LIGNE'));
+        return;
+      }
+
+      afficherErreur('');
+
+      const conteneurIds = exportForm.querySelector('.js-export-ids');
+      conteneurIds.replaceChildren();
+
+      ids.forEach(function (id) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'ids[]';
+        input.value = id;
+        conteneurIds.appendChild(input);
+      });
+
+      // Téléchargement : la page reste affichée, on se contente de refermer la popup.
+      setTimeout(function () {
+        bootstrap.Modal.getOrCreateInstance(exportModalEl).hide();
+      }, 0);
     });
   }
 });

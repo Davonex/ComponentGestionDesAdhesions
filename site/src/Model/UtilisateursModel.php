@@ -22,6 +22,7 @@ use NCB\Component\Gda\Site\Helper\ConfHelper;
 use NCB\Component\Gda\Site\Helper\GdaLogger;
 use NCB\Component\Gda\Site\Helper\UsersHelper;
 use NCB\Component\Gda\Site\Service\BrevetService;
+use NCB\Component\Gda\Site\Service\ExportProfilsService;
 use NCB\Component\Gda\Site\Service\NotificationMailService;
 
 /**
@@ -43,6 +44,8 @@ class UtilisateursModel extends ListModel
     private ?BrevetService $brevetService = null;
 
     private ?NotificationMailService $notificationMailService = null;
+
+    private ?ExportProfilsService $exportProfilsService = null;
 
     /**
      * Liste des comptes déclarés (hors comptes d'administration Joomla, i.e. groupe "Super Users"),
@@ -132,8 +135,11 @@ class UtilisateursModel extends ListModel
         $souscriptionsByUser = $this->getSouscriptionsCourantes($userIds);
 
         foreach ($utilisateurs as $utilisateur) {
+            // Liste : cache HelloAsso de 30 minutes accepté (sinon un appel complet par adhérent
+            // au paiement non rattaché).
             $utilisateur->adhesion_status = AdhesionStatusHelper::getStatusEnum(
-                $souscriptionsByUser[(int) $utilisateur->id] ?? null
+                $souscriptionsByUser[(int) $utilisateur->id] ?? null,
+                false
             );
         }
 
@@ -148,6 +154,44 @@ class UtilisateursModel extends ListModel
         }
 
         return $utilisateurs;
+    }
+
+    /**
+     * Colonnes proposées dans la popup d'export Excel de l'onglet Profils, regroupées par domaine.
+     *
+     * @return array Groupes de colonnes (voir ExportProfilsService::getChampsDisponibles()).
+     */
+    public function getChampsExport(): array
+    {
+        return $this->getExportProfilsService()->getChampsDisponibles();
+    }
+
+    /**
+     * Construire le classeur Excel de l'onglet Profils.
+     *
+     * @param int[]    $idsProfils Identifiants des comptes à exporter (lignes filtrées à l'écran).
+     * @param string[] $champs     Clés des colonnes demandées.
+     * @return \Shuchkin\SimpleXLSXGen Classeur prêt à être téléchargé.
+     * @throws \InvalidArgumentException Si aucune colonne ou aucun profil valide n'est demandé.
+     * @throws \RuntimeException Si la requête échoue.
+     */
+    public function genererExportProfils(array $idsProfils, array $champs): \Shuchkin\SimpleXLSXGen
+    {
+        return $this->getExportProfilsService()->genererClasseur($idsProfils, $champs);
+    }
+
+    /**
+     * Getter pour obtenir le service d'export Excel (lazy loading, pas dans le conteneur DI).
+     *
+     * @return ExportProfilsService
+     */
+    private function getExportProfilsService(): ExportProfilsService
+    {
+        if ($this->exportProfilsService === null) {
+            $this->exportProfilsService = new ExportProfilsService($this->getDatabase());
+        }
+
+        return $this->exportProfilsService;
     }
 
     /**
