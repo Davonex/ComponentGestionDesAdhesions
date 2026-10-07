@@ -7,7 +7,7 @@
     <creationDate>2024-09-06</creationDate>
     <copyright>Neptune Club de Brunoy</copyright>
     <license>GNU General Public License version 2 or later; see LICENSE.txt</license>
-    <version>1.0.7</version>
+    <version>1.0.8</version>
     <description><![CDATA[COM_GDA_DESCRIPTION]]></description>
     <namespace path="src">NCB\Component\Gda</namespace>
 
@@ -46,6 +46,7 @@
         <folder>tmpl</folder>
         <folder>models</folder>
         <folder>layouts</folder>
+        <folder>libraries</folder>
     </files>
 
     <languages folder="language/fr-FR">

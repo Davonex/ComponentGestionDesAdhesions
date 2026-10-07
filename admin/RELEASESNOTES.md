@@ -1,5 +1,10 @@
 # Component com_gadhesions
 
+## Version 1.0.8
+
+- 🪲 Bugs
+  - Page `Utilisateurs` : l'export Excel ne fonctionnait pas après la mise à jour 1.0.7.
+
 ## Version 1.0.7
 
 - 📰 Nouveautés
